@@ -2,13 +2,14 @@
 //! compact token/binding summary; no tree or source is retained by this module.
 //! This resolves lexical names, not F# member overloads or inferred receiver types.
 use crate::syntax::{
-    Alias, AppliedAttribute, ArgumentSource, BindingTypeFact, CallArgumentContext, Declaration,
-    DeclaredParameterType, ExpressionTypeCandidate, ExpressionTypeRole, FunctionResultFact,
-    FunctionReturn, Import, IntrinsicLiteral, LiteralProjectionSpan, MatchBranch, MatchExpression,
-    MemberAccess, MethodCall, MethodDeclaration, ModuleScope, ParsedFile, PatternBinding,
-    PatternDeclaration, PipelineApplication, PipelineArgument, RecordExpression, RecordField,
-    RecordPatternBinding, RecordType, Token, TypeAlias, TypeSource, TypeUse, UncertainSpan,
-    UnconstrainedMember, UnionCasePayload,
+    Alias, AppliedAttribute, ArgumentSource, BindingTypeFact, CallArgumentContext,
+    CallArgumentNameCandidate, Declaration, DeclaredParameterType, ExpressionTypeCandidate,
+    ExpressionTypeRole, FunctionResultFact, FunctionReturn, Import, IntrinsicLiteral,
+    LiteralProjectionSpan, MatchBranch, MatchExpression, MemberAccess, MethodCall,
+    MethodDeclaration, ModuleScope, ParsedFile, PatternBinding, PatternDeclaration,
+    PipelineApplication, PipelineArgument, RecordExpression, RecordField, RecordPatternBinding,
+    RecordType, Token, TypeAlias, TypeSource, TypeUse, UncertainSpan, UnconstrainedMember,
+    UnionCasePayload,
 };
 use std::collections::{HashMap, HashSet};
 use std::{
@@ -56,6 +57,22 @@ fn method_argument_groups(node: Node<'_>) -> Vec<Node<'_>> {
         })
         .collect()
 }
+fn preceding_leaf(mut node: Node<'_>) -> Option<Node<'_>> {
+    loop {
+        if let Some(mut previous) = node.prev_sibling() {
+            if previous.is_extra() {
+                node = previous;
+                continue;
+            }
+            while let Some(child) = previous.child(previous.child_count().saturating_sub(1)) {
+                previous = child;
+            }
+            return Some(previous);
+        }
+        node = node.parent()?;
+    }
+}
+
 fn method_children(n: Node<'_>) -> Vec<Node<'_>> {
     children(n)
         .into_iter()
@@ -385,6 +402,8 @@ fn parse_impl_with_projection(source: &str, signature: bool, allow_projection: b
         non_value_tokens: Vec::new(),
         signature_independent_formals: Vec::new(),
         ordinary_function_formals: Vec::new(),
+        call_argument_name_candidates: Vec::new(),
+        function_value_heads: Vec::new(),
         record_types: Vec::new(),
         binding_types: Vec::new(),
         function_returns: Vec::new(),
@@ -473,6 +492,24 @@ fn parse_impl_with_projection(source: &str, signature: bool, allow_projection: b
     x.parsed.signature_independent_formals.dedup();
     x.parsed.ordinary_function_formals.sort_unstable();
     x.parsed.ordinary_function_formals.dedup();
+    x.parsed.function_value_heads.sort_unstable();
+    x.parsed.function_value_heads.dedup();
+    // Inline match repair also extracts roles from a separately parsed branch.
+    // If the two parses disagree about a callee, retain the possible label.
+    x.parsed
+        .call_argument_name_candidates
+        .sort_by_key(|c| c.token);
+    x.parsed
+        .call_argument_name_candidates
+        .dedup_by(|current, previous| {
+            if current.token != previous.token {
+                return false;
+            }
+            if current.callee != previous.callee {
+                previous.callee = None;
+            }
+            true
+        });
     x.parsed.qualifier_roots.sort_unstable();
     x.parsed.qualifier_roots.dedup();
     x.parsed.module_name_tokens.sort_unstable();
@@ -541,6 +578,8 @@ fn unavailable(source: &str, reason: &str) -> ParsedFile {
         non_value_tokens: Vec::new(),
         signature_independent_formals: Vec::new(),
         ordinary_function_formals: Vec::new(),
+        call_argument_name_candidates: Vec::new(),
+        function_value_heads: Vec::new(),
         record_types: Vec::new(),
         binding_types: Vec::new(),
         function_returns: Vec::new(),
@@ -1391,6 +1430,28 @@ impl Extractor<'_> {
                 d.top_level = false;
                 self.parsed.declarations.push(d);
             }
+            let map_token = |source_token: usize| {
+                let byte = summary.tokens[source_token].start;
+                (byte >= PREFIX.len())
+                    .then(|| self.token_by_start.get(&map(byte)).copied())
+                    .flatten()
+            };
+            self.parsed.function_value_heads.extend(
+                summary
+                    .function_value_heads
+                    .iter()
+                    .filter_map(|&t| map_token(t)),
+            );
+            for candidate in &summary.call_argument_name_candidates {
+                if let Some(token) = map_token(candidate.token) {
+                    self.parsed
+                        .call_argument_name_candidates
+                        .push(CallArgumentNameCandidate {
+                            token,
+                            callee: candidate.callee.and_then(map_token),
+                        });
+                }
+            }
             for (tokens, independent) in [
                 (&summary.ordinary_function_formals, false),
                 (&summary.signature_independent_formals, true),
@@ -1735,6 +1796,20 @@ impl Extractor<'_> {
             return;
         }
         for (left, body) in lefts.into_iter().zip(bodies.iter().copied()) {
+            if ordinary_source_function(node, self.source) {
+                let head = if left.kind() == "function_declaration_left" {
+                    method_children(left)
+                        .into_iter()
+                        .find(|n| n.kind() == "identifier")
+                } else if matches!(body.kind(), "fun_expression" | "long_identifier_or_op") {
+                    simple_pattern_name(left)
+                } else {
+                    None
+                };
+                if let Some(token) = head.and_then(|n| self.token(n)) {
+                    self.parsed.function_value_heads.push(token);
+                }
+            }
             if left.kind() == "function_declaration_left" {
                 for c in children(left) {
                     match c.kind() {
@@ -2093,6 +2168,101 @@ impl Extractor<'_> {
             complete,
         });
     }
+    /// The grammar associates `x=a+b` and `x=f a` differently from the
+    /// compiler. Locate the opening delimiter or comma before the identifier
+    /// instead of relying on the equality being the argument's root node.
+    fn extract_argument_name(&mut self, node: Node<'_>) {
+        let cs = method_children(node);
+        if cs.len() != 3 || raw(cs[1], self.source) != "=" {
+            return;
+        }
+        let mut left = cs[0];
+        while matches!(left.kind(), "long_identifier_or_op" | "long_identifier") {
+            let names = method_children(left);
+            let [only] = names.as_slice() else { return };
+            left = *only;
+        }
+        if left.kind() != "identifier" {
+            return;
+        }
+        let Some(token) = self.token(left) else {
+            return;
+        };
+        let Some(mut separator) = preceding_leaf(node) else {
+            return;
+        };
+        let optional = raw(separator, self.source) == "?";
+        if optional {
+            let Some(before) = preceding_leaf(separator) else {
+                return;
+            };
+            separator = before;
+        }
+        if !matches!(separator.kind(), "(" | "," | "[" | ".[") {
+            return;
+        }
+        let mut ancestor = separator.parent();
+        while let Some(group) = ancestor {
+            let head = match group.kind() {
+                "application_expression" | "generic_new_expression" => {
+                    let mut cursor = group.walk();
+                    if !group
+                        .children(&mut cursor)
+                        .any(|c| c.kind() == "(" && c.start_byte() <= separator.start_byte())
+                    {
+                        ancestor = group.parent();
+                        continue;
+                    }
+                    method_children(group).first().copied()
+                }
+                "paren_expression" | "list_expression" => {
+                    let Some(call) = group.parent() else { return };
+                    let parts = method_children(call);
+                    if call.kind() == "class_inherits_decl" {
+                        None
+                    } else if call.kind() == "application_expression"
+                        && parts.len() == 2
+                        && parts[1].id() == group.id()
+                    {
+                        let mut cursor = call.walk();
+                        if call.children(&mut cursor).any(|n| n.kind() == "(") {
+                            return; // A second, inner pair of parentheses groups the equality.
+                        }
+                        if group.kind() == "list_expression" {
+                            if parts[0].end_byte() != group.start_byte() {
+                                return;
+                            }
+                            None // Dotless indexer.
+                        } else {
+                            Some(parts[0])
+                        }
+                    } else {
+                        return;
+                    }
+                }
+                "index_expression" => None,
+                "array_expression" | "brace_expression" | "anon_record_expression" | "file" => {
+                    return
+                }
+                _ => {
+                    ancestor = group.parent();
+                    continue;
+                }
+            };
+            let callee = if optional {
+                None
+            } else {
+                head.filter(|n| n.kind() == "long_identifier_or_op")
+                    .and_then(|n| self.expression_name(n))
+                    .and_then(|(names, _)| names.last().copied())
+            };
+            self.parsed
+                .call_argument_name_candidates
+                .push(CallArgumentNameCandidate { token, callee });
+            return;
+        }
+    }
+
     fn expression_name(&self, node: Node<'_>) -> Option<(Vec<usize>, Option<u32>)> {
         let mut node = unwrap_expression(node);
         if node.has_error() || self.intersects_literal_island(node) {
@@ -2516,7 +2686,10 @@ impl Extractor<'_> {
                     self.extract_method_call(node);
                     self.extract_pipeline_application(node);
                 }
-                "infix_expression" => self.extract_pipeline_application(node),
+                "infix_expression" => {
+                    self.extract_argument_name(node);
+                    self.extract_pipeline_application(node);
+                }
                 "match_expression" => self.extract_match_expression(node),
                 "simple_type" | "generic_type" | "postfix_type" => self.extract_type_use(node),
                 "union_type_case" => self.extract_union_case(node),
@@ -7182,6 +7355,61 @@ type Factory =
         assert_eq!(p.tokens[binding(&p, 5, 35).token].line, 5);
         assert_eq!(p.tokens[binding(&p, 6, 8).token].line, 4);
     }
+    #[test]
+    fn argument_name_candidates_follow_call_slots_and_preserve_equality() {
+        let cases = [
+            ("C.M(x=x)", true),
+            ("C.M (x=x)", true),
+            ("C(x=x).M(x=x)", true),
+            ("C.M(false,x=x)", true),
+            ("C.M(false,x=x,y=x)", true),
+            ("C.M(?y=x,x=x)", true),
+            ("C.M(?x=x)", true),
+            ("C.M(x=x+1)", true),
+            ("C.M(x=id x)", true),
+            ("C.M((*c*)x=x)", true),
+            ("f(x=x)", false),
+            ("f (x=x)", false),
+            ("alias(x=x)", false),
+            ("Module.f(x=x)", false),
+            ("C.M((x=x))", false),
+            ("C.M((x)=x)", false),
+            ("index.[x=x]", true),
+            ("index[x=x]", true),
+            ("f [x=x]", false),
+            ("$\"{C.M(x=x)}\"", true),
+            ("(match x with | true -> C.M(x=x) | _ -> false)", true),
+        ];
+        for (body, ambiguous) in cases {
+            let source = format!("module Example\nmodule Module =\n    let f b=b\nlet f b=b\nlet alias=f\nlet caller x = {body}\n");
+            let p = parse(&source);
+            let byte = source
+                .rfind("x=x")
+                .or_else(|| source.rfind("x)=x"))
+                .or_else(|| source.rfind("x=id"))
+                .unwrap();
+            let left = p.tokens.iter().position(|t| t.start == byte).unwrap();
+            assert_eq!(
+                p.possible_named_argument(left),
+                ambiguous,
+                "{body}: {:?}",
+                p.call_argument_name_candidates
+            );
+        }
+
+        for (source, spelling) in [
+            ("type B(x:int)=class end\ntype C(x:int)=inherit B(x=x)", "x"),
+            ("let f ``x.y``=C.M(``x.y``=``x.y``)", "``x.y``"),
+            ("let f ``_``=C.M(``_``=``_``)", "``_``"),
+            ("module Example\nlet g b=b\nmodule B=\n    type g(x:int)=class end\nopen B\nlet f x=g(x=x)", "x"),
+        ] {
+            let p=parse(source);
+            let byte=source.rfind(&format!("{spelling}=")).unwrap();
+            let left=p.tokens.iter().position(|t|t.start==byte).unwrap();
+            assert!(p.possible_named_argument(left),"{source}: {:?}",p.call_argument_name_candidates);
+        }
+    }
+
     #[test]
     fn match_guards_and_interpolations() {
         let p=parse("module M\nlet f x =\n    match Some x with\n    | Some y when y > 0 -> $\"{y} {x}\"\n    | _ -> string x\n");

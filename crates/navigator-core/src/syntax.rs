@@ -372,6 +372,14 @@ pub struct RecordExpression {
     pub method_result_uses: Vec<usize>,
     pub argument: Option<CallArgumentContext>,
 }
+/// A bare identifier in an argument slot can name a callee parameter. The
+/// callee is retained only for syntactically simple function applications.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CallArgumentNameCandidate {
+    pub token: usize,
+    pub callee: Option<usize>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ParsedFile {
     pub tokens: Vec<Token>,
@@ -408,6 +416,12 @@ pub struct ParsedFile {
     /// A paired signature can still correlate these unless independently tagged.
     #[serde(default)]
     pub ordinary_function_formals: Vec<usize>,
+    #[serde(default)]
+    pub call_argument_name_candidates: Vec<CallArgumentNameCandidate>,
+    /// Source let-functions and simple value bindings which reify a function.
+    /// The written callee must still resolve to this exact declaration.
+    #[serde(default)]
+    pub function_value_heads: Vec<usize>,
     #[serde(default)]
     pub record_types: Vec<RecordType>,
     #[serde(default)]
@@ -834,6 +848,19 @@ pub fn parse(src: &str) -> ParsedFile {
             local_binding_scope: None,
         }]
     };
+    let call_argument_name_candidates = tokens
+        .windows(3)
+        .enumerate()
+        .filter_map(|(i, parts)| {
+            (parts[1].ident
+                && matches!(parts[0].text.as_str(), "(" | "," | "?" | "[")
+                && parts[2].text == "=")
+                .then_some(CallArgumentNameCandidate {
+                    token: i + 1,
+                    callee: None,
+                })
+        })
+        .collect();
     ParsedFile {
         tokens,
         declarations,
@@ -852,6 +879,8 @@ pub fn parse(src: &str) -> ParsedFile {
         non_value_tokens: Vec::new(),
         signature_independent_formals: Vec::new(),
         ordinary_function_formals: Vec::new(),
+        call_argument_name_candidates,
+        function_value_heads: Vec::new(),
         record_types: Vec::new(),
         binding_types: Vec::new(),
         function_returns: Vec::new(),
@@ -932,7 +961,107 @@ impl ParsedFile {
     pub fn declaration_at(&self, token: usize) -> Option<&Declaration> {
         self.declarations.iter().find(|d| d.token == token)
     }
+    /// An argument name has lexical identity only when the head is known to
+    /// be a source function value. A matching parameter name or lowercase
+    /// spelling alone cannot distinguish a function from a constructor.
+    pub fn possible_named_argument(&self, token: usize) -> bool {
+        let Ok(index) = self
+            .call_argument_name_candidates
+            .binary_search_by_key(&token, |c| c.token)
+        else {
+            return false;
+        };
+        !self.call_argument_name_candidates[index]
+            .callee
+            .is_some_and(|head| self.proven_function_value(head))
+    }
+
+    fn proven_function_value(&self, head: usize) -> bool {
+        if self.explicit_constructor_heads.contains(&head) || !self.binding_supported(head) {
+            return false;
+        }
+        let t = &self.tokens[head];
+        let qualifier = self.qualifier(head);
+        // Only a directly declared sibling module in this document supplies a
+        // qualified witness. Module abbreviations, receiver members and paths
+        // needing a project/import lookup stay unresolved here.
+        let declaration = if let Some(root) = qualifier.as_deref() {
+            let Some(owner) = self.module_at(head) else {
+                return false;
+            };
+            let module = format!("{owner}.{root}");
+            if root.contains('.')
+                || self.lexical_binding(head - 2).is_some()
+                || self.aliases.iter().any(|a| a.name == root)
+                || self
+                    .owned_types
+                    .iter()
+                    .any(|ty| ty.name.rsplit('.').next() == Some(root))
+                || !self
+                    .modules
+                    .iter()
+                    .any(|m| m.name == module && m.end <= t.start)
+            {
+                return false;
+            }
+            let mut declarations = self.declarations.iter().filter(|d| {
+                d.top_level
+                    && d.name == t.text
+                    && self.declaration_module(d) == Some(module.as_str())
+            });
+            let selected = declarations.next();
+            if declarations.next().is_some() {
+                return false;
+            }
+            selected
+        } else {
+            self.lexical_binding(head)
+        };
+        let Some(d) = declaration else { return false };
+        if !self.function_value_heads.contains(&d.token) && d.kind != "parameter" {
+            return false;
+        }
+        let is_name = |name: &str| name == t.text || qualifier.as_deref() == Some(name);
+        let after = self.tokens[d.token].start;
+        // An intervening open (including an attributed module which may
+        // auto-open) or a competing nominal/pattern binding can select a
+        // different head, even when the ordinary lexical lookup found d.
+        !self
+            .opens
+            .iter()
+            .any(|o| after < o.offset && o.offset < t.start && t.start < o.scope_end)
+            && !self.attributes.iter().any(|a| {
+                a.owner_kind == "module"
+                    && after < a.owner_end
+                    && a.owner_end <= t.start
+                    && t.start < a.scope_end
+            })
+            && !self.owned_types.iter().any(|s| {
+                after < s.start
+                    && s.start <= t.start
+                    && s.name.rsplit('.').next().is_some_and(is_name)
+            })
+            && !self
+                .pattern_declarations
+                .iter()
+                .any(|c| after < c.scope_start && c.scope_start <= t.start && is_name(&c.name))
+            && !self
+                .potential_bindings
+                .iter()
+                .any(|v| v.visible_start <= t.start && t.start < v.scope_end && is_name(&v.name))
+            && !self.uncertain.iter().any(|u| {
+                u.start <= t.start && t.start < u.end && u.name.as_deref().is_none_or(is_name)
+            })
+    }
+
     pub fn local_binding(&self, token: usize) -> Option<&Declaration> {
+        if self.possible_named_argument(token) {
+            return None;
+        }
+        self.lexical_binding(token)
+    }
+
+    fn lexical_binding(&self, token: usize) -> Option<&Declaration> {
         if !self.binding_supported(token) {
             return None;
         }
@@ -948,22 +1077,30 @@ impl ParsedFile {
             .filter(|d| d.name == t.text && d.visible_start <= t.start && t.start < d.scope_end)
             .max_by_key(|d| (d.depth, d.visible_start, self.tokens[d.token].start))
     }
+    fn qualifier_start(&self, token: usize) -> usize {
+        let mut first = token;
+        while first >= 2 && self.tokens[first - 1].text == "." && self.tokens[first - 2].ident {
+            first -= 2;
+        }
+        first
+    }
+
     pub fn qualifier(&self, token: usize) -> Option<String> {
-        if token < 2 || self.tokens[token - 1].text != "." {
-            return None;
-        }
-        let mut i = token;
-        let mut parts = Vec::new();
-        while i >= 2 && self.tokens[i - 1].text == "." && self.tokens[i - 2].ident {
-            parts.push(self.tokens[i - 2].text.clone());
-            i -= 2;
-        }
-        parts.reverse();
-        if parts.is_empty() {
-            None
-        } else {
-            Some(parts.join("."))
-        }
+        let first = self.qualifier_start(token);
+        (first < token).then(|| {
+            self.tokens[first..token]
+                .iter()
+                .step_by(2)
+                .map(|t| t.text.as_str())
+                .collect::<Vec<_>>()
+                .join(".")
+        })
+    }
+
+    pub fn module_value_use_range(&self, token: usize) -> Range {
+        let mut range = self.tokens[token].range();
+        range.start = self.tokens[self.qualifier_start(token)].range().start;
+        range
     }
 }
 

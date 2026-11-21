@@ -1475,6 +1475,9 @@ impl Workspace {
         parsed: &ParsedFile,
         token: usize,
     ) -> Result<Option<Symbol>> {
+        if parsed.possible_named_argument(token) {
+            return Ok(None);
+        }
         if parsed.explicit_constructor_heads.contains(&token) {
             // Explicit new enters the type namespace even when a local value
             // shares the written qualifier. Physical constructor routing is a

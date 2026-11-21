@@ -1056,6 +1056,9 @@ impl Workspace {
         )
     }
     fn resolve(&mut self, path: &str, p: &ParsedFile, token: usize) -> Result<Option<Symbol>> {
+        if p.possible_named_argument(token) {
+            return Ok(None);
+        }
         if Self::has_member_syntax(p, token) {
             if let Some(member) = self.member_binding(path, p, token)? {
                 return Ok(Some(member));
@@ -1750,6 +1753,15 @@ impl Workspace {
                             continue;
                         }
                     }
+                    if parsed.possible_named_argument(token) {
+                        complete = false;
+                        if trace {
+                            gap(
+                                json!({"path":path,"kind":"unproven-call-argument-name","range":parsed.tokens[token].range()}),
+                            );
+                        }
+                        continue;
+                    }
                     if is_record_field && Self::record_field_role_disjoint(&parsed, token)
                         || is_type && Self::type_reference_role_disjoint(&parsed, token)
                     {
@@ -1780,9 +1792,16 @@ impl Workspace {
                         let is_declaration = (path == found.path && token == found.token)
                             || path == symbol.path && parsed.tokens[token].range() == origin_range;
                         if equal && (include_decl || !is_declaration) {
-                            locations.push(
-                                json!({"uri":uri(&path),"range":parsed.tokens[token].range()}),
-                            );
+                            // FCS reports the written module qualification as part of a
+                            // value use's range, including an abbreviation such as A.x.
+                            let range = if !is_declaration
+                                && declaration.is_some_and(|d| d.top_level && d.kind == "value")
+                            {
+                                parsed.module_value_use_range(token)
+                            } else {
+                                parsed.tokens[token].range()
+                            };
+                            locations.push(json!({"uri":uri(&path),"range":range}));
                             if locations.len() >= 100_000 {
                                 complete = false;
                                 break;
@@ -1844,6 +1863,9 @@ impl Workspace {
         json!({"hover":{"markdown":markdown,"range":range,"isExternal":true},"contents":markdown,"ownership":"external","completeness":"exact","source":"metadata-catalog","symbol":symbol})
     }
     fn hover_native(&mut self, path: &str, p: &ParsedFile, token: usize) -> Result<Value> {
+        if p.possible_named_argument(token) {
+            return Ok(self.empty(true, "Call argument label identity is unproven"));
+        }
         if p.explicit_constructor_heads.contains(&token) {
             return Ok(self.empty(
                 true,
@@ -2316,6 +2338,120 @@ mod integration_tests {
         drop(ws);
         fs::remove_dir_all(path).unwrap();
     }
+    #[test]
+    fn qualified_equality_operand_uses_its_full_module_value_range() {
+        let (root, mut ws) = fixture();
+        let path = root.join("Main.fs");
+        fs::write(&path,"module Consumer\ntype C = static member M(x:bool)=x\nmodule A =\n    let x=0\nmodule Alias=A\nlet caller x = C.M(Alias.x=x)\n").unwrap();
+        let reply = ws
+            .dispatch(
+                "navigation/references",
+                &json!({"path":path,"line":3,"character":8}),
+            )
+            .unwrap();
+        assert_eq!(reply["completeness"], "exact", "{reply}");
+        assert_eq!(
+            reply["locations"][0]["range"],
+            json!({"start":{"line":5,"character":19},"end":{"line":5,"character":26}})
+        );
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn named_argument_labels_keep_partial_caller_references_and_revalidate_edits() {
+        let (root, mut ws) = fixture();
+        let path = root.join("Main.fs");
+        let source = |call: &str| {
+            format!("module Consumer\ntype C = static member M(x:bool)=x\nlet g b=b\nlet caller x = {call}\n")
+        };
+        let ordinary = source("g(x=x)");
+        let method = source("C.M(x=x)");
+        fs::write(&path, &ordinary).unwrap();
+        let query = |ws: &mut Workspace, text: &str, equality: bool, version: Option<i32>| {
+            let line = text.lines().last().unwrap();
+            let declaration = line.find(" x ").unwrap() + 1;
+            let left = line.rfind("(x=").unwrap() + 1;
+            let right = left + 2;
+            for column in [left, right] {
+                let answer = ws
+                    .dispatch(
+                        "navigation/definition",
+                        &json!({"path":path,"line":3,"character":column,"version":version}),
+                    )
+                    .unwrap();
+                if column == left && !equality {
+                    assert_eq!(answer["completeness"], "unavailable", "{answer}");
+                } else {
+                    assert_eq!(answer["completeness"], "exact", "{answer}");
+                    assert_eq!(
+                        answer["locations"][0]["range"]["start"],
+                        json!({"line":3,"character":declaration})
+                    );
+                }
+            }
+            for include in [false, true] {
+                let answer = ws.dispatch("navigation/references", &json!({"path":path,"line":3,"character":right,"includeDeclaration":include,"traceReferences":true,"version":version})).unwrap();
+                assert_eq!(
+                    answer["completeness"],
+                    if equality { "exact" } else { "unavailable" },
+                    "{answer}"
+                );
+                let mut actual: Vec<_> = answer["locations"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|loc| loc["range"]["start"]["character"].as_u64().unwrap() as usize)
+                    .collect();
+                actual.sort();
+                let mut expected = vec![right];
+                if equality {
+                    expected.push(left);
+                }
+                if include {
+                    expected.push(declaration);
+                }
+                expected.sort();
+                assert_eq!(actual, expected, "{answer}");
+                if !equality {
+                    assert_eq!(
+                        answer["proofGaps"]["examples"][0]["kind"],
+                        "unproven-call-argument-name"
+                    );
+                }
+            }
+        };
+        query(&mut ws, &ordinary, true, None);
+        ws.dispatch(
+            "document/open",
+            &json!({"path":path,"text":method,"version":1}),
+        )
+        .unwrap();
+        query(&mut ws, &method, false, Some(1));
+        ws.dispatch(
+            "document/change",
+            &json!({"path":path,"text":ordinary,"version":2}),
+        )
+        .unwrap();
+        query(&mut ws, &ordinary, true, Some(2));
+        assert!(ws
+            .dispatch(
+                "document/change",
+                &json!({"path":path,"text":method,"version":1})
+            )
+            .is_err());
+        query(&mut ws, &ordinary, true, Some(2));
+        ws.dispatch("document/close", &json!({"path":path}))
+            .unwrap();
+        drop(ws);
+        fs::write(&path, &method).unwrap();
+        let mut ws = Workspace::open(&json!({"root":root,"mode":"indexed"})).unwrap();
+        query(&mut ws, &method, false, None);
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn activation_and_open_documents_do_not_read_or_parse_sources() {
         let (path, mut ws) = fixture();
