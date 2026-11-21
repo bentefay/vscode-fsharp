@@ -2,6 +2,12 @@
 
 Updated 21 November 2026 for the initial import into `bentefay/vscode-fsharp`.
 
+Continuation handover: [HANDOVER.md](HANDOVER.md) is the entry point for the next
+agent, with a [copyable resume prompt](NEXT_AGENT_PROMPT.md). Protected toolchain
+setup and doctor have now passed; no fresh full native or editor test run is
+claimed. The signature-guard repair is preserved as an **unapplied, unvalidated
+patch**, while named-argument and local-cache changes remain design only.
+
 This repository contains the recovered Rust-first prototype: the native engine,
 VS Code adapter, development CLI, explicit project/metadata helpers, Nix setup,
 tests, and research evidence. It is work in progress with known semantic defects.
@@ -54,10 +60,12 @@ pending or accepted within a narrow test slice; this document takes precedence
 for the current release status.
 
 Fresh restoration checks parsed 769 JSON files strictly and syntax-checked 18
-CLI/harness JavaScript files. `cli/bin/run check` could not run because this
-workspace lacks Nix and the protected task-local toolchain. No toolchain or
-dependency-protection bypass was used, and no fresh native build/test pass is
-claimed.
+CLI/harness JavaScript files. At import time, `cli/bin/run check` could not run
+because this workspace lacked Nix and the protected task-local toolchain. The
+task-local toolchain has since been restored and protected setup/doctor passed;
+see [toolchain handover](handoff-toolchain.md). Full native/editor checks remain
+pending. No toolchain or dependency-protection bypass was used, and no fresh
+native build/test pass is claimed.
 
 The new parser-restoration helper passed 19 focused Node tests for exact output,
 repeat verification, modified files, compressed/expanded hashes and bounds,

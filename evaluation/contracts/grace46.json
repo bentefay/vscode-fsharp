@@ -1,0 +1,3196 @@
+{
+  "schemaVersion": 1,
+  "kind": "frozen-grace46-navigation-contract",
+  "corpus": {
+    "repository": "https://github.com/ScottArbeit/Grace",
+    "commit": "39960e07b73cd142cc0c1fd070c0591be91c1933",
+    "workspace": "src/Grace.Types",
+    "source_sha256": {
+      "src/Grace.Shared/Constants.Shared.fs": "4afd86f75a74213c6bcc4a65fa36c52e843cc22e21144f4e33edc26316019cf7",
+      "src/Grace.Shared/Utilities.Shared.fs": "0ba341b274e562e437051fceafee3f5bf015781510ff27d6f3fc40ba439fca88",
+      "src/Grace.Types/Annotation.Types.fs": "1eefa819eab3b3c2d9c15db6216e0df94c02dff97792c1a810b1152a9ba144e9",
+      "src/Grace.Types/Artifact.Types.fs": "01fd82213e49d51da15bd188b52de26ecb344b36cdb459513401eef92fd37c96",
+      "src/Grace.Types/ArtifactGrant.Types.fs": "147656a5a0479b1b868378340c081a606f212419bd002db57959a805214774af",
+      "src/Grace.Types/Branch.Types.fs": "668c4ff87aad037331708a23f59bf9642c26afafb6a502917fe73cb7c09ff321",
+      "src/Grace.Types/Common.Types.fs": "3a2df910848afc3affee065bf7ace0c054a219d5f6cb160601083f39957b312c",
+      "src/Grace.Types/ContentBlockMetadata.Types.fs": "8b96de26c296267e760ad39c3466a6d6bf30fd6dcfccd9b83e189b026d75f0d3",
+      "src/Grace.Types/Events.Types.fs": "60889a5e3d1cfc176ddffb7d5868d1eb0098036d7a8fdf52138714ff1938f089",
+      "src/Grace.Types/Library.Types.fs": "2826d642f72afabc0a71bc36a8077df68afb646a98b3d088edffd0cd12da664a",
+      "src/Grace.Types/ManifestContributionAccounting.Types.fs": "fb4b0954a1c83731824c19c3220cc85ddba5abee02667446756bf6d3e57029e1",
+      "src/Grace.Types/Policy.Types.fs": "e807c23b6031f0f4f485300c6297615c438b1f6584646f1708235505a1809476",
+      "src/Grace.Types/Queue.Types.fs": "e0339abd575b8bac390237afb61f9c1cd2ad63f5de2d6e69ea87cf9ce88143c1",
+      "src/Grace.Types/Reference.Types.fs": "3e9b0c813d56c93346c70f88259cdb5a5673c4caba3d2061b9a5058210955316",
+      "src/Grace.Types/Reminder.Types.fs": "4160044bea563156249db8a18aa74053fcad9d0713c263fa9883bc04cea55276",
+      "src/Grace.Types/Repository.Types.fs": "b272b698bfee678a041065cb4b074c42d2a340413f0567cc4ec213715be5c690",
+      "src/Grace.Types/Review.Types.fs": "d857162e611cb7dccf0ae9aa56186c4c7e6220e240b86fec78609db0931d0e60",
+      "src/Grace.Types/Usage.Types.fs": "65f534e4cc9acdb6cac48b9c655aa6142675fb0e27b1c69c0fc0ddfe1c7a7369",
+      "src/Grace.Types/Validation.Types.fs": "9c962028d03a9307c96eee3af5ed123e6d4d38636c9f04f5aa693837c5f47898",
+      "src/Grace.Types/WorkItem.Types.fs": "0cea2c93768790618955a17295af12594221626acc70ad20687fad6097b4d9d2"
+    }
+  },
+  "provenance": {
+    "canonical_capture": "evaluation/results/recovery-grace-goldens46-corrected.json",
+    "canonical_capture_sha256": "3137e49a082d6768536dd957f9904c92e22a1d5b8de30cde367de5cdac43f29a",
+    "semantic_export_sha256": "9fb93feeeed93c79506d3a969dc078737a5da733caad25ad3ad5854367318791",
+    "evaluated_model_sha256": "2cd112d92fa5710625af09af84a7e45f762b1e7d711a99227e3fa80da03c519d",
+    "selector": "evaluation/select_grace_samples.py",
+    "selector_sha256": "17448b1df2b55faeab513b86e7b8448060c3646840e11522a26b4b4842d17460",
+    "direct_alias_reference_capture_sha256": "0ad9094406dd1ee768e5140cbd93db025c22bf0bb5246497168144717d1a601b",
+    "actual_fsac_validation_capture_sha256": "f5ea087690c94dfaf19a29f7cc8404ff0019f6bfd5e6a7c41884e876dc850406",
+    "evidence_status": "Historical compiler/FSAC observations from the restored source checkpoint; this contract extraction is not a fresh semantic execution."
+  },
+  "expected_source_sites": 23,
+  "expected_operations": 46,
+  "includeDeclaration": true,
+  "selection": {
+    "seed": "fsharp-navigator-public-grace-v1",
+    "selection": "First6SHA256-ranked syntactic candidates per fixed stratum; source-only matrix has23symbolsites/46operations after semantic confirmation;6external+1unmatched remain explicit.",
+    "strata_candidate_counts": {
+      "type_alias_rhs": 40,
+      "record_or_property_access": 1192,
+      "record_creation_label": 54,
+      "record_update_label": 105,
+      "record_pattern_label": 0,
+      "module_value_use": 255
+    }
+  },
+  "notes": [
+    "Every path in selected is relative to the corpus checkout, not to workspace.",
+    "All 30 selected sites remain in order: 23 source, six external and one unmatched candidate. Only source sites form the fixed 46-operation gate.",
+    "Source declarations and complete reference arrays are copied exactly from the canonical capture after path rebasing. No expected location or range is added or removed.",
+    "The Sha256Hash reference group retains its explicit direct-compiler override of 53 occurrences.",
+    "Excluded external/unmatched raw candidate details are omitted; their selected positions, classifications and selection hashes remain unchanged."
+  ],
+  "selected": [
+    {
+      "stratum": "type_alias_rhs",
+      "path": "src/Grace.Types/Library.Types.fs",
+      "line": 20,
+      "character": 35,
+      "token": "Guid",
+      "selection_hash": "0b71394d586c352e40bf1094f8462cca6559f90266330e7c8e5958aac45e8c59",
+      "name": "type_alias_rhs_00_Guid",
+      "classification": "external"
+    },
+    {
+      "stratum": "type_alias_rhs",
+      "path": "src/Grace.Types/Common.Types.fs",
+      "line": 32,
+      "character": 20,
+      "token": "Guid",
+      "selection_hash": "0e68ab3ddf03502c4dcac43e5ae1f22d7fc40c95251d9f6f678e11507fe3058d",
+      "name": "type_alias_rhs_01_Guid",
+      "classification": "external"
+    },
+    {
+      "stratum": "type_alias_rhs",
+      "path": "src/Grace.Types/Common.Types.fs",
+      "line": 103,
+      "character": 29,
+      "token": "Guid",
+      "selection_hash": "0ebc6911804719a3385265eb3e8430d60120a4fd30c18226e66044b254d45a06",
+      "name": "type_alias_rhs_02_Guid",
+      "classification": "external"
+    },
+    {
+      "stratum": "type_alias_rhs",
+      "path": "src/Grace.Types/Common.Types.fs",
+      "line": 130,
+      "character": 24,
+      "token": "Guid",
+      "selection_hash": "12e1ba39068b6ead8c9da6f7a90a5260a15413a49680d798a764d49b57d4a2de",
+      "name": "type_alias_rhs_03_Guid",
+      "classification": "external"
+    },
+    {
+      "stratum": "type_alias_rhs",
+      "path": "src/Grace.Types/Policy.Types.fs",
+      "line": 13,
+      "character": 28,
+      "token": "Sha256Hash",
+      "selection_hash": "18ef1121ee9189199b0a0fc7a52fcd76dae6e72079859d532acea980f6ee4458",
+      "name": "type_alias_rhs_04_Sha256Hash",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/Common.Types.fs",
+        "range": {
+          "start": {
+            "line": 143,
+            "character": 9
+          },
+          "end": {
+            "line": 143,
+            "character": 19
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 143,
+              "character": 9
+            },
+            "end": {
+              "line": 143,
+              "character": 19
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 584,
+              "character": 24
+            },
+            "end": {
+              "line": 584,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 484,
+              "character": 31
+            },
+            "end": {
+              "line": 484,
+              "character": 41
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 508,
+              "character": 25
+            },
+            "end": {
+              "line": 508,
+              "character": 35
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 603,
+              "character": 25
+            },
+            "end": {
+              "line": 603,
+              "character": 35
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 661,
+              "character": 31
+            },
+            "end": {
+              "line": 661,
+              "character": 41
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 694,
+              "character": 25
+            },
+            "end": {
+              "line": 694,
+              "character": 35
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 800,
+              "character": 31
+            },
+            "end": {
+              "line": 800,
+              "character": 41
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 830,
+              "character": 25
+            },
+            "end": {
+              "line": 830,
+              "character": 35
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 661,
+              "character": 44
+            },
+            "end": {
+              "line": 661,
+              "character": 54
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 800,
+              "character": 44
+            },
+            "end": {
+              "line": 800,
+              "character": 54
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1215,
+              "character": 94
+            },
+            "end": {
+              "line": 1215,
+              "character": 104
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1235,
+              "character": 37
+            },
+            "end": {
+              "line": 1235,
+              "character": 47
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1249,
+              "character": 42
+            },
+            "end": {
+              "line": 1249,
+              "character": 52
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1271,
+              "character": 22
+            },
+            "end": {
+              "line": 1271,
+              "character": 32
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1273,
+              "character": 22
+            },
+            "end": {
+              "line": 1273,
+              "character": 32
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1284,
+              "character": 23
+            },
+            "end": {
+              "line": 1284,
+              "character": 33
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1286,
+              "character": 23
+            },
+            "end": {
+              "line": 1286,
+              "character": 33
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Reference.Types.fs",
+          "range": {
+            "start": {
+              "line": 20,
+              "character": 24
+            },
+            "end": {
+              "line": 20,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Reference.Types.fs",
+          "range": {
+            "start": {
+              "line": 36,
+              "character": 24
+            },
+            "end": {
+              "line": 36,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Reference.Types.fs",
+          "range": {
+            "start": {
+              "line": 60,
+              "character": 24
+            },
+            "end": {
+              "line": 60,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Reference.Types.fs",
+          "range": {
+            "start": {
+              "line": 93,
+              "character": 24
+            },
+            "end": {
+              "line": 93,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Reference.Types.fs",
+          "range": {
+            "start": {
+              "line": 115,
+              "character": 29
+            },
+            "end": {
+              "line": 115,
+              "character": 39
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Reference.Types.fs",
+          "range": {
+            "start": {
+              "line": 143,
+              "character": 43
+            },
+            "end": {
+              "line": 143,
+              "character": 53
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Reference.Types.fs",
+          "range": {
+            "start": {
+              "line": 193,
+              "character": 24
+            },
+            "end": {
+              "line": 193,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Reference.Types.fs",
+          "range": {
+            "start": {
+              "line": 204,
+              "character": 29
+            },
+            "end": {
+              "line": 204,
+              "character": 39
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Reference.Types.fs",
+          "range": {
+            "start": {
+              "line": 228,
+              "character": 24
+            },
+            "end": {
+              "line": 228,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Reference.Types.fs",
+          "range": {
+            "start": {
+              "line": 245,
+              "character": 29
+            },
+            "end": {
+              "line": 245,
+              "character": 39
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 45,
+              "character": 24
+            },
+            "end": {
+              "line": 45,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 51,
+              "character": 24
+            },
+            "end": {
+              "line": 51,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 57,
+              "character": 24
+            },
+            "end": {
+              "line": 57,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 63,
+              "character": 24
+            },
+            "end": {
+              "line": 63,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 69,
+              "character": 24
+            },
+            "end": {
+              "line": 69,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 75,
+              "character": 24
+            },
+            "end": {
+              "line": 75,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 81,
+              "character": 24
+            },
+            "end": {
+              "line": 81,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 119,
+              "character": 24
+            },
+            "end": {
+              "line": 119,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 125,
+              "character": 24
+            },
+            "end": {
+              "line": 125,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 131,
+              "character": 24
+            },
+            "end": {
+              "line": 131,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 137,
+              "character": 24
+            },
+            "end": {
+              "line": 137,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 143,
+              "character": 24
+            },
+            "end": {
+              "line": 143,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 149,
+              "character": 24
+            },
+            "end": {
+              "line": 149,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 155,
+              "character": 24
+            },
+            "end": {
+              "line": 155,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Policy.Types.fs",
+          "range": {
+            "start": {
+              "line": 13,
+              "character": 28
+            },
+            "end": {
+              "line": 13,
+              "character": 38
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Policy.Types.fs",
+          "range": {
+            "start": {
+              "line": 95,
+              "character": 24
+            },
+            "end": {
+              "line": 95,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Policy.Types.fs",
+          "range": {
+            "start": {
+              "line": 104,
+              "character": 35
+            },
+            "end": {
+              "line": 104,
+              "character": 45
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Policy.Types.fs",
+          "range": {
+            "start": {
+              "line": 111,
+              "character": 29
+            },
+            "end": {
+              "line": 111,
+              "character": 39
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Review.Types.fs",
+          "range": {
+            "start": {
+              "line": 152,
+              "character": 26
+            },
+            "end": {
+              "line": 152,
+              "character": 36
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Review.Types.fs",
+          "range": {
+            "start": {
+              "line": 156,
+              "character": 24
+            },
+            "end": {
+              "line": 156,
+              "character": 34
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Review.Types.fs",
+          "range": {
+            "start": {
+              "line": 168,
+              "character": 31
+            },
+            "end": {
+              "line": 168,
+              "character": 41
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Review.Types.fs",
+          "range": {
+            "start": {
+              "line": 181,
+              "character": 29
+            },
+            "end": {
+              "line": 181,
+              "character": 39
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Review.Types.fs",
+          "range": {
+            "start": {
+              "line": 188,
+              "character": 21
+            },
+            "end": {
+              "line": 188,
+              "character": 31
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Artifact.Types.fs",
+          "range": {
+            "start": {
+              "line": 67,
+              "character": 20
+            },
+            "end": {
+              "line": 67,
+              "character": 30
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Artifact.Types.fs",
+          "range": {
+            "start": {
+              "line": 225,
+              "character": 29
+            },
+            "end": {
+              "line": 225,
+              "character": 39
+            }
+          }
+        }
+      ],
+      "oracle_reference_override": {
+        "source": "recovery-grace-sha256hash-direct-references.json",
+        "sha256": "0ad9094406dd1ee768e5140cbd93db025c22bf0bb5246497168144717d1a601b",
+        "reason": "Skip-abbreviation union guard yields42typeduses; directFCS+actualFSAC53alsoinclude11alias-constructoruses. Use directcompilerreference list, not inaccurate genericexportgroup."
+      }
+    },
+    {
+      "stratum": "type_alias_rhs",
+      "path": "src/Grace.Types/Common.Types.fs",
+      "line": 115,
+      "character": 22,
+      "token": "Guid",
+      "selection_hash": "1a1bdc79789074fe1cf3079a84d3450e2d30fa1c607369d62b9bf6f88995b2c5",
+      "name": "type_alias_rhs_05_Guid",
+      "classification": "external"
+    },
+    {
+      "stratum": "record_or_property_access",
+      "path": "src/Grace.Types/Artifact.Types.fs",
+      "line": 449,
+      "character": 36,
+      "token": "DeleteReason",
+      "selection_hash": "0009e4c58426245b7a80bc26ed295cca481696ab950d193d7337c62f29636e00",
+      "name": "record_or_property_access_06_DeleteReason",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/Artifact.Types.fs",
+        "range": {
+          "start": {
+            "line": 373,
+            "character": 12
+          },
+          "end": {
+            "line": 373,
+            "character": 24
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/Artifact.Types.fs",
+          "range": {
+            "start": {
+              "line": 373,
+              "character": 12
+            },
+            "end": {
+              "line": 373,
+              "character": 24
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Artifact.Types.fs",
+          "range": {
+            "start": {
+              "line": 412,
+              "character": 16
+            },
+            "end": {
+              "line": 412,
+              "character": 28
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Artifact.Types.fs",
+          "range": {
+            "start": {
+              "line": 449,
+              "character": 31
+            },
+            "end": {
+              "line": 449,
+              "character": 48
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "record_or_property_access",
+      "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+      "line": 482,
+      "character": 25,
+      "token": "Ranges",
+      "selection_hash": "00aa0815ae6b740a6d21bab2f6c67b7e5d6caf8b04f8fab39443a3ceaf01f247",
+      "name": "record_or_property_access_07_Ranges",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+        "range": {
+          "start": {
+            "line": 154,
+            "character": 12
+          },
+          "end": {
+            "line": 154,
+            "character": 18
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 154,
+              "character": 12
+            },
+            "end": {
+              "line": 154,
+              "character": 18
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 173,
+              "character": 16
+            },
+            "end": {
+              "line": 173,
+              "character": 22
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 328,
+              "character": 21
+            },
+            "end": {
+              "line": 328,
+              "character": 36
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 341,
+              "character": 16
+            },
+            "end": {
+              "line": 341,
+              "character": 31
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 444,
+              "character": 12
+            },
+            "end": {
+              "line": 444,
+              "character": 27
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 476,
+              "character": 21
+            },
+            "end": {
+              "line": 476,
+              "character": 36
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 482,
+              "character": 16
+            },
+            "end": {
+              "line": 482,
+              "character": 31
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 504,
+              "character": 21
+            },
+            "end": {
+              "line": 504,
+              "character": 36
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 521,
+              "character": 16
+            },
+            "end": {
+              "line": 521,
+              "character": 31
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 537,
+              "character": 24
+            },
+            "end": {
+              "line": 537,
+              "character": 39
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 593,
+              "character": 8
+            },
+            "end": {
+              "line": 593,
+              "character": 23
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "record_or_property_access",
+      "path": "src/Grace.Types/Artifact.Types.fs",
+      "line": 318,
+      "character": 36,
+      "token": "RepositoryId",
+      "selection_hash": "00b657f48240c0da37f5a4dde8f366c3647b57b6b7e6a905b0cb1fe41c53a965",
+      "name": "record_or_property_access_08_RepositoryId",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/Artifact.Types.fs",
+        "range": {
+          "start": {
+            "line": 245,
+            "character": 12
+          },
+          "end": {
+            "line": 245,
+            "character": 24
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/Artifact.Types.fs",
+          "range": {
+            "start": {
+              "line": 245,
+              "character": 12
+            },
+            "end": {
+              "line": 245,
+              "character": 24
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Artifact.Types.fs",
+          "range": {
+            "start": {
+              "line": 281,
+              "character": 16
+            },
+            "end": {
+              "line": 281,
+              "character": 28
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Artifact.Types.fs",
+          "range": {
+            "start": {
+              "line": 318,
+              "character": 31
+            },
+            "end": {
+              "line": 318,
+              "character": 48
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "record_or_property_access",
+      "path": "src/Grace.Shared/Constants.Shared.fs",
+      "line": 54,
+      "character": 34,
+      "token": "PropertyNamingPolicy",
+      "selection_hash": "0121e7594ffc380c75d35f9aaec30acf62fb56bc0b0485c733c2f4a3f1287618",
+      "name": "record_or_property_access_09_PropertyNamingPolicy",
+      "classification": "external"
+    },
+    {
+      "stratum": "record_or_property_access",
+      "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+      "line": 346,
+      "character": 32,
+      "token": "OrdinalCount",
+      "selection_hash": "0136db9a3a3474ef64592d7b0a6131c326efd3ba14dd92a98512b4b61d27dc8a",
+      "name": "record_or_property_access_10_OrdinalCount",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+        "range": {
+          "start": {
+            "line": 39,
+            "character": 12
+          },
+          "end": {
+            "line": 39,
+            "character": 24
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 39,
+              "character": 12
+            },
+            "end": {
+              "line": 39,
+              "character": 24
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 338,
+              "character": 83
+            },
+            "end": {
+              "line": 338,
+              "character": 101
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 345,
+              "character": 26
+            },
+            "end": {
+              "line": 345,
+              "character": 44
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 346,
+              "character": 26
+            },
+            "end": {
+              "line": 346,
+              "character": 44
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 369,
+              "character": 31
+            },
+            "end": {
+              "line": 369,
+              "character": 53
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 372,
+              "character": 57
+            },
+            "end": {
+              "line": 372,
+              "character": 79
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 390,
+              "character": 23
+            },
+            "end": {
+              "line": 390,
+              "character": 45
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 393,
+              "character": 49
+            },
+            "end": {
+              "line": 393,
+              "character": 71
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 417,
+              "character": 20
+            },
+            "end": {
+              "line": 417,
+              "character": 32
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 439,
+              "character": 19
+            },
+            "end": {
+              "line": 439,
+              "character": 37
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 442,
+              "character": 41
+            },
+            "end": {
+              "line": 442,
+              "character": 59
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 448,
+              "character": 19
+            },
+            "end": {
+              "line": 448,
+              "character": 37
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 449,
+              "character": 19
+            },
+            "end": {
+              "line": 449,
+              "character": 37
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 457,
+              "character": 48
+            },
+            "end": {
+              "line": 457,
+              "character": 66
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 458,
+              "character": 62
+            },
+            "end": {
+              "line": 458,
+              "character": 80
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 461,
+              "character": 67
+            },
+            "end": {
+              "line": 461,
+              "character": 85
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 466,
+              "character": 20
+            },
+            "end": {
+              "line": 466,
+              "character": 32
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 485,
+              "character": 23
+            },
+            "end": {
+              "line": 485,
+              "character": 41
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 515,
+              "character": 19
+            },
+            "end": {
+              "line": 515,
+              "character": 37
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 518,
+              "character": 41
+            },
+            "end": {
+              "line": 518,
+              "character": 59
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 524,
+              "character": 23
+            },
+            "end": {
+              "line": 524,
+              "character": 41
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 541,
+              "character": 31
+            },
+            "end": {
+              "line": 541,
+              "character": 49
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+          "range": {
+            "start": {
+              "line": 542,
+              "character": 31
+            },
+            "end": {
+              "line": 542,
+              "character": 49
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "record_or_property_access",
+      "path": "src/Grace.Types/Artifact.Types.fs",
+      "line": 394,
+      "character": 37,
+      "token": "ArtifactId",
+      "selection_hash": "0143354380cb9b4acfdd5df2dbb484df846e1a1f9df3fffc9811e0f96918dc95",
+      "name": "record_or_property_access_11_ArtifactId",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/Artifact.Types.fs",
+        "range": {
+          "start": {
+            "line": 142,
+            "character": 12
+          },
+          "end": {
+            "line": 142,
+            "character": 22
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/Artifact.Types.fs",
+          "range": {
+            "start": {
+              "line": 142,
+              "character": 12
+            },
+            "end": {
+              "line": 142,
+              "character": 22
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Artifact.Types.fs",
+          "range": {
+            "start": {
+              "line": 181,
+              "character": 16
+            },
+            "end": {
+              "line": 181,
+              "character": 26
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Artifact.Types.fs",
+          "range": {
+            "start": {
+              "line": 214,
+              "character": 29
+            },
+            "end": {
+              "line": 214,
+              "character": 44
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Artifact.Types.fs",
+          "range": {
+            "start": {
+              "line": 278,
+              "character": 29
+            },
+            "end": {
+              "line": 278,
+              "character": 48
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Artifact.Types.fs",
+          "range": {
+            "start": {
+              "line": 315,
+              "character": 16
+            },
+            "end": {
+              "line": 315,
+              "character": 26
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Artifact.Types.fs",
+          "range": {
+            "start": {
+              "line": 394,
+              "character": 29
+            },
+            "end": {
+              "line": 394,
+              "character": 47
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Artifact.Types.fs",
+          "range": {
+            "start": {
+              "line": 426,
+              "character": 20
+            },
+            "end": {
+              "line": 426,
+              "character": 30
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "record_creation_label",
+      "path": "src/Grace.Types/Policy.Types.fs",
+      "line": 127,
+      "character": 34,
+      "token": "OnFailure",
+      "selection_hash": "059376ee4feb1f0cbb54a46b7b7b6dbbf3b1f674f7fb2dd27723c1e95ca25d53",
+      "name": "record_creation_label_12_OnFailure",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/Policy.Types.fs",
+        "range": {
+          "start": {
+            "line": 68,
+            "character": 30
+          },
+          "end": {
+            "line": 68,
+            "character": 39
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/Policy.Types.fs",
+          "range": {
+            "start": {
+              "line": 68,
+              "character": 30
+            },
+            "end": {
+              "line": 68,
+              "character": 39
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Policy.Types.fs",
+          "range": {
+            "start": {
+              "line": 127,
+              "character": 34
+            },
+            "end": {
+              "line": 127,
+              "character": 43
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "record_creation_label",
+      "path": "src/Grace.Types/ArtifactGrant.Types.fs",
+      "line": 57,
+      "character": 55,
+      "token": "Kty",
+      "selection_hash": "0bf893ca2788034ec2a3c069a2869bba35443762452d98b287d7325d45746155",
+      "name": "record_creation_label_13_Kty",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/ArtifactGrant.Types.fs",
+        "range": {
+          "start": {
+            "line": 47,
+            "character": 12
+          },
+          "end": {
+            "line": 47,
+            "character": 15
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/ArtifactGrant.Types.fs",
+          "range": {
+            "start": {
+              "line": 47,
+              "character": 12
+            },
+            "end": {
+              "line": 47,
+              "character": 15
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ArtifactGrant.Types.fs",
+          "range": {
+            "start": {
+              "line": 57,
+              "character": 55
+            },
+            "end": {
+              "line": 57,
+              "character": 58
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "record_creation_label",
+      "path": "src/Grace.Types/ManifestContributionAccounting.Types.fs",
+      "line": 227,
+      "character": 38,
+      "token": "RepositoryId",
+      "selection_hash": "1f12d07060b4d5d0ea4c82536f2966b7cfa646b29ef693622013b6389f0c3fff",
+      "name": "record_creation_label_14_RepositoryId",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/ManifestContributionAccounting.Types.fs",
+        "range": {
+          "start": {
+            "line": 10,
+            "character": 39
+          },
+          "end": {
+            "line": 10,
+            "character": 51
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/ManifestContributionAccounting.Types.fs",
+          "range": {
+            "start": {
+              "line": 10,
+              "character": 39
+            },
+            "end": {
+              "line": 10,
+              "character": 51
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ManifestContributionAccounting.Types.fs",
+          "range": {
+            "start": {
+              "line": 144,
+              "character": 25
+            },
+            "end": {
+              "line": 144,
+              "character": 50
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ManifestContributionAccounting.Types.fs",
+          "range": {
+            "start": {
+              "line": 186,
+              "character": 75
+            },
+            "end": {
+              "line": 186,
+              "character": 100
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ManifestContributionAccounting.Types.fs",
+          "range": {
+            "start": {
+              "line": 227,
+              "character": 38
+            },
+            "end": {
+              "line": 227,
+              "character": 50
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "record_creation_label",
+      "path": "src/Grace.Types/WorkItem.Types.fs",
+      "line": 367,
+      "character": 14,
+      "token": "WorkItem",
+      "selection_hash": "1f6c931dd8be54297c22b4f38431b70aff816d2044e3a238b6063e17a8cd62c7",
+      "name": "record_creation_label_15_WorkItem",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/WorkItem.Types.fs",
+        "range": {
+          "start": {
+            "line": 351,
+            "character": 12
+          },
+          "end": {
+            "line": 351,
+            "character": 20
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/WorkItem.Types.fs",
+          "range": {
+            "start": {
+              "line": 351,
+              "character": 12
+            },
+            "end": {
+              "line": 351,
+              "character": 20
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/WorkItem.Types.fs",
+          "range": {
+            "start": {
+              "line": 356,
+              "character": 34
+            },
+            "end": {
+              "line": 356,
+              "character": 42
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/WorkItem.Types.fs",
+          "range": {
+            "start": {
+              "line": 367,
+              "character": 14
+            },
+            "end": {
+              "line": 367,
+              "character": 22
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/WorkItem.Types.fs",
+          "range": {
+            "start": {
+              "line": 367,
+              "character": 61
+            },
+            "end": {
+              "line": 367,
+              "character": 82
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "record_creation_label",
+      "path": "src/Grace.Types/ArtifactGrant.Types.fs",
+      "line": 161,
+      "character": 14,
+      "token": "Artifact",
+      "selection_hash": "1fd8fa9f7a4cf61314a28c32da729df7c41770d3fe1dcd7e158ff95eb7b920c1",
+      "name": "record_creation_label_16_Artifact",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/ArtifactGrant.Types.fs",
+        "range": {
+          "start": {
+            "line": 152,
+            "character": 12
+          },
+          "end": {
+            "line": 152,
+            "character": 20
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/ArtifactGrant.Types.fs",
+          "range": {
+            "start": {
+              "line": 152,
+              "character": 12
+            },
+            "end": {
+              "line": 152,
+              "character": 20
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ArtifactGrant.Types.fs",
+          "range": {
+            "start": {
+              "line": 161,
+              "character": 14
+            },
+            "end": {
+              "line": 161,
+              "character": 22
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "record_creation_label",
+      "path": "src/Grace.Types/Usage.Types.fs",
+      "line": 94,
+      "character": 29,
+      "token": "StoragePoolId",
+      "selection_hash": "222fc7b25f6622c04fa5dcd9323befce245246707f2204a03a8bdf7b13043b92",
+      "name": "record_creation_label_17_StoragePoolId",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/Usage.Types.fs",
+        "range": {
+          "start": {
+            "line": 34,
+            "character": 12
+          },
+          "end": {
+            "line": 34,
+            "character": 25
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/Usage.Types.fs",
+          "range": {
+            "start": {
+              "line": 34,
+              "character": 12
+            },
+            "end": {
+              "line": 34,
+              "character": 25
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Usage.Types.fs",
+          "range": {
+            "start": {
+              "line": 38,
+              "character": 32
+            },
+            "end": {
+              "line": 38,
+              "character": 45
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Usage.Types.fs",
+          "range": {
+            "start": {
+              "line": 94,
+              "character": 29
+            },
+            "end": {
+              "line": 94,
+              "character": 42
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Usage.Types.fs",
+          "range": {
+            "start": {
+              "line": 131,
+              "character": 50
+            },
+            "end": {
+              "line": 131,
+              "character": 77
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "record_update_label",
+      "path": "src/Grace.Types/Queue.Types.fs",
+      "line": 110,
+      "character": 40,
+      "token": "State",
+      "selection_hash": "00b46ff99ebe077ba82995d161e66ae267b55f7e8982a95e186e23662401ad53",
+      "name": "record_update_label_18_State",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/Queue.Types.fs",
+        "range": {
+          "start": {
+            "line": 31,
+            "character": 12
+          },
+          "end": {
+            "line": 31,
+            "character": 17
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/Queue.Types.fs",
+          "range": {
+            "start": {
+              "line": 31,
+              "character": 12
+            },
+            "end": {
+              "line": 31,
+              "character": 17
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Queue.Types.fs",
+          "range": {
+            "start": {
+              "line": 43,
+              "character": 16
+            },
+            "end": {
+              "line": 43,
+              "character": 21
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Queue.Types.fs",
+          "range": {
+            "start": {
+              "line": 102,
+              "character": 119
+            },
+            "end": {
+              "line": 102,
+              "character": 124
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Queue.Types.fs",
+          "range": {
+            "start": {
+              "line": 103,
+              "character": 48
+            },
+            "end": {
+              "line": 103,
+              "character": 53
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Queue.Types.fs",
+          "range": {
+            "start": {
+              "line": 110,
+              "character": 40
+            },
+            "end": {
+              "line": 110,
+              "character": 45
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Queue.Types.fs",
+          "range": {
+            "start": {
+              "line": 111,
+              "character": 50
+            },
+            "end": {
+              "line": 111,
+              "character": 55
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "record_update_label",
+      "path": "src/Grace.Types/Repository.Types.fs",
+      "line": 184,
+      "character": 80,
+      "token": "StoragePoolId",
+      "selection_hash": "02523de766e46cce73008ed0b24ac94c2b83378f0d3f10bdb7af6c12c9f9acb0",
+      "name": "record_update_label_19_StoragePoolId",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/Repository.Types.fs",
+        "range": {
+          "start": {
+            "line": 107,
+            "character": 12
+          },
+          "end": {
+            "line": 107,
+            "character": 25
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/Repository.Types.fs",
+          "range": {
+            "start": {
+              "line": 107,
+              "character": 12
+            },
+            "end": {
+              "line": 107,
+              "character": 25
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Repository.Types.fs",
+          "range": {
+            "start": {
+              "line": 141,
+              "character": 16
+            },
+            "end": {
+              "line": 141,
+              "character": 29
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Repository.Types.fs",
+          "range": {
+            "start": {
+              "line": 177,
+              "character": 24
+            },
+            "end": {
+              "line": 177,
+              "character": 37
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Repository.Types.fs",
+          "range": {
+            "start": {
+              "line": 184,
+              "character": 80
+            },
+            "end": {
+              "line": 184,
+              "character": 93
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "record_update_label",
+      "path": "src/Grace.Types/Repository.Types.fs",
+      "line": 189,
+      "character": 76,
+      "token": "RecordSaves",
+      "selection_hash": "03c9c5cde4abaa275974de1017f5639dd3d2917a12f7c97c06ead8f4edc4226f",
+      "name": "record_update_label_20_RecordSaves",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/Repository.Types.fs",
+        "range": {
+          "start": {
+            "line": 122,
+            "character": 12
+          },
+          "end": {
+            "line": 122,
+            "character": 23
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/Repository.Types.fs",
+          "range": {
+            "start": {
+              "line": 122,
+              "character": 12
+            },
+            "end": {
+              "line": 122,
+              "character": 23
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Repository.Types.fs",
+          "range": {
+            "start": {
+              "line": 156,
+              "character": 16
+            },
+            "end": {
+              "line": 156,
+              "character": 27
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Repository.Types.fs",
+          "range": {
+            "start": {
+              "line": 189,
+              "character": 76
+            },
+            "end": {
+              "line": 189,
+              "character": 87
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "record_update_label",
+      "path": "src/Grace.Types/Validation.Types.fs",
+      "line": 178,
+      "character": 35,
+      "token": "DeletedAt",
+      "selection_hash": "0434ec0189b059433bfbdf9c38de65ea42fdddf1e216b719975e36ff80231f68",
+      "name": "record_update_label_21_DeletedAt",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/Validation.Types.fs",
+        "range": {
+          "start": {
+            "line": 59,
+            "character": 12
+          },
+          "end": {
+            "line": 59,
+            "character": 21
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/Validation.Types.fs",
+          "range": {
+            "start": {
+              "line": 59,
+              "character": 12
+            },
+            "end": {
+              "line": 59,
+              "character": 21
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Validation.Types.fs",
+          "range": {
+            "start": {
+              "line": 78,
+              "character": 16
+            },
+            "end": {
+              "line": 78,
+              "character": 25
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Validation.Types.fs",
+          "range": {
+            "start": {
+              "line": 178,
+              "character": 35
+            },
+            "end": {
+              "line": 178,
+              "character": 44
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "record_update_label",
+      "path": "src/Grace.Types/Branch.Types.fs",
+      "line": 385,
+      "character": 55,
+      "token": "DeletedAt",
+      "selection_hash": "04af1164ff6e96f556eb3f1c69f46874c30c2c78b04f896841673898a4271006",
+      "name": "record_update_label_22_DeletedAt",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/Branch.Types.fs",
+        "range": {
+          "start": {
+            "line": 214,
+            "character": 12
+          },
+          "end": {
+            "line": 214,
+            "character": 21
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 214,
+              "character": 12
+            },
+            "end": {
+              "line": 214,
+              "character": 21
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 247,
+              "character": 16
+            },
+            "end": {
+              "line": 247,
+              "character": 25
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 382,
+              "character": 44
+            },
+            "end": {
+              "line": 382,
+              "character": 53
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 385,
+              "character": 55
+            },
+            "end": {
+              "line": 385,
+              "character": 64
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "record_update_label",
+      "path": "src/Grace.Types/Branch.Types.fs",
+      "line": 372,
+      "character": 67,
+      "token": "CommitEnabled",
+      "selection_hash": "05346650c66f52835b9f0c73e3d2ea07256a68117a96e1567cf1c25134f5c639",
+      "name": "record_update_label_23_CommitEnabled",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/Branch.Types.fs",
+        "range": {
+          "start": {
+            "line": 199,
+            "character": 12
+          },
+          "end": {
+            "line": 199,
+            "character": 25
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 199,
+              "character": 12
+            },
+            "end": {
+              "line": 199,
+              "character": 25
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 232,
+              "character": 16
+            },
+            "end": {
+              "line": 232,
+              "character": 29
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 322,
+              "character": 71
+            },
+            "end": {
+              "line": 322,
+              "character": 84
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Branch.Types.fs",
+          "range": {
+            "start": {
+              "line": 372,
+              "character": 67
+            },
+            "end": {
+              "line": 372,
+              "character": 80
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "module_value_use",
+      "path": "src/Grace.Types/Annotation.Types.fs",
+      "line": 213,
+      "character": 71,
+      "token": "referenceTypeName",
+      "selection_hash": "03d34b542d3e97b9c3d88af9a556a47cd3164a5c427d705bd934f685df9484b0",
+      "name": "module_value_use_24_referenceTypeName",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/Annotation.Types.fs",
+        "range": {
+          "start": {
+            "line": 34,
+            "character": 16
+          },
+          "end": {
+            "line": 34,
+            "character": 33
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/Annotation.Types.fs",
+          "range": {
+            "start": {
+              "line": 34,
+              "character": 16
+            },
+            "end": {
+              "line": 34,
+              "character": 33
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Annotation.Types.fs",
+          "range": {
+            "start": {
+              "line": 89,
+              "character": 32
+            },
+            "end": {
+              "line": 89,
+              "character": 49
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Annotation.Types.fs",
+          "range": {
+            "start": {
+              "line": 213,
+              "character": 71
+            },
+            "end": {
+              "line": 213,
+              "character": 88
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "module_value_use",
+      "path": "src/Grace.Shared/Constants.Shared.fs",
+      "line": 51,
+      "character": 16,
+      "token": "mutable",
+      "selection_hash": "059606e495f78d7ae9f4d7ea55805a7c26a93d94f115d7573135e1ac804c26cb",
+      "name": "module_value_use_25_mutable",
+      "classification": "ambiguous_or_unmatched_export"
+    },
+    {
+      "stratum": "module_value_use",
+      "path": "src/Grace.Types/Events.Types.fs",
+      "line": 49,
+      "character": 41,
+      "token": "serialize",
+      "selection_hash": "05f24514d2650aecfb6bcbf86866645d31dfbf570a37d28708105858aa33d62f",
+      "name": "module_value_use_26_serialize",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Shared/Utilities.Shared.fs",
+        "range": {
+          "start": {
+            "line": 213,
+            "character": 8
+          },
+          "end": {
+            "line": 213,
+            "character": 17
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Shared/Utilities.Shared.fs",
+          "range": {
+            "start": {
+              "line": 213,
+              "character": 8
+            },
+            "end": {
+              "line": 213,
+              "character": 17
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Shared/Utilities.Shared.fs",
+          "range": {
+            "start": {
+              "line": 418,
+              "character": 19
+            },
+            "end": {
+              "line": 418,
+              "character": 28
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 304,
+              "character": 35
+            },
+            "end": {
+              "line": 304,
+              "character": 44
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1093,
+              "character": 12
+            },
+            "end": {
+              "line": 1093,
+              "character": 21
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1166,
+              "character": 82
+            },
+            "end": {
+              "line": 1166,
+              "character": 91
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1387,
+              "character": 35
+            },
+            "end": {
+              "line": 1387,
+              "character": 44
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Reminder.Types.fs",
+          "range": {
+            "start": {
+              "line": 92,
+              "character": 35
+            },
+            "end": {
+              "line": 92,
+              "character": 44
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Reminder.Types.fs",
+          "range": {
+            "start": {
+              "line": 98,
+              "character": 35
+            },
+            "end": {
+              "line": 98,
+              "character": 44
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "range": {
+            "start": {
+              "line": 47,
+              "character": 30
+            },
+            "end": {
+              "line": 47,
+              "character": 39
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "range": {
+            "start": {
+              "line": 48,
+              "character": 31
+            },
+            "end": {
+              "line": 48,
+              "character": 40
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "range": {
+            "start": {
+              "line": 49,
+              "character": 41
+            },
+            "end": {
+              "line": 49,
+              "character": 50
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "range": {
+            "start": {
+              "line": 50,
+              "character": 37
+            },
+            "end": {
+              "line": 50,
+              "character": 46
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "range": {
+            "start": {
+              "line": 51,
+              "character": 34
+            },
+            "end": {
+              "line": 51,
+              "character": 43
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "range": {
+            "start": {
+              "line": 52,
+              "character": 35
+            },
+            "end": {
+              "line": 52,
+              "character": 44
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "range": {
+            "start": {
+              "line": 53,
+              "character": 33
+            },
+            "end": {
+              "line": 53,
+              "character": 42
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "range": {
+            "start": {
+              "line": 54,
+              "character": 31
+            },
+            "end": {
+              "line": 54,
+              "character": 40
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "range": {
+            "start": {
+              "line": 55,
+              "character": 31
+            },
+            "end": {
+              "line": 55,
+              "character": 40
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "range": {
+            "start": {
+              "line": 56,
+              "character": 30
+            },
+            "end": {
+              "line": 56,
+              "character": 39
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "range": {
+            "start": {
+              "line": 57,
+              "character": 37
+            },
+            "end": {
+              "line": 57,
+              "character": 46
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "range": {
+            "start": {
+              "line": 58,
+              "character": 38
+            },
+            "end": {
+              "line": 58,
+              "character": 47
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "range": {
+            "start": {
+              "line": 59,
+              "character": 41
+            },
+            "end": {
+              "line": 59,
+              "character": 50
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "range": {
+            "start": {
+              "line": 60,
+              "character": 33
+            },
+            "end": {
+              "line": 60,
+              "character": 42
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "range": {
+            "start": {
+              "line": 61,
+              "character": 40
+            },
+            "end": {
+              "line": 61,
+              "character": 49
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "range": {
+            "start": {
+              "line": 62,
+              "character": 48
+            },
+            "end": {
+              "line": 62,
+              "character": 57
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "module_value_use",
+      "path": "src/Grace.Types/Annotation.Types.fs",
+      "line": 224,
+      "character": 68,
+      "token": "error",
+      "selection_hash": "067c1911ea579f7d7410eafaccfaf89a8642cd06503d813e09254155673e672d",
+      "name": "module_value_use_27_error",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/Annotation.Types.fs",
+        "range": {
+          "start": {
+            "line": 224,
+            "character": 35
+          },
+          "end": {
+            "line": 224,
+            "character": 40
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/Annotation.Types.fs",
+          "range": {
+            "start": {
+              "line": 224,
+              "character": 35
+            },
+            "end": {
+              "line": 224,
+              "character": 40
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Annotation.Types.fs",
+          "range": {
+            "start": {
+              "line": 224,
+              "character": 68
+            },
+            "end": {
+              "line": 224,
+              "character": 73
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "module_value_use",
+      "path": "src/Grace.Types/ManifestContributionAccounting.Types.fs",
+      "line": 276,
+      "character": 20,
+      "token": "validate",
+      "selection_hash": "06aa7030fd2c4358b3dafac5162441cf8962dda3b16a247cb06152495c825cc0",
+      "name": "module_value_use_28_validate",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Types/ManifestContributionAccounting.Types.fs",
+        "range": {
+          "start": {
+            "line": 276,
+            "character": 20
+          },
+          "end": {
+            "line": 276,
+            "character": 28
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Types/ManifestContributionAccounting.Types.fs",
+          "range": {
+            "start": {
+              "line": 276,
+              "character": 20
+            },
+            "end": {
+              "line": 276,
+              "character": 28
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ManifestContributionAccounting.Types.fs",
+          "range": {
+            "start": {
+              "line": 286,
+              "character": 12
+            },
+            "end": {
+              "line": 286,
+              "character": 20
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/ManifestContributionAccounting.Types.fs",
+          "range": {
+            "start": {
+              "line": 296,
+              "character": 22
+            },
+            "end": {
+              "line": 296,
+              "character": 30
+            }
+          }
+        }
+      ]
+    },
+    {
+      "stratum": "module_value_use",
+      "path": "src/Grace.Types/Common.Types.fs",
+      "line": 1340,
+      "character": 35,
+      "token": "getDiscriminatedUnionFullName",
+      "selection_hash": "075c261360815da3aa91c4d69011f5c7bffccd270d7d461cf5fd7a93acee506f",
+      "name": "module_value_use_29_getDiscriminatedUnionFullName",
+      "classification": "source",
+      "oracle_symbol_count": 1,
+      "declaration": {
+        "path": "src/Grace.Shared/Utilities.Shared.fs",
+        "range": {
+          "start": {
+            "line": 155,
+            "character": 8
+          },
+          "end": {
+            "line": 155,
+            "character": 37
+          }
+        }
+      },
+      "reference_locations": [
+        {
+          "path": "src/Grace.Shared/Utilities.Shared.fs",
+          "range": {
+            "start": {
+              "line": 155,
+              "character": 8
+            },
+            "end": {
+              "line": 155,
+              "character": 37
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 49,
+              "character": 35
+            },
+            "end": {
+              "line": 49,
+              "character": 64
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 241,
+              "character": 35
+            },
+            "end": {
+              "line": 241,
+              "character": 64
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 253,
+              "character": 35
+            },
+            "end": {
+              "line": 253,
+              "character": 64
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 265,
+              "character": 35
+            },
+            "end": {
+              "line": 265,
+              "character": 64
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 282,
+              "character": 35
+            },
+            "end": {
+              "line": 282,
+              "character": 64
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1185,
+              "character": 35
+            },
+            "end": {
+              "line": 1185,
+              "character": 64
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1198,
+              "character": 35
+            },
+            "end": {
+              "line": 1198,
+              "character": 64
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1315,
+              "character": 35
+            },
+            "end": {
+              "line": 1315,
+              "character": 64
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1328,
+              "character": 35
+            },
+            "end": {
+              "line": 1328,
+              "character": 64
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1340,
+              "character": 35
+            },
+            "end": {
+              "line": 1340,
+              "character": 64
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1405,
+              "character": 35
+            },
+            "end": {
+              "line": 1405,
+              "character": 64
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1423,
+              "character": 35
+            },
+            "end": {
+              "line": 1423,
+              "character": 64
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1450,
+              "character": 35
+            },
+            "end": {
+              "line": 1450,
+              "character": 64
+            }
+          }
+        },
+        {
+          "path": "src/Grace.Types/Common.Types.fs",
+          "range": {
+            "start": {
+              "line": 1465,
+              "character": 35
+            },
+            "end": {
+              "line": 1465,
+              "character": 64
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
