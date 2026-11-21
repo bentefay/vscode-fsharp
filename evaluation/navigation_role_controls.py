@@ -34,13 +34,16 @@ from smoke import project
 ORACLE = ROOT / 'evaluation/experiments/local-lexical-proof/oracle.fsx'
 STATIC = 'type C = static member M(x:bool) = x'
 BOTH = STATIC + '\nlet g a = a'
+MARKED_STATIC = 'type C = static member M(«x»:bool) = «x»'
 GETTER = 'type C() = member _.Item with get(x:bool) = x'
 
 # Only the marked identifiers are queried. Their meaning comes from the live checker.
 # The last column identifies simple positives for which refusal is a regression.
 CASES = [
     ('ordinary', BOTH, 'let caller «x» = g(«x»=«x»)', True),
-    ('named', BOTH, 'let caller «x» = C.M(«x»=«x»)', False),
+    ('named', MARKED_STATIC + '\nlet g a = a', 'let caller «x» = C.M(«x»=«x»)', False),
+    ('twoNamedCalls', MARKED_STATIC, 'let caller «x» = C.M(«x»=«x»)\nlet another «x» = C.M(«x»=«x»)', False),
+    ('dependentCaller', 'open RoleApi', 'let caller «x» = C.M(«x»=«x»)', False),
     ('spaced', STATIC, 'let caller «x» = C.M («x»=«x»)', False),
     ('functionFormal', '', 'let caller (g:bool -> bool) «x» = g(«x»=«x»)', True),
     ('qualified', 'module A =\n    let g a=a', 'let caller «x» = A.g(«x»=«x»)', False),
@@ -149,6 +152,11 @@ def prepare(out):
         # let one real SDK project validate the positive fixture batch in compile order.
         implementation = root / ('Implementation' + name + '.fs')
         files = [implementation]
+        if name == 'dependentCaller':
+            prior = root / 'RoleApi.fs'
+            files.insert(0, prior)
+            manifest.append(make_file(prior, 'module RoleApi\n' + MARKED_STATIC
+                                      + '\nlet forward «x» = C.M(«x»=«x»)', name, files))
         if name == 'ctorFromOpen':
             prior = root / 'OpenedConstructor.fs'
             files.insert(0, prior)
@@ -266,7 +274,8 @@ def prepare_receivers(out, helper, dotnet, manifest):
     artifacts = {}
     for item in manifest:
         fixture = Path(item['path']).parent
-        if fixture.name not in {'named', 'qualified', 'overloaded', 'autoStatic', 'openedQualifier', 'autoQualifier'}:
+        if fixture.name in artifacts or fixture.name not in {
+                'named', 'qualified', 'overloaded', 'autoStatic', 'openedQualifier', 'autoQualifier', 'dependentCaller'}:
             continue
         destination = out / 'prepared' / fixture.name
         destination.mkdir(parents=True)
@@ -316,21 +325,18 @@ def replay(binary, out, manifest, checked, required, artifacts):
             session.call('document/open', {'path': str(path), 'text': path.read_text(), 'version': 1})
             prepared = query(session, item, checked[item['case']], path, 1, 'prepared', False)
             for r in prepared:
-                if path.parent.name == 'qualified':
+                if path.parent.name in {'qualified', 'named'}:
                     r['required'] = True
-                elif path.parent.name == 'named':
-                    # The callee parameter can have named references beyond its body.
-                    r['required'] = r['method'] == 'definition' or r['position']['label'] != '1'
             rows.extend(prepared)
             if path.parent.name == 'named':
                 # Keep this real project's framework/assembly certificate, edit
                 # only the document, and check both the head and argument roles.
-                prelude = [i for i in manifest if i['case'].startswith('prelude')]
-                for version, dirty in enumerate(prelude, 2):
+                edits = [i for i in manifest if i['case'].startswith(('twoNamedCalls/', 'prelude'))]
+                for version, dirty in enumerate(edits, 2):
                     text = Path(dirty['path']).read_text()
                     session.call('document/change', {'path': str(path), 'version': version, 'text': text})
                     rows.extend(query(session, dirty, checked[dirty['case']], path, version,
-                                      'prepared-edit', False))
+                                      'prepared-edit', dirty['case'].startswith('twoNamedCalls/')))
             assert session.call('workspace/stats', {})['result']['helperStarts'] == 0
         finally:
             session.close()
