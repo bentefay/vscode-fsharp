@@ -9,6 +9,11 @@ exports.run = async function () {
   const extension = vscode.extensions.getExtension(process.env.FSNAV_PROVIDER);
   const navigator = extension.id.toLowerCase() === 'bentefay.fsharp-navigator';
   const report = { vscode: vscode.version, provider: extension.id, alreadyActive: extension.isActive, rows: [] };
+  if (navigator && process.env.FSNAV_GRACE_INDEX_FIRST === '1') {
+    const start = performance.now();
+    await vscode.commands.executeCommand('fsharpNavigator.indexWorkspace');
+    report.explicitIndexMs = performance.now() - start;
+  }
   const uri = site => vscode.Uri.file(path.join(process.env.FSNAV_GRACE_ROOT, site.path));
   async function query(doc, site, method) {
     const command = method === 'definition' ? 'vscode.executeDefinitionProvider' : 'vscode.executeReferenceProvider';

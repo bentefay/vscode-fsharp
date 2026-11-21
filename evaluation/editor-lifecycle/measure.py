@@ -66,6 +66,8 @@ def main():
     parser.add_argument('--backend', type=Path, help='Frozen navigator executable')
     parser.add_argument('--model', type=Path, help='Current evaluated model for the same workspace')
     parser.add_argument('--grace', action='store_true', help='Replay the frozen Grace46 contract through the selected provider')
+    parser.add_argument('--grace-index-first', action='store_true',
+                        help='Run the Navigator Index Workspace command before the fixed Grace queries')
     parser.add_argument('--grace-settings', type=Path, help='Run the unchanged Grace46 contract using explicit Navigator preparation settings')
     parser.add_argument('--output', type=Path, required=True, help='New directory outside the fixture')
     args = parser.parse_args()
@@ -76,6 +78,8 @@ def main():
     if out.is_relative_to(workspace):
         parser.error('Store measurement artifacts outside the fixture')
     grace = args.grace or args.grace_settings is not None
+    if args.grace_index_first and not (grace and nav):
+        parser.error('--grace-index-first requires a Navigator Grace trial')
     if grace:
         if args.grace_settings and not nav:
             parser.error('--grace-settings configures Navigator inputs')
@@ -94,6 +98,10 @@ def main():
                   vsixSha256={p.name: file_sha(p) for p in packages}, runs=[])
     if grace:
         env['FSNAV_GRACE_ROOT'] = str(corpus)
+        if args.grace_index_first:
+            env['FSNAV_GRACE_INDEX_FIRST'] = '1'
+        else:
+            env.pop('FSNAV_GRACE_INDEX_FIRST', None)
         report['contractSha256'] = file_sha(grace_score.CONTRACT)
     else:
         report.update(sourceSha256=file_sha(workspace/'Lifecycle.fs'), projectSha256=file_sha(workspace/'Lifecycle.fsproj'))

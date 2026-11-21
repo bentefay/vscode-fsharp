@@ -75,3 +75,8 @@ definition. If that definition still has no result, the driver retries at
 250 ms intervals for up to 30 seconds before a separate 46-operation replay.
 The two passes retain their own denominators. Ionide is scored by the returned
 editor locations, with empty and incorrect answers recorded separately.
+
+Use `--grace-index-first` for a separate Navigator trial that invokes the
+contributed **Index Workspace** command before the fixed operations. The result
+records the elapsed command time for each profile. Keep the configured-only
+first-demand replay alongside this explicit preparation mode.
