@@ -5,6 +5,8 @@ Run through scripts/with-local-tools (or the project Nix shell):
     python3 evaluation/navigation_role_controls.py --binary /abs/fsharp-navigator \
         --output-dir /tmp/new-run [--previous-binary /abs/older-fsharp-navigator]
 
+Pass --helper with the built FSharpNavigator.Semantic.dll for prepared receiver controls.
+
 The native runs use simple explicit compile lists and acknowledged buffers.
 The compiler runs separately. No semantic snapshot or helper is supplied to the daemon.
 """
@@ -23,6 +25,7 @@ from urllib.parse import unquote, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'semantic/tests'))
 from resolution_states import Native
+import smoke
 from smoke import project
 
 ORACLE = ROOT / 'evaluation/experiments/local-lexical-proof/oracle.fsx'
@@ -68,6 +71,16 @@ CASES = [
     ('inherits', 'type B(x:int) = member _.P=x', 'type D(«x»:int) = inherit B(«x»=«x»)', False),
     ('objectExpr', '[<AbstractClass>]\ntype B(x:int) = abstract P:int',
      'let caller «x» = { new B(«x»=«x») with member _.P=«x» }', False),
+    ('moduleThenType', 'module C =\n    let M b=b\ntype C = static member M(x:int)=x',
+     'let caller x=C.«M»(x=x)', False),
+    ('openedThenType', 'module Other =\n    module C =\n        let M b=b\nopen Other\n'
+     'type C = static member M(x:int)=x', 'let caller x=C.«M»(x=x)', False),
+    ('autoThenType', '[<AutoOpen>]\nmodule Other =\n    module C =\n        let M b=b\n'
+     'type C = static member M(x:int)=x', 'let caller x=C.«M»(x=x)', False),
+    ('overloaded', 'type C =\n    static member M(x:int)=x\n    static member M(x:bool)=0',
+     'let caller («x»:int) = C.M(«x»=«x»)', False),
+    ('autoStatic', 'type C = static member M(x:int)=x',
+     'let caller «x» = C.M(«x»=«x»)', False),
     ('autoQualifier', 'module A =\n    let g a=a', 'let caller «x» = A.g(«x»=«x»)', False),
     ('openedQualifier', 'open ImportedFromControl\nmodule A =\n    let g a=a',
      'let caller «x» = A.g(«x»=«x»)', False),
@@ -141,6 +154,12 @@ def prepare(out):
             result = {'invalidSignature': 'UnboundResultType', 'signatureConformance': 'string'}.get(name, 'int')
             manifest.append(make_file(signature, header + f'val ordinary : «x»:int -> {result}',
                                       name, files))
+        if name == 'autoStatic':
+            prior = root / 'AutoTerm.fs'
+            prior.write_text('namespace ControlReceiver\n[<AutoOpen>]\nmodule Imported =\n'
+                             '    type Proxy()=member _.M(x:int)=x\n    let C=Proxy()\n')
+            files.insert(0, prior)
+            header = 'module ControlReceiver.Consumer\n'
         manifest.append(make_file(implementation, header + body, name, files))
         project(root / 'Control.fsproj', ''.join(f'<Compile Include="{p.name}"/>' for p in files))
         if not name.startswith('invalid') and name != 'signatureConformance':
@@ -220,11 +239,38 @@ def query(session, item, oracle, path, version, stage, required):
                       'correct' if actual == expected else 'wrong')
             results.append({'case': item['case'], 'stage': stage, 'position': position, 'method': method,
                             'includeDeclaration': flag, 'source': answer.get('source'), 'status': status,
-                            'required': required, 'expected': expected, 'actual': actual})
+                            'required': required, 'expected': expected, 'actual': actual,
+                            **({'error': response['error']} if 'error' in response else {})})
     return results
 
 
-def replay(binary, out, manifest, checked, required):
+def prepare_receivers(out, helper, dotnet, manifest):
+    env = {**os.environ, 'FSHARP_NAVIGATOR_DOTNET': str(dotnet)}
+    artifacts = {}
+    for item in manifest:
+        fixture = Path(item['path']).parent
+        if fixture.name not in {'named', 'qualified', 'overloaded', 'autoStatic', 'openedQualifier', 'autoQualifier'}:
+            continue
+        destination = out / 'prepared' / fixture.name
+        destination.mkdir(parents=True)
+        tags = ['--helper', helper, '--root', fixture, '--timeout-ms', '180000']
+        model = destination / 'model.json'
+        inventory = destination / 'environment.json'
+        commands = [
+            [dotnet, 'build', fixture / 'Control.fsproj', '--nologo', '-v:q'],
+            [ROOT / 'cli/bin/run', 'projects', 'evaluate', *tags, '--output', model],
+            [ROOT / 'cli/bin/run', 'libraries', 'environment', *tags, '--model', model, '--output', inventory],
+        ]
+        for i, command in enumerate(commands):
+            execute(command, ROOT, env, destination / f'prepare-{i}.log').check_returncode()
+        projects = json.loads(model.read_text())['projects']
+        if not projects or not all(p.get('membershipReusable') for p in projects):
+            raise RuntimeError(f'Helper could not certify project membership for {fixture}')
+        artifacts[fixture.name] = {'evaluatedModelPath': str(model), 'builtinEnvironmentPath': str(inventory)}
+    return artifacts
+
+
+def replay(binary, out, manifest, checked, required, artifacts):
     rows = []
     for item in manifest:
         oracle = checked[item['case']]
@@ -237,6 +283,28 @@ def replay(binary, out, manifest, checked, required):
                                             'cacheDir': str(out / 'cache' / p.parent.name)})
             session.call('document/open', {'path': str(p), 'text': p.read_text(), 'version': 1})
             rows.extend(query(session, item, oracle, p, 1, 'open', p.parent.name in required))
+            assert session.call('workspace/stats', {})['result']['helperStarts'] == 0
+        finally:
+            session.close()
+
+    for item in manifest:
+        path = Path(item['path'])
+        config = artifacts.get(path.parent.name)
+        if config is None:
+            continue
+        session = Native(binary)
+        try:
+            session.call('workspace/open', {'root': str(path.parent), 'mode': 'indexed',
+                                            'cacheDir': str(out / 'prepared-cache' / path.parent.name), **config})
+            session.call('document/open', {'path': str(path), 'text': path.read_text(), 'version': 1})
+            prepared = query(session, item, checked[item['case']], path, 1, 'prepared', False)
+            for r in prepared:
+                if path.parent.name == 'qualified':
+                    r['required'] = True
+                elif path.parent.name == 'named':
+                    # The callee parameter can have named references beyond its body.
+                    r['required'] = r['method'] == 'definition' or r['position']['label'] != '1'
+            rows.extend(prepared)
             assert session.call('workspace/stats', {})['result']['helperStarts'] == 0
         finally:
             session.close()
@@ -274,6 +342,7 @@ def main():
     parser.add_argument('--previous-binary', type=Path, help='Run first and retain its SQLite caches')
     parser.add_argument('--output-dir', required=True, type=Path, help='New directory for controlled inputs and evidence')
     parser.add_argument('--dotnet', type=Path, default=Path(shutil.which('dotnet') or ROOT / '.tools/dotnet/dotnet'))
+    parser.add_argument('--helper', type=Path, help='Explicit helper for genuine project and metadata preparation')
     parser.add_argument('--require-full-coverage', action='store_true',
                         help='Fail on every unavailable operation in addition to the required positives')
     args = parser.parse_args()
@@ -282,7 +351,14 @@ def main():
     manifest, required, build = prepare(out)
     sdk = subprocess.check_output([args.dotnet.resolve(), '--version'], cwd=out, text=True).strip()
     checked = compiler(out, args.dotnet.resolve(), manifest, build)
-    report = {'sdk': sdk, 'oracleSha256': digest(ORACLE), 'oracle': 'SDK build and full project FCS',
+    if args.helper:
+        # Match the unmodified CLI environment that the helper actually certifies.
+        smoke.ENV = {**os.environ, 'FSHARP_NAVIGATOR_DOTNET': str(args.dotnet.resolve())}
+    artifacts = prepare_receivers(out, args.helper.resolve(), args.dotnet.resolve(), manifest) if args.helper else {}
+    report = {'helperSha256': digest(args.helper) if args.helper else None,
+              'preparedInputs': {case: {k: digest(Path(v)) for k, v in paths.items()}
+                                 for case, paths in artifacts.items()},
+              'sdk': sdk, 'oracleSha256': digest(ORACLE), 'oracle': 'SDK build and full project FCS',
               'comparison': 'FCS declaration range and complete project uses with explicit declaration flag',
               'sdkBuilds': {'valid': True, 'invalidNamed': False, 'invalidSignature': False,
                             'signatureConformance': True},
@@ -293,9 +369,9 @@ def main():
     for label, binary in [('previous', args.previous_binary), ('candidate', args.binary)]:
         if not binary:
             continue
-        rows = replay(binary.resolve(), out, manifest, checked, required)
+        rows = replay(binary.resolve(), out, manifest, checked, required, artifacts)
         counts = dict(Counter(r['status'] for r in rows))
-        qualified = Counter(r['status'] for r in rows if r['case'].startswith('qualified/'))
+        qualified = Counter(r['status'] for r in rows if r['case'].startswith('qualified/') and r['stage'] == 'open')
         report['runs'][label] = {'binarySha256': digest(binary), 'counts': counts,
                                  'unpreparedQualifiedEquality': dict(qualified), 'queries': rows}
         print(label, len(rows), counts, 'unprepared qualified equality', dict(qualified), flush=True)
