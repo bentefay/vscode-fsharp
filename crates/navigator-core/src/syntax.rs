@@ -1038,7 +1038,7 @@ impl ParsedFile {
         self.lexical_binding(token)
     }
 
-    fn lexical_binding(&self, token: usize) -> Option<&Declaration> {
+    pub(crate) fn lexical_binding(&self, token: usize) -> Option<&Declaration> {
         if !self.binding_supported(token) {
             return None;
         }

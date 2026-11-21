@@ -40,6 +40,10 @@ impl<T> Lookup<T> {
         }
     }
 }
+enum AllowedTerm<'a> {
+    External(&'a serde_json::Value),
+    DocumentModule(usize),
+}
 type TypeLookup = Lookup<TypeIdentity>;
 type DeclarationLookup = Lookup<Symbol>;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -584,10 +588,10 @@ impl Workspace {
             _ => None,
         })
     }
-    /// Resolve only a direct, single-formal forwarder to a unique intrinsic
-    /// static method on a freshly declared class. The receiver must pass
-    /// ordinary term/module competition against certified assembly facts.
-    pub(crate) fn named_argument_binding(
+    /// A direct, single-formal forwarder can select a parameter label or
+    /// an ordinary equality operand. Both routes need the caller's complete
+    /// term environment, including source and assembly AutoOpen modules.
+    pub(crate) fn call_argument_binding(
         &mut self,
         path: &str,
         p: &ParsedFile,
@@ -610,9 +614,6 @@ impl Workspace {
             || !p.aliases.is_empty()
             || !p.uncertain.is_empty()
             || !p.potential_bindings.is_empty()
-            || p.modules.len() != 1
-            || p.owned_types.len() != 1
-            || p.record_types.len() != 1
         {
             return Ok(None);
         }
@@ -622,6 +623,12 @@ impl Workspace {
         // A new term-absence scan must have bounded scope, even for a small
         // method body in a very large workspace.
         if receiver.contains('.') || self.model.files.len() > 8 {
+            return Ok(None);
+        }
+        if p.modules.len() == 2 && p.owned_types.is_empty() {
+            return self.qualified_function_operand(path, p, token, head, &receiver);
+        }
+        if p.modules.len() != 1 || p.owned_types.len() != 1 || p.record_types.len() != 1 {
             return Ok(None);
         }
         let record = &p.record_types[0];
@@ -675,6 +682,76 @@ impl Workspace {
         Ok(Some(
             self.source_symbol(path, p, parameter, &d.name, true, false),
         ))
+    }
+
+    fn qualified_function_operand(
+        &mut self,
+        path: &str,
+        p: &ParsedFile,
+        token: usize,
+        head: usize,
+        root: &str,
+    ) -> Result<Option<Symbol>> {
+        let Some(owner) = p.module_at(head) else {
+            return Ok(None);
+        };
+        let qualified = format!("{owner}.{root}");
+        let Some(module) = p
+            .modules
+            .iter()
+            .find(|m| m.name == qualified && m.end <= p.tokens[head].start)
+        else {
+            return Ok(None);
+        };
+        let mut heads = p.declarations.iter().filter(|d| {
+            d.top_level
+                && d.name == p.tokens[head].text
+                && p.declaration_module(d) == Some(module.name.as_str())
+        });
+        let Some(function) = heads.next() else {
+            return Ok(None);
+        };
+        if heads.next().is_some()
+            || !p.function_value_heads.contains(&function.token)
+            || !p.pattern_declarations.is_empty()
+        {
+            return Ok(None);
+        }
+        let Some(local) = p
+            .lexical_binding(token)
+            .filter(|d| d.kind == "parameter" && !d.top_level)
+        else {
+            return Ok(None);
+        };
+        let root_token = head - 2;
+        if !self.term_qualification_clear_except(
+            path,
+            p,
+            root_token,
+            root,
+            0,
+            Some(AllowedTerm::DocumentModule(module.start)),
+        )? || !matches!(
+            self.library_named_type_proof(path, p, root_token, root, 0)?,
+            Lookup::Absent
+        ) {
+            return Ok(None);
+        }
+        let selected = self.resolve(path, p, head)?;
+        if selected
+            .as_ref()
+            .is_none_or(|s| s.path != path || s.token != function.token)
+        {
+            return Ok(None);
+        }
+        Ok(Some(self.source_symbol(
+            path,
+            p,
+            local.token,
+            &local.name,
+            true,
+            false,
+        )))
     }
 
     fn method_binding(
@@ -1467,7 +1544,14 @@ impl Workspace {
         if matching.len() != 1 {
             return Ok(false);
         }
-        self.term_qualification_clear_except(path, parsed, token, "nameof", 1, matching.first())
+        self.term_qualification_clear_except(
+            path,
+            parsed,
+            token,
+            "nameof",
+            1,
+            matching.first().map(AllowedTerm::External),
+        )
     }
 
     pub(crate) fn definition_binding(
@@ -1566,7 +1650,7 @@ impl Workspace {
         token: usize,
     ) -> Result<Option<Symbol>> {
         if parsed.possible_named_argument(token) {
-            return self.named_argument_binding(path, parsed, token);
+            return self.call_argument_binding(path, parsed, token);
         }
         if parsed.explicit_constructor_heads.contains(&token) {
             // Explicit new enters the type namespace even when a local value
@@ -2557,7 +2641,7 @@ impl Workspace {
         token: usize,
         text: &str,
         depth: usize,
-        allowed: Option<&serde_json::Value>,
+        allowed: Option<AllowedTerm<'_>>,
     ) -> Result<bool> {
         if !self.proof_step(depth) || !self.ensure_builtins()? {
             return Ok(false);
@@ -2670,7 +2754,7 @@ impl Workspace {
                 let Some(full) = row["sourceFullName"].as_str() else {
                     return Ok(false);
                 };
-                if allowed == Some(&row) {
+                if matches!(allowed, Some(AllowedTerm::External(allowed)) if allowed == &row) {
                     let declaring = row["declaringScope"].as_str().unwrap_or("");
                     let visible = if candidates.contains(full) {
                         Some(true)
@@ -2706,7 +2790,9 @@ impl Workspace {
                 }
             }
             for row in scopes {
-                if row["kind"] != "module" {
+                if row["kind"] != "module"
+                    && !matches!(allowed, Some(AllowedTerm::DocumentModule(_)))
+                {
                     continue;
                 }
                 let Some(full) = row["sourceFullName"].as_str() else {
@@ -2852,6 +2938,17 @@ impl Workspace {
                 }
                 if !valid {
                     return Ok(false);
+                }
+                if let Some(AllowedTerm::DocumentModule(start)) = allowed {
+                    // Avoid selecting a sibling by spelling in the presence of another
+                    // source module, including one contributed through an AutoOpen.
+                    if file == path && start == module.start && candidates.contains(&module.name) {
+                        allowed_visible = true;
+                        continue;
+                    }
+                    if module.name.rsplit('.').next() == Some(*part) {
+                        return Ok(false);
+                    }
                 }
                 if candidates.contains(&module.name) && (file != path || module.start < offset) {
                     return Ok(false);
@@ -4772,6 +4869,23 @@ mod tests {
         fs::write(&environment,crate::certified_metadata_fixture(json!({"schemaVersion":1,"factsVersion":2,"kind":"builtin-environment","completeness":"exact","typeNameInventory":"all-external-type-declarations","scopeNameInventory":"all-external-namespace-and-module-declarations","termNameInventory":"all-external-expression-bindings","scopeNames":{},"termNames":{},"assemblyAutoOpens":[],"certificateScope":"selected-reference-declaration-inventory","inputHashes":[{"path":assembly,"sha256":format!("{:x}",Sha256::digest(fs::read(&assembly).unwrap()))}],"referenceBindings":[{"path":assembly,"identity":"Certificate"}],"workspaceAssemblies":[],"types":{},"patterns":{},"typeNames":names})).to_string()).unwrap();
         ws.builtin_path = Some(environment.to_string_lossy().into_owned());
     }
+    #[test]
+    fn prepared_qualified_function_forwarder_preserves_local_equality() {
+        let (path, mut ws) =
+            workspace("module Example\nmodule A =\n    let g v=v\nlet caller x = A.g(x=x)\n");
+        certify_type_names(&path, &mut ws, json!({}));
+        let lhs = query(&mut ws, &path, "navigation/definition", 3, 19);
+        assert_eq!(lhs["completeness"], "exact", "{lhs}");
+        assert_eq!(
+            lhs["locations"][0]["range"]["start"],
+            json!({"line":3,"character":11})
+        );
+        let caller = query(&mut ws, &path, "navigation/references", 3, 11);
+        assert_eq!(caller["completeness"], "exact", "{caller}");
+        assert_eq!(caller["locations"].as_array().unwrap().len(), 2);
+        fs::remove_dir_all(path).unwrap();
+    }
+
     #[test]
     fn prepared_single_argument_forwarder_identifies_the_static_parameter() {
         let (path, mut ws) = workspace(
