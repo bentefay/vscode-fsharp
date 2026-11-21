@@ -8,7 +8,10 @@ Run through scripts/with-local-tools (or the project Nix shell):
 Pass --helper with the built FSharpNavigator.Semantic.dll for prepared receiver controls.
 
 The native runs use simple explicit compile lists and acknowledged buffers.
-The compiler runs separately. No semantic snapshot or helper is supplied to the daemon.
+The SDK builds the .fsproj files. FCS checks each complete ordered source list using
+the SDK script framework references. The daemon receives no catalog, decompiler,
+semantic snapshot or helper. FCS source targets and workspace uses are compared
+by physical file and UTF-16 range.
 """
 import argparse
 from collections import Counter
@@ -93,6 +96,13 @@ CASES = [
     ('callbackLocal', '', 'let caller = List.map (fun «x» -> «x»+«x») [1]', True),
     ('invalidNamed', STATIC, 'let caller () = C.M(x="bad")', False),
 ]
+# These module functions are present in the compiler-selected FSharp.Core. Their
+# one-argument calls admit genuine equality even with a competing source type.
+CORE_CALLS = {'Option': 'defaultValue', 'Result': 'defaultValue', 'List': 'singleton',
+              'Array': 'singleton', 'Seq': 'singleton'}
+for owner, member in CORE_CALLS.items():
+    CASES.append(('prelude' + owner, f'type {owner} = static member {member}(x:int)=x',
+                  f'let caller «x» = {owner}.«{member}»(«x»=«x»)', False))
 SIGNATURES = ['fsi', 'FsI', 'FSI']
 
 
@@ -305,6 +315,15 @@ def replay(binary, out, manifest, checked, required, artifacts):
                     # The callee parameter can have named references beyond its body.
                     r['required'] = r['method'] == 'definition' or r['position']['label'] != '1'
             rows.extend(prepared)
+            if path.parent.name == 'named':
+                # Keep this real project's framework/assembly certificate, edit
+                # only the document, and check both the head and argument roles.
+                prelude = [i for i in manifest if i['case'].startswith('prelude')]
+                for version, dirty in enumerate(prelude, 2):
+                    text = Path(dirty['path']).read_text()
+                    session.call('document/change', {'path': str(path), 'version': version, 'text': text})
+                    rows.extend(query(session, dirty, checked[dirty['case']], path, version,
+                                      'prepared-edit', False))
             assert session.call('workspace/stats', {})['result']['helperStarts'] == 0
         finally:
             session.close()
