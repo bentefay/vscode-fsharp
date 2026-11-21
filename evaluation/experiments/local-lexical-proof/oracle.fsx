@@ -1,4 +1,4 @@
-#r "../../../.tools/dotnet/sdk/10.0.400/FSharp/FSharp.Compiler.Service.dll"
+#r "FSharp.Compiler.Service.dll"
 open System
 open System.IO
 open System.Text.Json
