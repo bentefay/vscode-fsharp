@@ -451,7 +451,10 @@ impl Workspace {
                     self.index.parsed_in(path, &context)
                 };
                 return match result {
-                    Ok(parsed) => Ok(parsed),
+                    Ok(parsed) => {
+                        self.type_proofs.observe_namespace_root(path, &parsed);
+                        Ok(parsed)
+                    }
                     Err(e) if e.is::<cancellation::Cancelled>() || e.is::<foreground::Limit>() => {
                         Err(e)
                     }
@@ -1171,6 +1174,10 @@ impl Workspace {
         let t = &p.tokens[token];
         let visible = self.visible_files(path);
         let local = p.local_binding(token);
+        if local.is_none() && p.qualifier(token).is_none() {
+            self.track_application_namespace(p, token);
+            self.type_proofs.observe_namespace_root(path, p);
+        }
         let imports = if p.qualifier(token).is_none()
             && local.is_none_or(|d| d.top_level && d.token != token)
         {
@@ -1249,6 +1256,7 @@ impl Workspace {
         }
         let qualifier = p.qualifier(token);
         let mut modules = Vec::new();
+        let mut unknown_opens = Vec::new();
         if let Some(q) = qualifier {
             let first = q.split('.').next().unwrap_or("");
             // F# resolves an expression value before a same-spelled module alias.
@@ -1281,6 +1289,7 @@ impl Workspace {
                 if opened.is_empty() {
                     // This ordered import has an unknown name environment. Do
                     // not skip it then certify an older same-spelled binding.
+                    unknown_opens.push(open.name.as_str());
                     modules.push(String::new());
                 } else {
                     modules.extend(opened);
@@ -1295,7 +1304,7 @@ impl Workspace {
         self.ensure_name_coverage(&t.text)?;
         for module in modules {
             if module.is_empty() {
-                return Ok(None);
+                return self.unique_imported_application(path, p, token, &visible, &unknown_opens);
             }
             let Some(matches) = self.visible_exports(&module, &t.text, path, p, token, &visible)?
             else {

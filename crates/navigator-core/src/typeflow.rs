@@ -60,7 +60,15 @@ pub(crate) enum AttributeEffect {
     Unknown,
 }
 
+#[derive(Default)]
+struct NamespaceRoot {
+    name: String,
+    checked: std::collections::HashSet<String>,
+    blocked: bool,
+}
+
 pub(crate) struct ProofState {
+    namespace_root: NamespaceRoot,
     active: std::collections::HashSet<(String, usize, bool)>,
     memo: std::collections::HashMap<(String, usize, bool), Option<TypeIdentity>>,
     candidates: std::collections::HashMap<String, Vec<String>>,
@@ -79,6 +87,7 @@ pub(crate) struct ProofState {
 impl Default for ProofState {
     fn default() -> Self {
         Self {
+            namespace_root: Default::default(),
             active: Default::default(),
             memo: Default::default(),
             candidates: Default::default(),
@@ -98,7 +107,56 @@ impl Default for ProofState {
 }
 
 impl ProofState {
+    pub(crate) fn observe_namespace_root(&mut self, path: &str, parsed: &ParsedFile) {
+        let certificate = &mut self.namespace_root;
+        let root = &certificate.name;
+        if root.is_empty() || certificate.blocked || certificate.checked.contains(path) {
+            return;
+        }
+        // Unsupported structural syntax containing the namespace spelling may
+        // hide a declaration. A completed RHS cannot export a namespace.
+        let root_offsets = parsed
+            .tokens
+            .iter()
+            .filter(|t| t.ident && t.text == *root)
+            .map(|t| t.start)
+            .take(257)
+            .collect::<Vec<_>>();
+        let uncertain = parsed.uncertain.iter().any(|u| {
+            if u.local_binding_scope.is_some()
+                || u.name.as_deref().is_some_and(|n| n != root)
+                || u.binding_names
+                    .as_ref()
+                    .is_some_and(|names| !names.contains(root))
+            {
+                return false;
+            }
+            let first = root_offsets.partition_point(|&offset| offset < u.start);
+            root_offsets
+                .get(first)
+                .is_some_and(|&offset| offset < u.end)
+        });
+        if root_offsets.len() > 256
+            || uncertain
+            || certificate.checked.len() >= 64
+            || parsed.tokens.is_empty() && !parsed.supported
+            || parsed.aliases.iter().any(|a| a.name == *root)
+            || parsed
+                .owned_types
+                .iter()
+                .any(|t| t.name.rsplit('.').next() == Some(root))
+            || parsed
+                .modules
+                .iter()
+                .any(|m| m.name.split('.').skip(1).any(|p| p == root))
+        {
+            certificate.blocked = true;
+        } else {
+            certificate.checked.insert(path.to_owned());
+        }
+    }
     pub(crate) fn clear_context(&mut self) {
+        self.namespace_root = Default::default();
         self.active.clear();
         self.memo.clear();
         self.candidates.clear();
@@ -4781,6 +4839,220 @@ impl Workspace {
         Ok(None)
     }
 
+    pub(crate) fn track_application_namespace(&mut self, parsed: &ParsedFile, token: usize) {
+        if self.model.projects.len() == 1
+            && self.model.projects[0].files.len() <= 64
+            && self.model.projects[0].membership_reusable == Some(true)
+            && parsed.aliases.is_empty()
+            && Self::ordinary_application(parsed, token)
+        {
+            if let Some(root) = parsed.module_at(token).and_then(|m| m.split('.').next()) {
+                if self.type_proofs.namespace_root.name != root {
+                    self.type_proofs.namespace_root = NamespaceRoot {
+                        name: root.to_owned(),
+                        ..Default::default()
+                    };
+                }
+            }
+        }
+    }
+
+    /// A public source function can survive later ordered imports only if the
+    /// selected binary and source domains contain no other binding. This proof
+    /// accepts qualified ordinary opens in one exact compiler input sequence.
+    pub(crate) fn unique_imported_application(
+        &mut self,
+        path: &str,
+        parsed: &ParsedFile,
+        token: usize,
+        visible: &[String],
+        unknown_opens: &[&str],
+    ) -> Result<Option<Symbol>> {
+        let name = &parsed.tokens[token].text;
+        if self.mode != crate::Mode::Indexed
+            || !name.as_bytes().first().is_some_and(u8::is_ascii_lowercase)
+            || !Self::ordinary_application(parsed, token)
+            || self.model.projects.len() != 1
+            || self.model.projects[0].evaluation != "design-time-fsc-arguments"
+            || self.model.projects[0].membership_reusable != Some(true)
+            || self.model.projects[0].compiler_args.is_empty()
+            || self.model.projects[0].files.len() > 64
+            || self.model.projects[0]
+                .files
+                .iter()
+                .collect::<std::collections::HashSet<_>>()
+                .len()
+                != self.model.projects[0].files.len()
+            || !self.model.projects[0].references.is_empty()
+            || !self.index_errors.is_empty()
+            || !parsed.aliases.is_empty()
+            || visible
+                .iter()
+                .any(|p| project::signature(p) || self.ambiguous_instance(p))
+            || !self.ensure_builtins()?
+        {
+            return Ok(None);
+        }
+        let env = self.builtin_environment.as_ref().unwrap();
+        let db = &self.index.db;
+        if !env.term_names(db, name)?.is_some_and(|v| v.is_empty())
+            || !env.scope_names(db, name)?.is_some_and(|v| v.is_empty())
+            || !env.type_names(db, name)?.is_some_and(|v| v.is_empty())
+        {
+            return Ok(None);
+        }
+        for &import in unknown_opens {
+            let last = import.rsplit('.').next().unwrap_or(import);
+            if !env.scope_names(db, last)?.is_some_and(|scopes| {
+                scopes
+                    .iter()
+                    .any(|row| row["kind"] == "namespace" && row["sourceFullName"] == import)
+            }) || !env
+                .type_names(db, last)?
+                .is_some_and(|types| types.is_empty())
+            {
+                return Ok(None);
+            }
+        }
+        // Coverage was established by the ordinary resolver before it reached
+        // an unknown ordered open. Inspect only files already selected by the
+        // exact identifier posting, and never reinterpret a pattern as a use.
+        let paths = self.index.candidate_paths(name)?;
+        if paths.len() > 16 {
+            return Ok(None);
+        }
+        let mut found = None;
+        let mut occurrences = 0;
+        for file in paths.iter().filter(|p| visible.contains(p)) {
+            if !self.proof_step(1) {
+                return Ok(None);
+            }
+            let owned = self.parsed(file)?;
+            if owned.tokens.is_empty() && !owned.supported {
+                return Ok(None);
+            }
+            for (i, t) in owned
+                .tokens
+                .iter()
+                .enumerate()
+                .filter(|(_, t)| t.ident && t.text == *name)
+            {
+                occurrences += 1;
+                if occurrences > 128 {
+                    return Ok(None);
+                }
+                if Self::ordinary_application(&owned, i) {
+                    continue;
+                }
+                let Some(d) = owned.declaration_at(i) else {
+                    return Ok(None);
+                };
+                if file == path
+                    || !d.top_level
+                    || d.accessibility != "public"
+                    || !owned.function_value_heads.contains(&i)
+                    || !owned.binding_supported(i)
+                    || found.is_some()
+                {
+                    return Ok(None);
+                }
+                let Some(module) = owned.declaration_module(d) else {
+                    return Ok(None);
+                };
+                if owned.attributes.iter().any(|a| {
+                    a.owner_kind == "module"
+                        && (a.owner == module
+                            || module
+                                .strip_prefix(&a.owner)
+                                .is_some_and(|tail| tail.starts_with('.')))
+                }) {
+                    return Ok(None);
+                }
+                found = Some((
+                    module.to_owned(),
+                    self.source_symbol(file, &owned, i, &t.text, false, false),
+                ));
+            }
+        }
+        let Some((module, symbol)) = found else {
+            return Ok(None);
+        };
+        let Some((root, _)) = module.split_once('.') else {
+            return Ok(None);
+        };
+        let offset = parsed.tokens[token].start;
+        let Some(open) = parsed
+            .opens
+            .iter()
+            .find(|o| o.name == module && o.offset < offset && offset < o.scope_end)
+        else {
+            return Ok(None);
+        };
+        let open_at = open.environment_token(parsed, token);
+        if parsed.module_at(open_at).and_then(|m| m.split('.').next()) != Some(root)
+            || parsed.opens.iter().any(|o| {
+                o.offset < open.offset
+                    && open.offset < o.scope_end
+                    && o.name != root
+                    && !o
+                        .name
+                        .strip_prefix(root)
+                        .is_some_and(|tail| tail.starts_with('.'))
+            })
+            || parsed.attributes.iter().any(|a| {
+                a.owner_kind == "module" && a.owner_end < open.offset && open.offset < a.scope_end
+            })
+        {
+            return Ok(None);
+        }
+        let env = self.builtin_environment.as_ref().unwrap();
+        if !env
+            .scope_names(&self.index.db, root)?
+            .is_some_and(|v| v.is_empty())
+            || !env
+                .type_names(&self.index.db, root)?
+                .is_some_and(|v| v.is_empty())
+        {
+            return Ok(None);
+        }
+        // Consume the compact scope checks already made during ordinary name
+        // lookup. Only a bounded tail of unvisited files may be consulted,
+        // commonly the SDK's generated assembly-attribute sources.
+        let checked = &self.type_proofs.namespace_root;
+        if checked.name != root || checked.blocked {
+            return Ok(None);
+        }
+        let missing = visible
+            .iter()
+            .filter(|f| !checked.checked.contains(*f))
+            .take(5)
+            .cloned()
+            .collect::<Vec<_>>();
+        if missing.len() > 4 {
+            return Ok(None);
+        }
+        for file in missing {
+            self.parsed(&file)?;
+            if !self.type_proofs.namespace_root.checked.contains(&file)
+                || self.type_proofs.namespace_root.blocked
+            {
+                return Ok(None);
+            }
+        }
+        if !self.index_errors.is_empty()
+            || self.opened_modules(path, parsed, open_at, &module)? != [module]
+        {
+            return Ok(None);
+        }
+        Ok(Some(symbol))
+    }
+
+    fn ordinary_application(parsed: &ParsedFile, token: usize) -> bool {
+        parsed.expression_type_candidates.iter().any(|a| {
+            a.token == token && matches!(a.role, crate::syntax::ExpressionTypeRole::ApplicationHead)
+        }) && !parsed.explicit_constructor_heads.contains(&token)
+            && parsed.binding_supported(token)
+    }
     pub(crate) fn opened_modules(
         &mut self,
         path: &str,
@@ -5156,6 +5428,55 @@ mod tests {
         fs::write(&environment,crate::certified_metadata_fixture(json!({"schemaVersion":1,"factsVersion":2,"kind":"builtin-environment","completeness":"exact","typeNameInventory":"all-external-type-declarations","scopeNameInventory":"all-external-namespace-and-module-declarations","termNameInventory":"all-external-expression-bindings","scopeNames":{},"termNames":{},"assemblyAutoOpens":[],"certificateScope":"selected-reference-declaration-inventory","inputHashes":[{"path":assembly,"sha256":format!("{:x}",Sha256::digest(fs::read(&assembly).unwrap()))}],"referenceBindings":[{"path":assembly,"identity":"Certificate"}],"workspaceAssemblies":[],"types":types,"patterns":{},"typeNames":names})).to_string()).unwrap();
         ws.builtin_path = Some(environment.to_string_lossy().into_owned());
     }
+    #[test]
+    fn unqualified_application_requires_a_unique_source_function_and_captured_open() {
+        let (path, mut ws) = workspace("namespace Domains.Consumer\nopen Domains.Earlier\nopen System.Runtime.Serialization\nmodule Uses =\n    let caller v = probe v\n");
+        let values = path.join("Earlier.fs");
+        let base = "namespace Domains\nmodule Earlier =\n    let probe v = v+1\n";
+        fs::write(&values, base).unwrap();
+        let project = path.join("Main.fsproj");
+        fs::write(
+            &project,
+            fs::read_to_string(&project).unwrap().replace(
+                "<Compile Include=",
+                "<Compile Include=\"Earlier.fs\"/><Compile Include=",
+            ),
+        )
+        .unwrap();
+        certify_type_names(&path, &mut ws, json!({}));
+        let inventory = ws.builtin_path.as_ref().unwrap();
+        let mut env: Value = serde_json::from_slice(&fs::read(inventory).unwrap()).unwrap();
+        env["scopeNames"]["Serialization"] =
+            json!([{"kind":"namespace","sourceFullName":"System.Runtime.Serialization"}]);
+        fs::write(inventory, env.to_string()).unwrap();
+        ws.model.projects[0].evaluation = "design-time-fsc-arguments".into();
+        ws.model.projects[0].compiler_args = vec!["Earlier.fs".into(), "Main.fs".into()];
+        ws.model.projects[0].membership_reusable = Some(true);
+        for (version, competitor) in [(1, false), (2, true), (3, false)] {
+            let source = if competitor {
+                format!("{base}\nnamespace System.Runtime.Serialization\n[<AutoOpen>]\nmodule Hidden =\n    let probe x = x+7\n")
+            } else {
+                base.to_owned()
+            };
+            ws.dispatch(
+                "document/change",
+                &json!({"path":values,"version":version,"text":source}),
+            )
+            .unwrap();
+            let answer = query(&mut ws, &path, "navigation/definition", 4, 19);
+            if competitor {
+                assert_eq!(answer["completeness"], "unavailable", "{answer}");
+            } else {
+                assert_eq!(answer["completeness"], "exact", "{answer}");
+                assert_eq!(
+                    answer["locations"][0]["range"]["start"],
+                    json!({"line":2,"character":8})
+                );
+            }
+        }
+        fs::remove_dir_all(path).unwrap();
+    }
+
     #[test]
     fn prepared_qualified_function_forwarder_preserves_local_equality() {
         let (path, mut ws) =
