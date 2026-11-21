@@ -108,6 +108,23 @@ pub fn is_source(path: &Path) -> bool {
         Some("fs" | "fsi" | "fsx")
     )
 }
+// A compiled script can add sources through #load. The evaluated model
+// records its path, but has no dependency certificate for that source closure.
+fn explicit_source(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("fs") || ext.eq_ignore_ascii_case("fsi"))
+}
+
+// Fsc expands @response files before parsing options and filenames. Their
+// contents and inner dependencies are absent from the evaluated certificate.
+pub(crate) fn modeled_compiler_argument(arg: &str) -> bool {
+    let arg = arg.trim().trim_matches('"');
+    !arg.starts_with('@')
+        && arg != "--"
+        && (arg.starts_with('-') || explicit_source(Path::new(arg)))
+}
+
 pub fn excluded(name: &str) -> bool {
     matches!(
         name,
@@ -205,7 +222,12 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
     reader.config_mut().trim_text(true);
     let mut files = Vec::new();
     let mut refs = Vec::new();
-    let mut exact = true;
+    // MSBuild can inherit OtherFlags even when the project does not define it.
+    let mut exact = !std::env::vars_os().any(|(key, value)| {
+        key.to_str()
+            .is_some_and(|key| key.eq_ignore_ascii_case("OtherFlags"))
+            && !value.is_empty()
+    });
     let mut notes = Vec::new();
     let mut defines = Vec::new();
     let mut target_framework = String::new();
@@ -229,7 +251,9 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                             continue;
                         }
                         crate::foreground::entry()?;
-                        files.push(normalize(parent.join(value.replace('\\', "/"))));
+                        let source = parent.join(value.replace('\\', "/"));
+                        exact &= explicit_source(&source);
+                        files.push(normalize(source));
                     }
                     if name == "Compile" && matches!(key.as_ref(), "Remove" | "Update") {
                         exact = false;
@@ -239,10 +263,12 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                         refs.push(normalize(parent.join(value.replace('\\', "/"))));
                     }
                 }
-                if matches!(
-                    name.as_str(),
-                    "TargetFrameworks" | "EnableDefaultCompileItems"
-                ) {
+                if name.eq_ignore_ascii_case("OtherFlags")
+                    || matches!(
+                        name.as_str(),
+                        "TargetFrameworks" | "EnableDefaultCompileItems"
+                    )
+                {
                     exact = false;
                 }
             }
@@ -339,6 +365,11 @@ impl Model {
         // changes are then tracked by the workspace's input watchers.
         if exact {
             for project in &projects {
+                anyhow::ensure!(
+                    project.compiler_args.iter().all(|arg| modeled_compiler_argument(arg))
+                        && project.files.iter().all(|file| explicit_source(Path::new(file))),
+                    "Evaluated project includes an unmodeled compiler input: {}; prepare a project with explicit source arguments", project.path
+                );
                 for binding in &project.reference_bindings {
                     // Source-project identities do not depend on whether a
                     // workspace DLL has been built yet. External resolution
@@ -662,6 +693,29 @@ mod membership_model_tests {
         assert!(model.validate_membership().is_err());
         assert!(Model::from_evaluated(&normalize(&root), &value).is_err());
         assert!(model.membership_affects(&root.join("A.fsi")));
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn indirect_compiler_inputs_cannot_certify_source_membership() {
+        let root = fixture();
+        let mut value = exported(&root, false);
+        for argument in [
+            "@extra.rsp",
+            "\"@parameters.fs\"",
+            "Included.fsscript",
+            "--",
+        ] {
+            value["projects"][0]["compilerArgs"] = json!([argument]);
+            assert!(Model::from_evaluated(&normalize(&root), &value)
+                .unwrap_err()
+                .to_string()
+                .contains("unmodeled compiler input"));
+        }
+        value["projects"][0]["compilerArgs"] = json!(["-r:Reference.dll", "A.fs"]);
+        assert!(Model::from_evaluated(&normalize(&root), &value).is_ok());
+        let proj = root.join("P.fsproj");
+        fs::write(&proj, "<Project><PropertyGroup><otherFLAGS>@extra.rsp</otherFLAGS></PropertyGroup><ItemGroup><Compile Include=\"A.fs\"/></ItemGroup></Project>").unwrap();
+        assert!(!parse_project(&proj).unwrap().0.exact);
         fs::remove_dir_all(root).unwrap();
     }
     #[test]

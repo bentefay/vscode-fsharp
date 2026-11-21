@@ -1,15 +1,50 @@
 #!/usr/bin/env python3
 """Real MSBuild wildcard provenance; no source bodies in membership digest."""
-import hashlib,pathlib,tempfile
-from smoke import run,request,project
+import hashlib,pathlib,subprocess,tempfile
+from smoke import DOTNET, ENV, run,request,project
 
 def digest(cert):
  root=pathlib.Path(cert['root']); paths=root.rglob('*') if cert['recursive'] else root.glob('*')
  names=sorted(p.relative_to(root).as_posix().encode() for p in paths if p.is_file() and p.suffix.lstrip('.').lower() in cert['extensions'])
  return hashlib.sha256(b''.join(n+b'\0' for n in names)).hexdigest(),len(names)
 def evaluate(root,proj):return request('workspace/evaluate',{'root':str(root),'projects':[str(proj)]})['projects'][0]
+def check_indirect_signature_sources(root):
+    for kind in ["response", "script"]:
+        folder = root / kind
+        folder.mkdir()
+        if kind == "script":
+            (folder / "Load.fsx").write_text('#load "Target.fsi"\nlet n = 0\n')
+            sources = '<Compile Include="Load.fsx"/>'
+            flags = ""
+        else:
+            (folder / "sources.rsp").write_text("Target.fsi\n")
+            sources = ""
+            flags = "<OtherFlags>@sources.rsp</OtherFlags>"
+        proj = folder / "P.fsproj"
+        project(proj, sources + '<Compile Include="Target.fs"/>')
+        proj.write_text(proj.read_text().replace("</PropertyGroup>", flags + "</PropertyGroup>"))
+        impl = folder / "Target.fs"
+        sig = folder / "Target.fsi"
+        impl.write_text("module Target\nlet f (x:int) = x+x\n")
+        sig.write_text("module Target\nval f: x:int -> int\n")
+        run("build", proj, "-m:1", "-nr:false", cwd=folder)
+        model = evaluate(folder, proj)
+        assert not model["membershipReusable"] and any(
+            "Unmodeled compiler input" in note for note in model["membershipDiagnostics"]
+        ), model["membershipDiagnostics"]
+        # The conflicting signature must reach fsc even though it does not
+        # appear among the evaluated files. Force a rebuild after its edit.
+        assert str(sig) not in model["files"]
+        sig.write_text("module Target\nval f: x:string -> string\n")
+        result = subprocess.run(
+            [str(DOTNET), "build", str(proj), "--no-restore", "-t:Rebuild", "-m:1", "-nr:false"],
+            cwd=folder, env=ENV, text=True, capture_output=True, timeout=120,
+        )
+        assert result.returncode and "FS0034" in result.stdout, result.stdout + result.stderr
+
 def main():
  with tempfile.TemporaryDirectory(prefix='membership-') as tmp:
+  check_indirect_signature_sources(pathlib.Path(tmp))
   root=pathlib.Path(tmp);g=root/'glob';g.mkdir();(g/'A.fs').write_text('module A\nlet value=1\n');p=g/'Glob.fsproj';project(p,'<Compile Include="*.fs"/>');run('restore',p,'--nologo','-v:q')
   old=evaluate(g,p);assert old['membershipReusable'],old['membershipDiagnostics'];cert=next(c for c in old['sourceMembership'] if 'fs' in c['extensions']);assert not cert['recursive'];assert digest(cert)==(cert['sha256'],cert['entries'])
   (g/'B.fs').write_text('module B\nlet value=A.value\n');run('build',p,'--nologo','-v:q','-m:1','-nodeReuse:false');assert digest(cert)[0]!=cert['sha256'];assert str(g/'B.fs') in evaluate(g,p)['files'];print('PASS new glob source invalidates membership without project-byte changes',flush=True)

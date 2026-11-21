@@ -1211,6 +1211,14 @@ impl Index {
         let mut seen = std::collections::HashSet::new();
         for project in projects {
             self.cancellation.check()?;
+            if let Some(args) = project.get("compilerArgs") {
+                anyhow::ensure!(
+                    args.as_array().is_some_and(|args| args.iter().all(|arg| {
+                        arg.as_str().is_some_and(crate::project::modeled_compiler_argument)
+                    })),
+                    "Semantic snapshot includes an unmodeled compiler input; re-export with explicit source arguments"
+                );
+            }
             let environment = project.get("environmentCertificate").context(
                 "Semantic snapshot lacks evaluated environment provenance; re-export it",
             )?;

@@ -118,8 +118,15 @@ module Evaluation =
         let environmentCertificate,toolInputs,environmentNotes=EvaluationEnvironment.certify environmentStart (property "MSBuildToolsPath" evaluated) inputs traces
         let membership,reusable,membershipNotes,inputs=ProjectMembership.analyze path (property "MSBuildToolsPath" evaluated) (property "NuGetPackageRoot" evaluated) ((property "EnableDefaultCompileItems" evaluated).Equals("true",StringComparison.OrdinalIgnoreCase)) (environmentNotes.Length=0) (EvaluationEnvironment.importPatterns traces) (EvaluationEnvironment.imports traces) inputs
         let inputs=Array.append inputs toolInputs |> Array.distinct
-        let membershipNotes=Array.append membershipNotes environmentNotes
-        let reusable=reusable && environmentNotes.Length=0
+        // Response files and compiled scripts (#load) can add sources without
+        // changing the evaluated command line or its explicitly listed files.
+        let unmodeledInput = args |> Array.exists (fun arg ->
+            let x = trimQuoted arg
+            x.StartsWith("@") || x = "--" ||
+            (not (x.StartsWith("-")) && not (x.EndsWith(".fs",StringComparison.OrdinalIgnoreCase) || x.EndsWith(".fsi",StringComparison.OrdinalIgnoreCase))))
+        let inputNotes = if unmodeledInput then [|"Unmodeled compiler input requires explicit source arguments"|] else [||]
+        let membershipNotes=Array.concat [|membershipNotes;environmentNotes;inputNotes|]
+        let reusable=reusable && environmentNotes.Length=0 && not unmodeledInput
         let bindings=assemblies |> Array.map(fun assembly ->
             let exists=File.Exists assembly
             let identity=if exists then System.Reflection.AssemblyName.GetAssemblyName(assembly).FullName else ""

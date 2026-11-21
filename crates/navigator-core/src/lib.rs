@@ -402,15 +402,12 @@ impl Workspace {
             .is_none_or(|project| {
                 // The compiler accepts mixed-case signature extensions. More
                 // generally, absence is only known for recognized implementation
-                // inputs: unknown/legacy suffixes are not evidence of no .fsi.
+                // inputs. Even .fsx can #load a signature absent from project.files.
                 project.files.iter().any(|file| {
                     !Path::new(file)
                         .extension()
                         .and_then(|extension| extension.to_str())
-                        .is_some_and(|extension| {
-                            extension.eq_ignore_ascii_case("fs")
-                                || extension.eq_ignore_ascii_case("fsx")
-                        })
+                        .is_some_and(|extension| extension.eq_ignore_ascii_case("fs"))
                 })
             })
     }
@@ -2489,7 +2486,7 @@ mod integration_tests {
         for (name, possible) in [
             ("Another.fs", false),
             ("Another.FS", false),
-            ("Another.FsX", false),
+            ("Another.FsX", true),
             ("Another.fsi", true),
             ("Another.FSI", true),
             ("Another.FsI", true),
