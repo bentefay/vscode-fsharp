@@ -1873,8 +1873,7 @@ impl Workspace {
             .method_declarations
             .iter()
             .find(|m| m.token == symbol.token);
-        let qualified_use_range = declaration.is_some_and(|d| d.top_level && d.kind == "value")
-            || method.is_some_and(|m| m.is_static);
+        let module_value = declaration.is_some_and(|d| d.top_level && d.kind == "value");
         let is_member = origin
             .record_types
             .iter()
@@ -2075,10 +2074,19 @@ impl Workspace {
                         let is_declaration = (path == found.path && token == found.token)
                             || path == symbol.path && parsed.tokens[token].range() == origin_range;
                         if equal && (include_decl || !is_declaration) {
-                            // FCS includes the written module/type path for
-                            // uses of module values and source static methods.
-                            let range = if !is_declaration && qualified_use_range {
+                            let range = if !is_declaration && module_value {
                                 parsed.qualified_use_range(token)
+                            } else if !is_declaration && is_member {
+                                let Some(range) = parsed.member_use_range(token) else {
+                                    complete = false;
+                                    if trace {
+                                        gap(
+                                            json!({"path":path,"kind":"unproven-receiver-range","range":parsed.tokens[token].range()}),
+                                        );
+                                    }
+                                    continue;
+                                };
+                                range
                             } else {
                                 parsed.tokens[token].range()
                             };

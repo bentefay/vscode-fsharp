@@ -159,6 +159,14 @@ fn stamp(path: &str) -> Result<(u64, u64)> {
         m.len(),
     ))
 }
+// Both modes persist ParsedFile in bincode; its layout is part of the key.
+fn summary_revision(indexed: bool) -> &'static str {
+    if indexed {
+        "treesitter-fsharp-0.3.13-summary6:"
+    } else {
+        "lexical-summary3:"
+    }
+}
 fn bounded_source(path: &str, limit: usize) -> Result<String> {
     crate::foreground::read_text(Path::new(path), limit as u64)
 }
@@ -395,11 +403,7 @@ impl Index {
                 |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
             )
             .optional()?;
-        let revision = if indexed {
-            "treesitter-fsharp-0.3.13-summary4:"
-        } else {
-            "lexical-summary2:"
-        };
+        let revision = summary_revision(indexed);
         if !force
             && old
                 .is_some_and(|(m, l, d, h)| m == mtime && l == len && !d && h.starts_with(revision))
@@ -440,11 +444,7 @@ impl Index {
         self.counters.disk_validation_checks += 1;
         let identity = disk_identity(path)?;
         let (mtime, len) = (identity.modified, identity.len);
-        let revision = if indexed {
-            "treesitter-fsharp-0.3.13-summary4:"
-        } else {
-            "lexical-summary2:"
-        };
+        let revision = summary_revision(indexed);
         let row: Option<(u64,u64,bool,String)> = self.db.query_row(
             "SELECT stamp,len,dirty,hash FROM files WHERE file_id=(SELECT id FROM paths WHERE path=?1)",
             [path], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional()?;
@@ -499,15 +499,7 @@ impl Index {
         self.cancellation.check()?;
         let _scope = self.cancellation.enter();
         let source_hash = blake3::hash(source.as_bytes());
-        let hash = format!(
-            "{}:{}",
-            if indexed {
-                "treesitter-fsharp-0.3.13-summary4"
-            } else {
-                "lexical-summary2"
-            },
-            source_hash.to_hex()
-        );
+        let hash = format!("{}{}", summary_revision(indexed), source_hash.to_hex());
         let old: Option<String> = self
             .db
             .query_row(

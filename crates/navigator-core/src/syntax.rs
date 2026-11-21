@@ -455,6 +455,9 @@ pub struct ParsedFile {
     pub function_results: Vec<FunctionResultFact>,
     #[serde(default)]
     pub member_accesses: Vec<MemberAccess>,
+    /// Written starts of complex expression receivers (parentheses, calls and indexers).
+    #[serde(default)]
+    pub expression_receiver_starts: Vec<(usize, Position)>,
     #[serde(default)]
     pub method_declarations: Vec<MethodDeclaration>,
     #[serde(default)]
@@ -910,6 +913,7 @@ pub fn parse(src: &str) -> ParsedFile {
         function_returns: Vec::new(),
         function_results: Vec::new(),
         member_accesses: Vec::new(),
+        expression_receiver_starts: Vec::new(),
         method_declarations: Vec::new(),
         method_calls: Vec::new(),
         pipeline_applications: Vec::new(),
@@ -1103,6 +1107,31 @@ impl ParsedFile {
         let mut range = self.tokens[token].range();
         range.start = self.tokens[self.qualifier_start(token)].range().start;
         range
+    }
+
+    pub(crate) fn member_use_range(&self, token: usize) -> Option<Range> {
+        // FCS selects the terminal field label in a construction, update or
+        // pattern, and the selector alone inside a longer identifier chain.
+        let interior = self.tokens.get(token + 1).is_some_and(|t| t.text == ".")
+            && self.tokens.get(token + 2).is_some_and(|t| t.ident);
+        if interior || self.record_expressions.iter().any(|r| r.fields.contains(&token))
+            || self.record_pattern_bindings.iter().any(|p| p.field == token)
+            || self.binding_types.iter().any(|b| matches!(&b.source, TypeSource::Record { fields, .. } if fields.contains(&token)))
+        {
+            return Some(self.tokens[token].range());
+        }
+        let first = self.qualifier_start(token);
+        let mut range = self.tokens[token].range();
+        range.start = if first > 0 && self.tokens[first - 1].text == "." {
+            self.expression_receiver_starts
+                .iter()
+                .find(|(field, _)| *field == first)?
+                .1
+                .clone()
+        } else {
+            self.tokens[first].range().start
+        };
+        Some(range)
     }
 }
 

@@ -5557,6 +5557,29 @@ mod tests {
     }
 
     #[test]
+    fn record_projection_and_qualified_construction_have_distinct_reference_ranges() {
+        let (path, mut ws) =
+            workspace("module Main\ntype C={ P:int }\nlet run(c:C)=c.P\nlet made={ C.P=1 }\n");
+        let refs = query(&mut ws, &path, "navigation/references", 1, 9);
+        assert_eq!(refs["completeness"], "exact", "{refs}");
+        let mut ranges: Vec<_> = refs["locations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|l| &l["range"])
+            .collect();
+        ranges.sort_by_key(|range| range["start"]["line"].as_u64());
+        assert_eq!(
+            ranges,
+            vec![
+                &json!({"start":{"line":2,"character":13},"end":{"line":2,"character":16}}),
+                &json!({"start":{"line":3,"character":13},"end":{"line":3,"character":14}})
+            ]
+        );
+        fs::remove_dir_all(path).unwrap();
+    }
+
+    #[test]
     fn annotated_receiver_fields_have_distinct_identities_and_dirty_refs() {
         let source="module Main\ntype Person = { Name: string }\ntype Company = { Name: string }\nlet read (x: Person) = x.Name\nlet other (x: Company) = x.Name\n";
         let (path, mut ws) = workspace(source);

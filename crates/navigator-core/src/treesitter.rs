@@ -419,6 +419,7 @@ fn parse_impl_with_projection(source: &str, signature: bool, allow_projection: b
         function_returns: Vec::new(),
         function_results: Vec::new(),
         member_accesses: Vec::new(),
+        expression_receiver_starts: Vec::new(),
         method_declarations: Vec::new(),
         method_calls: Vec::new(),
         pipeline_applications: Vec::new(),
@@ -596,6 +597,7 @@ fn unavailable(source: &str, reason: &str) -> ParsedFile {
         function_returns: Vec::new(),
         function_results: Vec::new(),
         member_accesses: Vec::new(),
+        expression_receiver_starts: Vec::new(),
         method_declarations: Vec::new(),
         method_calls: Vec::new(),
         pipeline_applications: Vec::new(),
@@ -3044,6 +3046,28 @@ impl Extractor<'_> {
         ) else {
             return;
         };
+        // Delimiters are deliberately coalesced in the token stream. Keep the
+        // parser's actual receiver start even when its type is still unknown.
+        if let Some((names, _)) = self.expression_name(field) {
+            let first = names[0];
+            if first >= 2
+                && self.parsed.tokens[first - 1].text == "."
+                && !self.parsed.tokens[first - 2].ident
+            {
+                let point = base.start_position();
+                let byte = base.start_byte();
+                let column = self.source[byte - point.column..byte]
+                    .encode_utf16()
+                    .count();
+                self.parsed.expression_receiver_starts.push((
+                    first,
+                    crate::syntax::Position {
+                        line: point.row as u32,
+                        character: column as u32,
+                    },
+                ));
+            }
+        }
         if !matches!(
             base.kind(),
             "paren_expression"
@@ -5646,6 +5670,29 @@ let choose value=
             .iter()
             .all(|d| !cases.iter().any(|c| c.token == d.token)));
     }
+    #[test]
+    fn projection_ranges_follow_receiver_grouping() {
+        for (expr, child_range, last_range) in [
+            ("parent.Child.P", "Child", "parent.Child.P"),
+            ("(parent.Child).P", "parent.Child", "(parent.Child).P"),
+            ("((parent.Child)).P", "parent.Child", "((parent.Child)).P"),
+        ] {
+            let line = format!("let read (parent:Wrapper) = {expr}");
+            let parsed = parse(&format!("module Main\n{line}\n"));
+            for (name, expected) in [("Child", child_range), ("P", last_range)] {
+                let token = parsed
+                    .token_at(1, line.rfind(name).unwrap() as u32)
+                    .unwrap();
+                let range = parsed.member_use_range(token).unwrap();
+                assert_eq!(
+                    &line[range.start.character as usize..range.end.character as usize],
+                    expected,
+                    "{expr}"
+                );
+            }
+        }
+    }
+
     #[test]
     fn method_calls_keep_long_qualified_name_chains_and_empty_string_arguments() {
         let source = "module M\nlet empty=System.String.IsNullOrEmpty \"\"\nlet text=Outer.Inner.Picker.Pick \"value\"\nlet short=Picker.Pick \"\"\nlet computed=(make()).Pick \"\"\n";
