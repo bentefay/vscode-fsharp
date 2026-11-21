@@ -1,5 +1,7 @@
 'use strict';
 const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const path = require('node:path');
 const { performance } = require('node:perf_hooks');
 const vscode = require('vscode');
 
@@ -54,4 +56,33 @@ exports.exerciseLocalNavigation = async function (doc, extension, samples) {
     await vscode.window.showTextDocument(doc);
     await vscode.commands.executeCommand('workbench.action.files.revert');
   }
+};
+
+
+exports.exerciseSingleUseReferences = async function (root, api) {
+  const file = path.join(root, 'SingleUseProbe.fs');
+  const line = 'let values = List.map (fun param -> param) [1]';
+  await fs.writeFile(file, 'module SingleUseProbe\n' + line + '\n', { flag: 'wx' });
+  const uri = vscode.Uri.file(file);
+  const document = await vscode.workspace.openTextDocument(uri);
+  await vscode.window.showTextDocument(document);
+  const start = line.indexOf('param'), use = line.lastIndexOf('param');
+  const cursor = new vscode.Position(1, use);
+  const ranges = locations => locations.map(location => {
+    const range = location.range || location.targetSelectionRange;
+    assert.equal((location.uri || location.targetUri).toString(), uri.toString());
+    return [range.start.line, range.start.character, range.end.line, range.end.character];
+  }).sort((a, b) => a[1] - b[1]);
+  const location = column => [1, column, 1, column + 'param'.length];
+  const definition = await vscode.commands.executeCommand('vscode.executeDefinitionProvider', uri, cursor);
+  assert.deepEqual(ranges(definition), [location(start)]);
+  assert.equal(api.lastResult.source, 'local-lexical');
+  const [before] = await api.stats();
+  assert.ok(before.localProofParsedBytes > 0);
+  const references = await vscode.commands.executeCommand('vscode.executeReferenceProvider', uri, cursor);
+  assert.deepEqual(ranges(references), [location(start), location(use)]);
+  assert.equal(api.lastResult.completeness, 'exact');
+  const [after] = await api.stats();
+  assert.equal(after.localProofParsedBytes, before.localProofParsedBytes);
+  assert.ok(after.localProofCacheHits > before.localProofCacheHits);
 };

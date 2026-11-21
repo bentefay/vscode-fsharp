@@ -6,7 +6,7 @@ const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const { performance } = require('node:perf_hooks');
 const vscode = require('vscode');
-const { exerciseLocalNavigation } = require('./localLifecycle.cjs');
+const { exerciseLocalNavigation, exerciseSingleUseReferences } = require('./localLifecycle.cjs');
 
 exports.run = async function () {
   const results = [];
@@ -250,6 +250,8 @@ exports.run = async function () {
         assert.equal(stats.compilerLaunches, 0);
       }
     });
+    await test('first inclusive references reuse the single-use parameter definition proof',
+      () => exerciseSingleUseReferences(root, api));
   }
   await fs.writeFile(path.join(process.env.FSHARP_TEST_RESULTS, 'results.json'), JSON.stringify({
     environment: { kind: 'actual-vscode-extension-host', vscode: vscode.version, node: process.version, extensionHostPid: process.pid, backendPids: api?.processIds ?? [] },
