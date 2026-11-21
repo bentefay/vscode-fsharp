@@ -1,98 +1,220 @@
-# Current source status
+# Current implementation and validation
 
-Updated 21 November 2026 for the initial import into `bentefay/vscode-fsharp`.
+Updated 21 November 2026. The Rust engine answers both fixed synthetic reference
+queries missed by the imported prototype. On the Grace project, many record
+labels and complete cross-file reference sets still require explicit compiler
+preparation. The default indexed providers expose only answers for which the
+engine can establish a binding and the requested reference domain.
 
-Continuation handover: [HANDOVER.md](HANDOVER.md) is the entry point for the next
-agent, with a [copyable resume prompt](NEXT_AGENT_PROMPT.md). Protected toolchain
-setup and doctor have now passed; no fresh full native or editor test run is
-claimed. The signature-guard repair is preserved as an **unapplied, unvalidated
-patch**, while named-argument and local-cache changes remain design only.
+## Fixed-corpus results
 
-This repository contains the recovered Rust-first prototype: the native engine,
-VS Code adapter, development CLI, explicit project/metadata helpers, Nix setup,
-tests, and research evidence. It is work in progress with known semantic defects.
-It is not an accepted Ionide replacement.
+These are fresh Linux native measurements in indexed mode. Both executables
+used the same genuine project model, external metadata, source and queries.
+Each unsupported operation stays in its original denominator.
 
-## Recovery identity
+| Fixed checks | Rebuilt import | Integrated candidate |
+| --- | ---: | ---: |
+| Synthetic definitions | 79/79 | 79/79 |
+| Synthetic complete references | 16/18 | 18/18 |
+| Synthetic external hover and workspace suppression | 3/3 | 3/3 |
+| **Synthetic total** | **98/100** | **100/100** |
+| Grace definitions | 10/23 | 12/23 |
+| Grace complete references | 4/23 | 5/23 |
+| **Grace total** | **14/46** | **17/46** |
 
-The restored source is checkpoint 11, archive SHA-256
-`cab8c94e3797cf10f94a86953c1f8fd3ab09af7fc24de027af047f62502f5751`.
-The native source manifest is
-[`evaluation/candidates/source-0c8920507029.json`](../evaluation/candidates/source-0c8920507029.json).
-That capture produced candidate `710f046e290da02e8e85362add92125334f5ec7e1bb498f1201fc25eb6905fed`.
-All 65 native inputs were compared with that manifest after restoration and
-matched with no differences.
+All 17 returned Grace URI/range sets matched literally. The 29 unavailable
+operations include record creation and update labels, projections and
+cross-file uses whose inferred receiver or reference domain Rust cannot
+establish. The three gains are the definition of `Kty`, its complete two-location
+reference set, and the definition of the opened `serialize` function.
+Both binaries also passed all 15 original checks across seven edits, including
+the expected refusal after a rename. The candidate used zero compiler,
+semantic-helper and decompiler launches throughout these suites.
 
-The repository stores the two large generated C parsers as pinned gzip inputs
-outside the native source tree. The development CLI restores their exact bytes
-before build/check/package operations; direct Cargo users run
-`node scripts/restore-parser-sources.mjs` first. This storage change does not
-change the 65 native inputs or add installed-extension startup work.
+A separate 831-operation SDK/FCS run added ambiguous argument roles and full
+member ranges. On exactly these controls the imported binary gave 357 correct
+answers, 376 wrong exact answers and 98 unavailable. The candidate gave 328
+correct, zero wrong exact and 503 unavailable. It passed every mandatory
+positive in the driver, including the prepared named-parameter and dirty
+two-caller cases. Unprepared qualified equality remains at 2/9. These controls
+include adversarial cases and do not estimate correctness rates in ordinary
+projects. [Compiler control driver](../evaluation/navigation_role_controls.py)
 
-The initial Git import contains working source, build inputs, tests, research
-scripts and summaries. Historical source archives, generated project/catalog
-data, runtime logs and raw benchmark captures are not working-tree build inputs
-and remain in the source checkpoint. Some historical reports therefore refer to
-evidence paths that are absent from this checkout. Their recorded results are
-preserved as historical claims, not presented as newly reproduced results.
+## What the providers use
 
-Later experiments discussed during development are not part of this recovered
-production source. In particular, the document-local module under
-`evaluation/experiments/local-lexical-proof/implementation/` is staged research;
-it is not wired into the native providers in this checkout. Later isolated
-timings or cache work must not be attributed to this code.
+- **Local navigation.** On an acknowledged, explicitly versioned document,
+  Rust can prove an application-lambda or nested-function parameter and its
+  uses before project discovery. The first request parses the buffer. Repeat
+  requests reuse a positive answer from a 32-entry cache with 128 KiB of
+  accounted capacity. It retains no source or AST. Keys include the buffer
+  version, source hash, URI, operation, cursor, declaration flag and engine
+  identity. Edits, close/reopen, mode changes and cancellation invalidate
+  entries. An indexed cache hit still passes the usual filesystem and context
+  checks. [Protocol](protocol.md)
+- **Signatures and arguments.** The handover patch prevented a mixed-case
+  signature suffix from being overlooked. SDK and compiler controls also found
+  signature inputs hidden by compiler response files and script loads. Rust
+  declines an uncertified source domain. For ordinary parameters in a uniquely
+  evaluated project it can use the compile order before the first signature.
+  The argument resolver distinguishes a callee's named label from caller-side
+  equality. In the supported single-project case, a static parameter's
+  references include its declaration, method-body uses and caller-side labels.
+  Rust checks every use of the method name and excludes additional callers
+  using current source postings before claiming completeness. [Compiler controls](../evaluation/navigation_role_controls.py)
+- **Project bindings.** Module abbreviations are resolved at the `open`
+  directive that captures them. An opened constructor or an implicitly opened
+  module can change which call head wins. A signed public module can have
+  both a signature and an implementation. In record factories, the engine can
+  resolve labels when a single static factory builds the complete record from
+  primitive literals or identified method parameters. General record updates
+  whose receiver type depends on match branches or other calls remain a gap.
+- **Foreground work.** A failed document proof can consult the existing native
+  index. Cold provider work has per-request limits of 512 discovery entries,
+  128 reads, 4 MiB of source and 64 parses. Certificate validation has a
+  separate budget for newly read bytes and filesystem visits. Exceeding a
+  limit returns an unavailable answer. **F# Navigator: Index Workspace** is
+  the explicit action for preparing broader postings. Indexed navigation
+  never starts FCS. The budgets bound units of work and cache retention.
+- **Hover.** Framework types and members, and selected root module values
+  from referenced F# assemblies, can show signatures and XML documentation.
+  A catalog hit must agree with the compiler-selected reference identity.
+  Workspace declarations, aliases and uncertain owners suppress library
+  hover. A consumer with workspace DLL references can still lack enough
+  information to establish an external module's identity.
+- **Explorer.** Classic solutions and XML solutions retain solution folders,
+  project instances and solution items. Virtual folders follow compile order,
+  including repeated sibling runs. A linked file opens its physical path in
+  the selected project. Native XML previews identify their order as provisional.
+  Evaluated MSBuild output supplies the authoritative compile list. Opening
+  a project with no F# document leaves the extension inactive until a user
+  opens a document or requests the view. Programmatic definition, reference and
+  hover commands can register providers on first demand. A non-F# query can
+  register the adapter while leaving the native service and file watchers idle.
 
-## Recorded validation and limits
+## Native lifecycle
 
-| Area | Evidence retained from the captured candidate | Current interpretation |
-| --- | --- | --- |
-| Native unit checks | 232 core tests and 3 daemon tests passed; 5 core tests ignored | Historical execution, not a fresh import-time run |
-| Synthetic fixed corpus | 98 correct answers out of 100 queries | Coverage evidence, not general semantic correctness |
-| Grace fixed corpus | 14 correct answers out of 46 queries: 10 definitions and 4 complete reference sets | 32 unavailable; full navigation parity is unmet |
-| Document-local fast path | Staged implementation and acceptance suites | Not integrated in this checkout |
-| Nix SDK | Pinned SDK evaluated and realized; tiny F# restore/build passed | Full extension workflow unverified; reusable model profile rejected |
-| Editor validation | Adapter/native tests and host harness exist | Actual VS Code host/UI execution remains unverified |
-| Performance goal | Historical component measurements only | No established orders-of-magnitude improvement over Ionide or Rider |
+The local workload queried a callback parameter in the 26 KiB
+`ContentBlockMetadata.Types.fs` buffer, using the real 39-source Grace.Types
+project. Six baseline/candidate pairs alternated order after the build and
+correctness jobs finished. Each cold process had an empty SQLite database.
+The restarted process reused its database and received the edited buffer.
+All rows below contain correct answers from every trial.
 
-No test result in this table is a new execution made merely by restoring or
-committing the source. Historical reports may describe earlier candidates as
-pending or accepted within a narrow test slice; this document takes precedence
-for the current release status.
+| Median wall time or sampled RSS | Rebuilt import | Integrated candidate | Operations per engine |
+| --- | ---: | ---: | ---: |
+| Process launch to first local definition | 171.10 ms | 16.98 ms | 6 |
+| Warm local definition | 0.449 ms | 0.091 ms | 72 |
+| First local references after definition | 1.12 ms | 6.80 ms | 6 |
+| Warm local references | 0.459 ms | 0.087 ms | 72 |
+| Unsaved edit to current definition | 15.77 ms | 8.25 ms | 6 |
+| Process restart to current definition | 118.86 ms | 13.88 ms | 6 |
+| Native process-tree RSS after first definition | 19.72 MiB | 14.69 MiB | 6 |
+| Cold project-level definition request | 146.35 ms | 153.93 ms | 6 |
+| Warm project-level definition request | 0.392 ms | 0.413 ms | 72 |
 
-Fresh restoration checks parsed 769 JSON files strictly and syntax-checked 18
-CLI/harness JavaScript files. At import time, `cli/bin/run check` could not run
-because this workspace lacked Nix and the protected task-local toolchain. The
-task-local toolchain has since been restored and protected setup/doctor passed;
-see [toolchain handover](handoff-toolchain.md). Full native/editor checks remain
-pending. No toolchain or dependency-protection bypass was used, and no fresh
-native build/test pass is claimed.
+The first reference request uses a different cache key and reparsed the
+buffer. The project-level control queried `referenceTypeName` using a fresh
+database in each trial. Its warm indexed answer skips a repeated attempt at a
+document proof. RSS here is a point-in-time sample of the native process tree.
+The editor has a separate process tree and a different startup measurement.
+[Native workload and scoring](../evaluation/experiments/local-lexical-proof/local_lifecycle.py)
 
-The new parser-restoration helper passed 19 focused Node tests for exact output,
-repeat verification, modified files, compressed/expanded hashes and bounds,
-truncation, symlinks, concurrent installation, manifest validation and missing,
-corrupt or reordered multipart inputs. Two
-additional independent controls rejected concatenated gzip expansion and a
-symlink archive without leaving a partial target. Two further multipart controls
-confirmed that a valid obsolete combined archive cannot mask a missing part and
-that the expanded byte limit remains enforced. These are fresh bootstrap
-checks, not a native semantic or editor-host pass.
+## Actual VS Code
 
-## Known correctness blockers
+The updated Linux x64 VSIX passed all 13 trusted cases and the installed
+Restricted Mode case in each of VS Code 1.108.0 and 1.145.3, in disposable
+profiles. First-demand controls exercised F12, Shift+F12 and Show Hover.
+On actual VS Code 1.108.0 the rebuilt import scored 14/46 on Grace, the
+on-demand candidate scored 17/46, and Ionide 8.1.0 scored 46/46. Each
+configuration returned the same counts after an editor restart. Supplying an
+offline snapshot path alone gave 17/46. Issuing **F# Navigator: Index
+Workspace** before navigation gave 46/46, with 1.11 seconds for the initial
+desktop index/import command and 0.71 seconds on restart.
 
-1. The project-signature guard checks a case-sensitive `.fsi` suffix. Valid
-   `.FSI` or `.FsI` inputs can therefore be missed, allowing a parameter reference
-   set to claim completeness while omitting its signature occurrence.
-2. In `let caller x = C.M(x=x)`, the left `x` can name the callee's parameter,
-   while the right `x` refers to the caller's local. The current binding path
-   can confuse those roles. A fix must preserve genuine equality expressions
-   such as an ordinary function call `g(x=x)`.
-3. Paired `.fsi`/`.fs` definition target preferences and complete references
-   across arbitrary F# code are not implemented. Refusing an unsupported query
-   safely does not count as feature equivalence.
+A separate two-line fixture measured desktop launch to first correct result,
+warm queries, unsaved edits and restart. Two fresh and two restarted profiles
+per engine ran in alternating order. For the updated extension the median
+fresh desktop launch to first correct definition was 4.16 s and the sampled
+peak desktop-tree RSS was 1,229 MiB. Ionide measured 8.41 s and 1,611 MiB.
+Warm definition medians on fresh profiles were 14.1 ms and 4.2 ms respectively.
+These twelve launches establish neither broad performance parity nor
+orders-of-magnitude improvements. The [desktop report](editor-host-status.md)
+gives the matching versions, full lifecycle, sample counts and limitations.
 
-The first implementation work after import is to add and validate the two
-correctness repairs, then integrate and measure a bounded document-local fast
-path. Continue using immutable candidate identities, compiler-backed controls,
-dirty-buffer/cache invalidation tests and unchanged fixed-corpus queries.
-Performance results must separate setup, native requests and actual editor
-startup, and must report correctness coverage alongside latency and memory.
+## Optional offline compiler snapshot
+
+With an explicitly exported snapshot and native import, the same frozen daemon
+returned 46/46 on clean Grace sources, with 23 literal definition matches and
+23 literal complete reference sets. Every answer came from the persisted
+snapshot, with zero compiler or helper launches during navigation. An unsaved
+edit invalidated the snapshot and the bounded indexed lookup declined the
+query. Explicit reimport refused the dirty buffer.
+
+Producing the model, libraries, environment and 16,530,121-byte snapshot again
+on this host took 167.59 seconds. The semantic export phase took 46.71 seconds
+and peaked at 558.65 MiB of sampled helper-tree RSS. Preparing the environment
+had the highest peak, 587.23 MiB. The explicit native index and import took
+979 ms and sampled 135.46 MiB. Other verification jobs were running during
+preparation. The fixed default-navigation and editor lifecycle timings exclude
+this optional work. The [replay instructions](../evaluation/contracts/README.md)
+document both configurations.
+
+## Reproduction and provenance
+
+The measured native source is `fd1443a2c5b5a9f1281120999008120db1ed833c`,
+with SHA-256 `7068357ab7a77bff7d362009a48ef08d6e6276ae4f74b4251a8b00b40f8393f8`
+for the executable. The [native input manifest](../evaluation/candidates/source-cd7d1a34a4b8.json)
+covers all 69 build inputs, including restored grammar bytes.
+
+Baseline source was main at `e8fb6a93dd68da38b3b952777ae7f1776be437d3`.
+The 65 native inputs matched the archived source manifest and a fresh release
+build produced the original executable SHA-256
+`710f046e290da02e8e85362add92125334f5ec7e1bb498f1201fc25eb6905fed`.
+The original recovery checkpoint and its historical measurements remain
+available in the [import report](https://github.com/bentefay/vscode-fsharp/blob/e8fb6a93dd68da38b3b952777ae7f1776be437d3/docs/current-status.md).
+
+The reruns used Linux x64, glibc 2.41, Rust 1.100.0, Node 24.22.3, npm 11.19.1,
+Safe Chain 1.5.29 and .NET SDK 10.0.400 / runtime 10.0.11. Use the protected
+CLI entry points in the [toolchain handover](handoff-toolchain.md).
+The actual desktop runs used disposable profiles. The full Nix workflow,
+Windows and macOS remain untested for this revision.
+
+The synthetic expectations and Grace queries are unchanged. Grace source
+is pinned at `39960e07b73cd142cc0c1fd070c0591be91c1933`.
+The native fixed-corpus runs validate the prepared project model and
+selected external metadata. Offline compiler occurrence snapshots are a
+separate configuration. The [Grace contract](../evaluation/contracts/grace46.json)
+and [synthetic expectations](../fixtures/expectations.json) retain their
+original query sites and expected locations. The fixed Grace scorer permits a
+qualified reference to select its terminal identifier. The independent FCS
+controls also compare the full source range, including qualification, for
+method, property and record uses.
+
+## Native checks and independent compiler controls
+
+The fresh baseline CLI check passed 232 Rust core tests, three daemon tests,
+19 parser bootstrap checks and 23 adapter/transport checks. The final CLI check
+passed 279 Rust core tests, three daemon tests, 19 bootstrap and 24
+adapter/transport checks. All 19 tests against the real native process and an
+editor API double passed. The separate native protocol replay passed with
+inaccessible model and catalog paths, CRLF and UTF-16 positions, an unsaved
+rename, stale version, close/reopen and process restart. The default Rust
+suite skips five tests that require separately generated artifacts. Four also
+passed in dedicated runs with the real metadata producer, XML resolver and
+locked decompiler. The fifth needs an original schema-1 inventory and its
+matching live inputs, which the available archives do not contain. The
+protected npm audit reported zero vulnerabilities.
+
+Independent FCS controls compare definition spans and complete reference sets
+with declaration inclusion both enabled and disabled. They exercise ordinary
+equality, optional and named arguments, same-named modules and types, opened
+constructors, dependent projects, stale versions, unsaved edits and persisted
+caches. In the prepared static method example, FCS includes the formal
+declaration, the method-body use and the named call label. For the caller's
+parameter it includes the declaration and the right-hand operand. Ambiguous
+overloads or additional unresolved callers keep the reference set unavailable.
+
+The [machine-readable result](../evaluation/candidates/candidate-7068357ab7a7.json)
+identifies the executable, build inputs, fixed contract outputs and matched
+native lifecycle measurements. The Linux x64 VSIX built from `684ec70` has
+SHA-256 `7ba55d3891d20d0542691a1c6ea0e27875f249066885483e8913da35b5fb7448`.
