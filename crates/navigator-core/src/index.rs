@@ -518,7 +518,7 @@ impl Index {
             if eager && self.needs_summary(path)? {
                 crate::foreground::parse()?;
                 let parsed = if indexed {
-                    if path.ends_with(".fsi") {
+                    if project::signature(path) {
                         crate::treesitter::parse_signature(source)
                     } else {
                         crate::parse_indexed(source)
@@ -542,7 +542,7 @@ impl Index {
         } else {
             crate::foreground::parse()?;
             Some(if indexed {
-                if path.ends_with(".fsi") {
+                if project::signature(path) {
                     crate::treesitter::parse_signature(source)
                 } else {
                     crate::parse_indexed(source)
@@ -659,7 +659,7 @@ impl Index {
         crate::foreground::parse()?;
         let parsed = if hash.starts_with("lexical-") {
             syntax::parse(&source)
-        } else if path.ends_with(".fsi") {
+        } else if project::signature(path) {
             crate::treesitter::parse_signature(&source)
         } else {
             crate::parse_indexed(&source)
@@ -711,7 +711,7 @@ impl Index {
         let _scope = self.cancellation.enter();
         crate::foreground::parse()?;
         let projected = crate::context::project(source, context, &self.cancellation)?;
-        let parsed = if path.ends_with(".fsi") {
+        let parsed = if project::signature(path) {
             crate::treesitter::parse_signature(&projected)
         } else {
             crate::parse_indexed(&projected)

@@ -102,11 +102,35 @@ pub fn from_uri(path: &str) -> String {
     }
     normalize(path)
 }
+pub(crate) fn has_extension(path: &Path, suffix: &str) -> bool {
+    path.extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|value| value.eq_ignore_ascii_case(suffix))
+}
 pub fn is_source(path: &Path) -> bool {
-    matches!(
-        path.extension().and_then(|x| x.to_str()),
-        Some("fs" | "fsi" | "fsx")
-    )
+    ["fs", "fsi", "fsx"]
+        .iter()
+        .any(|suffix| has_extension(path, suffix))
+}
+pub(crate) fn signature(path: &str) -> bool {
+    has_extension(Path::new(path), "fsi")
+}
+pub(crate) fn implementation(path: &str) -> bool {
+    has_extension(Path::new(path), "fs")
+}
+
+// Fold only the compiler-recognized extension. Directory and basename identity
+// still use the exact paths supplied by the ordered compilation instance.
+pub(crate) fn same_stem(left: &str, right: &str) -> bool {
+    left.rsplit_once('.')
+        .zip(right.rsplit_once('.'))
+        .is_some_and(|((a, _), (b, _))| a == b)
+}
+pub(crate) fn has_signature<'a>(path: &str, visible: impl IntoIterator<Item = &'a String>) -> bool {
+    implementation(path)
+        && visible
+            .into_iter()
+            .any(|candidate| signature(candidate) && same_stem(path, candidate))
 }
 // A compiled script can add sources through #load. The evaluated model
 // records its path, but has no dependency certificate for that source closure.

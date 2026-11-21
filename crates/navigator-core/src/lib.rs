@@ -802,13 +802,13 @@ impl Workspace {
                 if membership_event && self.model.membership_affects(&p) {
                     context_changed = true;
                 }
-                if project::is_source(&p) {
-                    let path = normalize(p);
-                    if self.model.files.contains(&path) {
-                        paths.insert(path);
-                    } else if self.evaluated_model_path.is_none() {
-                        context_changed = true;
-                    }
+                let path = normalize(&p);
+                if self.model.files.contains(&path) {
+                    // Compile items identify live source inputs even with a
+                    // nonstandard filename or a mixed-case compiler suffix.
+                    paths.insert(path);
+                } else if project::is_source(&p) {
+                    context_changed |= self.evaluated_model_path.is_none();
                 } else if p.extension().and_then(|x| x.to_str()) == Some("dll") {
                     // Rebuilding a workspace binary does not change source
                     // compile order. Semantic snapshots depend on binaries;
@@ -979,7 +979,7 @@ impl Workspace {
                     .filter_map(Value::as_str)
                 {
                     let path = from_uri(path);
-                    if project::is_source(Path::new(&path)) && self.model.files.contains(&path) {
+                    if self.model.files.contains(&path) {
                         changed |= self.refresh_file(&path, true)?;
                     } else {
                         context_changed = true;
@@ -1317,7 +1317,7 @@ impl Workspace {
             // A compiled .fsi is the consumer-visible contract. Implementation
             // declarations absent from that signature cannot participate in an
             // importing module's name lookup.
-            if file != path && file.ends_with(".fs") && visible.contains(&format!("{file}i")) {
+            if file != path && project::has_signature(&file, visible) {
                 continue;
             }
             let summary = self.parsed(&file)?;
@@ -2820,6 +2820,81 @@ mod integration_tests {
         drop(ws);
         fs::remove_dir_all(path).unwrap();
     }
+    #[test]
+    fn saved_mixed_case_sources_refresh_complete_reference_sets() {
+        let (root, original) = fixture();
+        drop(original);
+        let declaration = root.join("Defs.fs");
+        let caller = root.join("Caller.FS");
+        fs::write(&declaration, "module Defs\nlet selected=2\n").unwrap();
+        let source = "module Caller\nopen Defs\nlet first=selected\n";
+        fs::write(&caller, source).unwrap();
+        fs::write(root.join("Test.fsproj"), "<Project><ItemGroup><Compile Include=\"Defs.fs\"/><Compile Include=\"Caller.FS\"/></ItemGroup></Project>").unwrap();
+        let mut ws = Workspace::open(&json!({"root":root})).unwrap();
+        let refs = |ws: &mut Workspace| {
+            let result = ws
+                .dispatch(
+                    "navigation/references",
+                    &json!({"path":declaration,"line":1,"character":5,"includeDeclaration":true}),
+                )
+                .unwrap();
+            assert_eq!(result["completeness"], "exact", "{result}");
+            result["locations"].as_array().unwrap().len()
+        };
+        assert_eq!(refs(&mut ws), 2);
+        // Inject the delivered OS event deterministically, without depending on
+        // event-loop timing or coalescing on the CI filesystem.
+        let (tx, rx) = mpsc::channel();
+        ws.events = rx;
+        fs::write(&caller, format!("{source}let second=selected\n")).unwrap();
+        tx.send(Ok(notify::Event::new(notify::EventKind::Modify(
+            notify::event::ModifyKind::Any,
+        ))
+        .add_path(caller.clone())))
+            .unwrap();
+        assert_eq!(refs(&mut ws), 3);
+        fs::write(&caller, source).unwrap();
+        ws.dispatch("workspace/filesChanged", &json!({"paths":[caller]}))
+            .unwrap();
+        assert_eq!(refs(&mut ws), 2);
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn mixed_case_signature_target_uses_actual_ordered_paths() {
+        let (root, original) = fixture();
+        drop(original);
+        let sig = root.join("Contracts.FsI");
+        let imp = root.join("Contracts.fS");
+        let main = root.join("Main.fs");
+        fs::write(&sig, "module Contracts\nval answer:int\n").unwrap();
+        fs::write(&imp, "module Contracts\nlet answer=1\n").unwrap();
+        fs::write(&main, "module Main\nlet result=Contracts.answer\n").unwrap();
+        fs::write(root.join("Test.fsproj"), "<Project><ItemGroup><Compile Include=\"Contracts.FsI\"/><Compile Include=\"Contracts.fS\"/><Compile Include=\"Main.fs\"/></ItemGroup></Project>").unwrap();
+        let mut ws = Workspace::open(&json!({"root":root})).unwrap();
+        for (from, col, to) in [(&sig, 5, &imp), (&imp, 5, &sig), (&main, 22, &sig)] {
+            let def = ws
+                .dispatch(
+                    "navigation/definition",
+                    &json!({"path":from,"line":1,"character":col}),
+                )
+                .unwrap();
+            assert_eq!(def["completeness"], "exact", "{def}");
+            assert_eq!(def["locations"][0]["uri"], uri(&normalize(to)));
+        }
+        let refs = ws
+            .dispatch(
+                "navigation/references",
+                &json!({"path":sig,"line":1,"character":5,"includeDeclaration":true}),
+            )
+            .unwrap();
+        assert_eq!(refs["completeness"], "exact", "{refs}");
+        assert_eq!(refs["locations"].as_array().unwrap().len(), 3, "{refs}");
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn cached_external_hover_obeys_catalog_freshness() {
         use sha2::{Digest, Sha256};

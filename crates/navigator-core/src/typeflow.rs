@@ -3,7 +3,7 @@
 //! at a concrete accessible source declaration in the current snapshot.
 use crate::library_types::{self, Identity as LibraryIdentity, LibraryMember, TypeExpr};
 use crate::syntax::{ParsedFile, RecordType, TypeAlias, TypeSource};
-use crate::{Symbol, Workspace};
+use crate::{project, Symbol, Workspace};
 use anyhow::Result;
 
 const MAX_PROOF_DEPTH: usize = 256;
@@ -788,7 +788,7 @@ impl Workspace {
         }
         // .fsi controls externally visible case/payload identity. Until this
         // branch is paired explicitly, it cannot use implementation-only facts.
-        if path.ends_with(".fs") && self.query_domain.contains(&format!("{path}i")) {
+        if project::has_signature(path, &self.query_domain) {
             return Ok(None);
         }
         let cases = parsed
@@ -1020,10 +1020,7 @@ impl Workspace {
             if !visible.contains(&candidate) {
                 continue;
             }
-            if candidate != path
-                && candidate.ends_with(".fs")
-                && visible.contains(&format!("{candidate}i"))
-            {
+            if candidate != path && project::has_signature(&candidate, &visible) {
                 continue;
             }
             let loaded = if candidate == path {
@@ -1650,13 +1647,10 @@ impl Workspace {
         if let Some(pair) = self.type_proofs.pairs.get(&key) {
             return Ok(pair.clone());
         }
-        let peer = if let Some(path) = symbol.path.strip_suffix(".fsi") {
-            format!("{path}.fs")
-        } else if symbol.path.ends_with(".fs") {
-            format!("{}i", symbol.path)
-        } else {
+        let from_signature = project::signature(&symbol.path);
+        if !from_signature && !project::implementation(&symbol.path) {
             return Ok(None);
-        };
+        }
         let Some(project) = self
             .model
             .source_instance_project(&symbol.path, self.active_project.as_deref())
@@ -1666,16 +1660,25 @@ impl Workspace {
         if !project.exact {
             return Ok(None);
         }
-        let signature = if symbol.path.ends_with(".fsi") {
-            &symbol.path
-        } else {
-            &peer
+        let mut peers = project.files.iter().filter(|candidate| {
+            project::same_stem(&symbol.path, candidate)
+                && if from_signature {
+                    project::implementation(candidate)
+                } else {
+                    project::signature(candidate)
+                }
+        });
+        let Some(peer) = peers.next().cloned() else {
+            return Ok(None);
         };
-        let implementation = if symbol.path.ends_with(".fsi") {
-            &peer
-        } else {
-            &symbol.path
-        };
+        if peers.next().is_some() {
+            anyhow::bail!(
+                "Multiple compiled files match the source/signature stem: {}",
+                symbol.path
+            );
+        }
+        let signature = if from_signature { &symbol.path } else { &peer };
+        let implementation = if from_signature { &peer } else { &symbol.path };
         let Some(si) = project.files.iter().position(|f| f == signature) else {
             return Ok(None);
         };
@@ -1777,7 +1780,7 @@ impl Workspace {
         Ok(result)
     }
     pub(crate) fn canonical_symbol(&mut self, symbol: &Symbol) -> Result<Symbol> {
-        if symbol.path.ends_with(".fs") {
+        if project::implementation(&symbol.path) {
             if let Some(pair) = self.paired_symbol(symbol)? {
                 return Ok(pair);
             }
@@ -1792,7 +1795,8 @@ impl Workspace {
         symbol: Symbol,
     ) -> Result<Option<Symbol>> {
         if let Some(pair) = self.paired_symbol(&symbol)? {
-            if symbol.path.ends_with(".fs") || symbol.path == path && symbol.token == token {
+            if project::implementation(&symbol.path) || symbol.path == path && symbol.token == token
+            {
                 return Ok(Some(pair));
             }
         }
@@ -2279,10 +2283,7 @@ impl Workspace {
             if owner.tokens.is_empty() && !owner.supported {
                 return Ok(Lookup::Unknown);
             }
-            if candidate != path
-                && candidate.ends_with(".fs")
-                && visible.contains(&format!("{candidate}i"))
-            {
+            if candidate != path && project::has_signature(&candidate, &visible) {
                 continue;
             }
             if let Some(record) = owner.record_types.iter().find(|r| {
@@ -2657,7 +2658,7 @@ impl Workspace {
                 if !visible.contains(&file) {
                     continue;
                 }
-                if file != path && file.ends_with(".fs") && visible.contains(&format!("{file}i")) {
+                if file != path && project::has_signature(&file, &visible) {
                     continue;
                 }
                 let loaded = if file == path {
@@ -3323,10 +3324,7 @@ impl Workspace {
             if !visible.contains(&candidate) {
                 continue;
             }
-            if candidate != path
-                && candidate.ends_with(".fs")
-                && visible.contains(&format!("{candidate}i"))
-            {
+            if candidate != path && project::has_signature(&candidate, &visible) {
                 continue;
             }
             let loaded = if candidate == path {
@@ -4071,9 +4069,7 @@ impl Workspace {
         let visible = self.visible_files(path);
         for candidate in self.type_candidate_paths(name)? {
             if !visible.contains(&candidate)
-                || candidate != path
-                    && candidate.ends_with(".fs")
-                    && visible.contains(&format!("{candidate}i"))
+                || candidate != path && project::has_signature(&candidate, &visible)
             {
                 continue;
             }
@@ -4413,10 +4409,7 @@ impl Workspace {
             if self.ambiguous_instance(&candidate) {
                 return Ok(TypeLookup::Unknown);
             }
-            if candidate != path
-                && candidate.ends_with(".fs")
-                && visible.contains(&format!("{candidate}i"))
-            {
+            if candidate != path && project::has_signature(&candidate, &visible) {
                 continue;
             }
             let owner = self.parsed(&candidate)?;
