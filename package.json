@@ -21,7 +21,10 @@
   "main": "./extension/dist/extension.js",
   "activationEvents": [
     "onLanguage:fsharp",
-    "onView:fsharpNavigator.solution"
+    "onView:fsharpNavigator.solution",
+    "onCommand:_executeDefinitionProvider",
+    "onCommand:_executeReferenceProvider",
+    "onCommand:_executeHoverProvider"
   ],
   "capabilities": {
     "virtualWorkspaces": false,

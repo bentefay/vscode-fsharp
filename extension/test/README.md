@@ -101,3 +101,13 @@ The original example repository's runtime-lock.json was copied here to pin
 VS Code 1.108.0 and 1.145.3. The automatic test-electron downloader is a
 convenience fallback; release validation should supply the independently
 checksum-verified executable through `FSHARP_VSCODE_PATH`.
+
+
+The first provider request in the trusted document-first test runs immediately
+after opening the F# document. Both pinned editors route the public definition,
+references and hover commands through the internal `_execute*Provider` commands.
+Registering their activation events lets VS Code wait for registration before
+dispatch. The language selector restricts provider callbacks to F# files. The
+adapter creates its navigator, watchers, output channel and status item on first
+F# demand. Set `FSHARP_TEST_PLAINTEXT_FIRST=1` to check a non-F# command starts
+zero native sessions before the F# operations.

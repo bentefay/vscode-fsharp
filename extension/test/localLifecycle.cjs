@@ -5,7 +5,7 @@ const vscode = require('vscode');
 
 // Real registered providers, all UTF-16 ranges checked. The first request can include startup
 // work. Restart exercises a new daemon against the same disposable editor storage.
-exports.exerciseLocalNavigation = async function (doc, api, samples) {
+exports.exerciseLocalNavigation = async function (doc, extension, samples) {
   const line = doc.lineCount - 2;
   const position = text => {
     const column = doc.lineAt(line).text.indexOf(text);
@@ -26,17 +26,17 @@ exports.exerciseLocalNavigation = async function (doc, api, samples) {
       return range.start.character;
     }).sort((a, b) => a - b);
     const expected = (method === 'Definition' ? [declaration] : [declaration, ...uses]).map(p => p.character);
-    assert.deepEqual(actual, expected, `${stage}: ${JSON.stringify(api.lastResult)}`);
-    assert.equal(api.lastResult.completeness, 'exact');
-    assert.equal(api.lastResult.version, doc.version);
+    assert.deepEqual(actual, expected, `${stage}: ${JSON.stringify(extension.isActive && extension.exports.lastResult)}`);
+    assert.equal(extension.exports.lastResult.completeness, 'exact');
+    assert.equal(extension.exports.lastResult.version, doc.version);
   };
   const sample = async (stage, method, action) => {
     const start = performance.now();
     if (action) await action();
     await query(stage, method);
-    samples.push({ stage, method, elapsedMs: performance.now() - start, documentVersion: doc.version, source: api.lastResult.source });
+    samples.push({ stage, method, elapsedMs: performance.now() - start, documentVersion: doc.version, source: extension.exports.lastResult.source });
   };
-  const firstPids = api.processIds;
+  const firstPids = extension.isActive ? extension.exports.processIds : [];
   await sample('first', 'Definition');
   samples[0].existingBackendCount = firstPids.length;
   await sample('coldReferences', 'Reference');
@@ -47,9 +47,9 @@ exports.exerciseLocalNavigation = async function (doc, api, samples) {
   try {
     await sample('dirtyEditToAnswer', 'Definition', async () => assert.equal(await vscode.workspace.applyEdit(edit), true));
     await sample('dirtyReferences', 'Reference');
-    const prior = api.processIds;
+    const prior = extension.exports.processIds;
     await sample('backendRestartToAnswer', 'Definition', () => vscode.commands.executeCommand('fsharpNavigator.restart'));
-    assert.ok(api.processIds.length && prior.every(pid => !api.processIds.includes(pid)));
+    assert.ok(extension.exports.processIds.length && prior.every(pid => !extension.exports.processIds.includes(pid)));
   } finally {
     await vscode.window.showTextDocument(doc);
     await vscode.commands.executeCommand('workbench.action.files.revert');

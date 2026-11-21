@@ -267,7 +267,7 @@ class Navigator implements vscode.Disposable {
 class SolutionTree implements vscode.TreeDataProvider<TreeNode> {
   private readonly emitter = new vscode.EventEmitter<TreeNode | undefined>();
   readonly onDidChangeTreeData = this.emitter.event;
-  navigator!: Navigator;
+  constructor(private readonly getNavigator: () => Navigator) {}
   refresh(): void { this.emitter.fire(undefined); }
   getTreeItem(node: TreeNode): vscode.TreeItem {
     const item = new vscode.TreeItem(node.label, node.children?.length ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
@@ -290,10 +290,11 @@ class SolutionTree implements vscode.TreeDataProvider<TreeNode> {
   }
   async getChildren(node?: TreeNode): Promise<TreeNode[]> {
     if (node) return node.children ?? [];
+    const navigator = this.getNavigator();
     const nodes: TreeNode[] = [];
     for (const folder of vscode.workspace.workspaceFolders ?? []) {
       try {
-        const session = await this.navigator.session(folder);
+        const session = await navigator.session(folder);
         const result = await session.backend.request<TreeResult | TreeNode[]>('workspace/tree');
         const children = Array.isArray(result) ? result : result.nodes;
         const attachContext = (node: TreeNode, projectPath?: string): TreeNode => {
@@ -301,8 +302,8 @@ class SolutionTree implements vscode.TreeDataProvider<TreeNode> {
           return { ...node, projectPath: owningProject, workspaceUri: folder.uri.toString(), children: node.children?.map(child => attachContext(child, owningProject)) };
         };
         for (const child of children ?? []) nodes.push(attachContext(child));
-        if (!Array.isArray(result) && result.diagnostics?.length) this.navigator.output.appendLine(result.diagnostics.join('\n'));
-      } catch (error) { this.navigator.report(error); }
+        if (!Array.isArray(result) && result.diagnostics?.length) navigator.output.appendLine(result.diagnostics.join('\n'));
+      } catch (error) { navigator.report(error); }
     }
     return nodes;
   }
@@ -310,17 +311,19 @@ class SolutionTree implements vscode.TreeDataProvider<TreeNode> {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-  const tree = new SolutionTree();
+  let navigator: Navigator | undefined;
+  // Command activation may be requested for another language. Only F# providers, views
+  // and commands should construct the status item, file watchers and backend sessions.
+  const getNavigator = (): Navigator => navigator ??= new Navigator(context, () => tree.refresh());
+  const tree = new SolutionTree(getNavigator);
   const metadata = new MetadataDocuments();
-  const navigator = new Navigator(context, () => tree.refresh());
-  tree.navigator = navigator;
   const selector: vscode.DocumentSelector = { language: 'fsharp', scheme: 'file' };
-  context.subscriptions.push(navigator, tree, metadata,
+  context.subscriptions.push({ dispose: () => navigator?.dispose() }, tree, metadata,
     vscode.workspace.registerTextDocumentContentProvider(metadataScheme, metadata),
     vscode.window.registerTreeDataProvider('fsharpNavigator.solution', tree),
     vscode.languages.registerDefinitionProvider(selector, {
       async provideDefinition(document, position, token) {
-        const result = await navigator.query('navigation/definition', document, position, token);
+        const result = await getNavigator().query('navigation/definition', document, position, token);
         if (!result) return undefined;
         try {
           metadata.accept(result.documents);
@@ -331,18 +334,18 @@ export function activate(context: vscode.ExtensionContext) {
             }
           }
           return locations;
-        } catch (error) { navigator.report(error); return undefined; }
+        } catch (error) { getNavigator().report(error); return undefined; }
       }
     }),
     vscode.languages.registerReferenceProvider(selector, {
       async provideReferences(document, position, referenceContext, token) {
-        const result = await navigator.query('navigation/references', document, position, token, referenceContext.includeDeclaration);
+        const result = await getNavigator().query('navigation/references', document, position, token, referenceContext.includeDeclaration);
         return result?.locations?.map(location);
       }
     }),
     vscode.languages.registerHoverProvider(selector, {
       async provideHover(document, position, token) {
-        const result = await navigator.query('navigation/hover', document, position, token);
+        const result = await getNavigator().query('navigation/hover', document, position, token);
         if (!result?.hover || (result.ownership !== 'external' && result.hover.isExternal !== true)) return undefined;
         const markdown = new vscode.MarkdownString(result.hover.markdown);
         markdown.isTrusted = false;
@@ -350,10 +353,10 @@ export function activate(context: vscode.ExtensionContext) {
         return new vscode.Hover(markdown, result.hover.range ? range(result.hover.range) : undefined);
       }
     }),
-    vscode.commands.registerCommand('fsharpNavigator.openProjectFile', (uri: vscode.Uri, projectPath: string, workspaceUri: string) => navigator.openProjectFile(uri, projectPath, workspaceUri)),
+    vscode.commands.registerCommand('fsharpNavigator.openProjectFile', (uri: vscode.Uri, projectPath: string, workspaceUri: string) => getNavigator().openProjectFile(uri, projectPath, workspaceUri)),
     vscode.commands.registerCommand('fsharpNavigator.refresh', () => tree.refresh()),
-    vscode.commands.registerCommand('fsharpNavigator.indexWorkspace', () => navigator.indexWorkspace()),
-    vscode.commands.registerCommand('fsharpNavigator.restart', () => navigator.restart()),
+    vscode.commands.registerCommand('fsharpNavigator.indexWorkspace', () => getNavigator().indexWorkspace()),
+    vscode.commands.registerCommand('fsharpNavigator.restart', () => getNavigator().restart()),
     vscode.commands.registerCommand('fsharpNavigator.selectMode', async () => {
       const choice = await vscode.window.showQuickPick([
         { label: 'Indexed', description: 'Rust index; no automatic compiler analysis', value: 'indexed' },
@@ -368,12 +371,12 @@ export function activate(context: vscode.ExtensionContext) {
     tree,
     async stats() {
       const results: unknown[] = [];
-      for (const session of navigator.sessions.values()) results.push(await session.backend.request('workspace/stats'));
+      for (const session of navigator?.sessions.values() ?? []) results.push(await session.backend.request('workspace/stats'));
       return results;
     },
-    get lastResult() { return navigator.lastResult; },
-    get processIds() { return [...navigator.sessions.values()].map(session => session.backend.pid); },
-    restart() { navigator.restart(); },
+    get lastResult() { return navigator?.lastResult; },
+    get processIds() { return Array.from(navigator?.sessions.values() ?? [], session => session.backend.pid); },
+    restart() { getNavigator().restart(); },
   };
 }
 

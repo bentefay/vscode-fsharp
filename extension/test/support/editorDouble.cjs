@@ -46,6 +46,7 @@ exports.createEditor = async function (directory, binary, configuration = {}) {
   const events = Object.fromEntries(['open', 'change', 'save', 'close', 'configuration', 'folders', 'output'].map(name => [name, new EventEmitter()]));
   const output = [];
   const warnings = [];
+  const resources = { outputChannels: 0, statusBarItems: 0, fileWatchers: 0 };
   const commands = new Map();
   const openedUris = [];
   const status = { show() {}, dispose() {} };
@@ -66,12 +67,12 @@ exports.createEditor = async function (directory, binary, configuration = {}) {
       onDidOpenTextDocument: events.open.event, onDidChangeTextDocument: events.change.event,
       onDidSaveTextDocument: events.save.event, onDidCloseTextDocument: events.close.event,
       onDidChangeConfiguration: events.configuration.event, onDidChangeWorkspaceFolders: events.folders.event,
-      createFileSystemWatcher() { return { onDidCreate: noop, onDidChange: noop, onDidDelete: noop, dispose() {} }; },
+      createFileSystemWatcher() { resources.fileWatchers++; return { onDidCreate: noop, onDidChange: noop, onDidDelete: noop, dispose() {} }; },
       registerTextDocumentContentProvider: noop,
     },
     window: {
-      createOutputChannel() { return { append: text => { output.push(text); events.output.fire(text); }, appendLine: text => { output.push(text); events.output.fire(text); }, show() {}, dispose() {} }; },
-      createStatusBarItem() { return status; }, registerTreeDataProvider: noop,
+      createOutputChannel() { resources.outputChannels++; return { append: text => { output.push(text); events.output.fire(text); }, appendLine: text => { output.push(text); events.output.fire(text); }, show() {}, dispose() {} }; },
+      createStatusBarItem() { resources.statusBarItems++; return status; }, registerTreeDataProvider: noop,
       showWarningMessage: async text => { warnings.push(text); }, showQuickPick: async () => undefined,
     },
     languages: {
@@ -91,7 +92,7 @@ exports.createEditor = async function (directory, binary, configuration = {}) {
   try { api = require('../../dist/extension.js').activate(context); }
   finally { Module._load = load; }
   return {
-    api, providers, output, warnings, status, uncancelled, openedUris,
+    api, providers, output, warnings, status, resources, uncancelled, openedUris,
     executeCommand: boundary.commands.executeCommand,
     async open(name) {
       const fullPath = path.join(directory, name);

@@ -35,6 +35,14 @@ exports.run = async function () {
     assert.equal(activation.initialFSharpDocuments, 0, 'Fixture starts before opening any F# document');
     assert.equal(activation.alreadyActive, false, 'Opening a project directory should defer activation');
   }
+  if (!untrusted && process.env.FSHARP_TEST_PLAINTEXT_FIRST === '1') {
+    const text = await vscode.workspace.openTextDocument({ language: 'plaintext', content: 'plain text' });
+    await vscode.window.showTextDocument(text);
+    await vscode.commands.executeCommand('vscode.executeDefinitionProvider', text.uri, new vscode.Position(0, 1));
+    assert.deepEqual(extension.isActive ? extension.exports.processIds : [], []);
+    assert.deepEqual(extension.isActive ? await extension.exports.stats() : [], []);
+    activation.activeAfterPlaintextCommand = extension.isActive;
+  }
   const demandStart = performance.now();
   if (treeFirst) {
     await vscode.commands.executeCommand('workbench.view.extension.fsharpNavigator');
@@ -50,12 +58,10 @@ exports.run = async function () {
   const uri = name => vscode.Uri.file(path.join(root, name));
   const document = await vscode.workspace.openTextDocument(uri('Main.fs'));
   await vscode.window.showTextDocument(document);
-  if (!untrusted) {
-    await eventually(() => extension.isActive);
-    activation.demandToDocumentReadyMs = performance.now() - demandStart;
-  }
+  activation.demandToDocumentReadyMs = performance.now() - demandStart;
+  activation.activeAfterDocumentOpen = extension?.isActive ?? false;
   activation.afterMemory = process.memoryUsage();
-  const api = untrusted ? undefined : extension.exports;
+  let api;
   const position = (doc, line, text, offset = 1) => new vscode.Position(line, doc.lineAt(line).text.lastIndexOf(text) + offset);
   const definitions = async (doc, line, text) => {
     const values = await executeProvider('vscode.executeDefinitionProvider', doc.uri, position(doc, line, text));
@@ -87,7 +93,9 @@ exports.run = async function () {
     });
   } else {
     await test('local providers preserve exact targets across warm, edit and backend restart', () =>
-      exerciseLocalNavigation(document, api, localLifecycle));
+      exerciseLocalNavigation(document, extension, localLifecycle));
+    await eventually(() => extension.isActive);
+    api = extension.exports;
     await test('solution explorer preserves declared compile order', async () => {
       await vscode.commands.executeCommand('workbench.view.extension.fsharpNavigator');
       const roots = await api.tree.getChildren();
@@ -224,7 +232,7 @@ exports.run = async function () {
   }
   await fs.writeFile(path.join(process.env.FSHARP_TEST_RESULTS, 'results.json'), JSON.stringify({
     environment: { kind: 'actual-vscode-extension-host', vscode: vscode.version, node: process.version, extensionHostPid: process.pid, backendPids: api?.processIds ?? [] },
-    measurements: { activation, providerSamples, localLifecycle, finalExtensionHostMemory: process.memoryUsage(), limitations: 'Test-run timings, not repeated controlled benchmarks. Memory describes the shared extension-host process, not the entire editor process tree. Demand timings include opening the editor document or solution view and waiting for activation.' },
+    measurements: { activation, providerSamples, localLifecycle, finalExtensionHostMemory: process.memoryUsage(), limitations: 'Test-run timings, not repeated controlled benchmarks. Memory describes the shared extension-host process, not the entire editor process tree. Demand timings include opening the editor document or solution view and submitting the first registered provider command.' },
     results,
   }, null, 2));
   for (const result of results) console.log(`${result.status}: ${result.name}${result.error ? '\n' + result.error : ''}`);

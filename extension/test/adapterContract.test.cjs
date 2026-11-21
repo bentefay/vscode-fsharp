@@ -48,6 +48,19 @@ readline.createInterface({input:process.stdin}).on('line', line => {
   return editor;
 }
 
+test('registering providers creates no navigator resources before the first F# request', async t => {
+  const editor = await setup(t, 'exact');
+  const doc = await editor.open('Main.fs');
+  assert.deepEqual(await editor.api.stats(), []);
+  assert.deepEqual(editor.api.processIds, []);
+  assert.deepEqual(editor.resources, { outputChannels: 0, statusBarItems: 0, fileWatchers: 0 });
+  const definition = await editor.providers.definition.provideDefinition(doc, editor.position(doc, 2, 'value'), editor.uncancelled);
+  assert.equal(definition.length, 1);
+  assert.equal(editor.resources.outputChannels, 1);
+  assert.equal(editor.resources.statusBarItems, 1);
+  assert.ok(editor.resources.fileWatchers > 0);
+});
+
 for (const completeness of ['approximate', 'unavailable']) {
   test(`adapter withholds ${completeness} definitions and references instead of presenting a complete set`, async t => {
     const editor = await setup(t, completeness);
