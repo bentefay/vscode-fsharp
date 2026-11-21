@@ -1,0 +1,567 @@
+{
+  "date": "2026-11-21",
+  "source": "evaluation/contracts/grace46.json",
+  "corpus": "39960e07b73cd142cc0c1fd070c0591be91c1933",
+  "scope": "Real Linux x64 desktop functional observations under concurrent validation. RSS is the sampled process-family sum and includes shared pages in every process.",
+  "operations": [
+    "type_alias_rhs_04_Sha256Hash/definition",
+    "type_alias_rhs_04_Sha256Hash/references",
+    "record_or_property_access_06_DeleteReason/definition",
+    "record_or_property_access_06_DeleteReason/references",
+    "record_or_property_access_07_Ranges/definition",
+    "record_or_property_access_07_Ranges/references",
+    "record_or_property_access_08_RepositoryId/definition",
+    "record_or_property_access_08_RepositoryId/references",
+    "record_or_property_access_10_OrdinalCount/definition",
+    "record_or_property_access_10_OrdinalCount/references",
+    "record_or_property_access_11_ArtifactId/definition",
+    "record_or_property_access_11_ArtifactId/references",
+    "record_creation_label_12_OnFailure/definition",
+    "record_creation_label_12_OnFailure/references",
+    "record_creation_label_13_Kty/definition",
+    "record_creation_label_13_Kty/references",
+    "record_creation_label_14_RepositoryId/definition",
+    "record_creation_label_14_RepositoryId/references",
+    "record_creation_label_15_WorkItem/definition",
+    "record_creation_label_15_WorkItem/references",
+    "record_creation_label_16_Artifact/definition",
+    "record_creation_label_16_Artifact/references",
+    "record_creation_label_17_StoragePoolId/definition",
+    "record_creation_label_17_StoragePoolId/references",
+    "record_update_label_18_State/definition",
+    "record_update_label_18_State/references",
+    "record_update_label_19_StoragePoolId/definition",
+    "record_update_label_19_StoragePoolId/references",
+    "record_update_label_20_RecordSaves/definition",
+    "record_update_label_20_RecordSaves/references",
+    "record_update_label_21_DeletedAt/definition",
+    "record_update_label_21_DeletedAt/references",
+    "record_update_label_22_DeletedAt/definition",
+    "record_update_label_22_DeletedAt/references",
+    "record_update_label_23_CommitEnabled/definition",
+    "record_update_label_23_CommitEnabled/references",
+    "module_value_use_24_referenceTypeName/definition",
+    "module_value_use_24_referenceTypeName/references",
+    "module_value_use_26_serialize/definition",
+    "module_value_use_26_serialize/references",
+    "module_value_use_27_error/definition",
+    "module_value_use_27_error/references",
+    "module_value_use_28_validate/definition",
+    "module_value_use_28_validate/references",
+    "module_value_use_29_getDiscriminatedUnionFullName/definition",
+    "module_value_use_29_getDiscriminatedUnionFullName/references"
+  ],
+  "reports": {
+    "originalNavigator": {
+      "inputs": {
+        "editor": "1.108.0",
+        "provider": "navigator",
+        "codeSha256": "6d3e558f9d17bf273e8fa0bd11c9988052696dcc18b3e8f4c020feff8e6f0e8b",
+        "vsixSha256": {
+          "baseline-immutable.vsix": "187848175662d6e6e516650bef83db2a5722d95363df694e04ce6fcac3d61ad4"
+        },
+        "contractSha256": "2273da19fadc175ec6ebeac1eb8dbae694db05335369ab54a598d5b4f45862a1",
+        "backendSha256": "710f046e290da02e8e85362add92125334f5ec7e1bb498f1201fc25eb6905fed",
+        "modelSha256": "4d14363b4e56e6a84eada12f3d53bbe09e2223b9213980eac1aa876c5b00664f",
+        "fsharpNavigator.libraryCatalogPathSha256": "9fcd073b75849977ad25349623f69ae9e5344d35f4744f3c367cb64019f75ced",
+        "fsharpNavigator.builtinEnvironmentPathSha256": "0b72150035ffa9f0ccc0239944e6d4b93c02c818c58530b29b6b60a5ca90655b"
+      },
+      "runs": [
+        {
+          "phase": "coldProfile",
+          "counts": {
+            "correct": 14,
+            "wrongExact": 0,
+            "unavailable": 32,
+            "noNativeResponse": 0
+          },
+          "unavailableIndices": [
+            3,
+            5,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            29,
+            31,
+            32,
+            33,
+            34,
+            35,
+            38,
+            39,
+            44,
+            45
+          ],
+          "firstResult": "correct",
+          "firstActiveBefore": true,
+          "firstProviderMs": 1062.53,
+          "returnedLocationsSha256": "d9c37eb7b309cc92cb20c8614394573fe45a21f848d409a67d10f02217780c2c",
+          "sampledPeakDesktopTreeMiB": 1470.8,
+          "sampleCount": 150,
+          "retryAfter46": "correct",
+          "engines": [
+            {
+              "compilerLaunches": 0,
+              "helperStarts": 0,
+              "mode": "indexed"
+            }
+          ]
+        },
+        {
+          "phase": "restartedProfile",
+          "counts": {
+            "correct": 14,
+            "wrongExact": 0,
+            "unavailable": 32,
+            "noNativeResponse": 0
+          },
+          "unavailableIndices": [
+            3,
+            5,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            29,
+            31,
+            32,
+            33,
+            34,
+            35,
+            38,
+            39,
+            44,
+            45
+          ],
+          "firstResult": "correct",
+          "firstActiveBefore": true,
+          "firstProviderMs": 724.11,
+          "returnedLocationsSha256": "d9c37eb7b309cc92cb20c8614394573fe45a21f848d409a67d10f02217780c2c",
+          "sampledPeakDesktopTreeMiB": 1430.8,
+          "sampleCount": 156,
+          "retryAfter46": "correct",
+          "engines": [
+            {
+              "compilerLaunches": 0,
+              "helperStarts": 0,
+              "mode": "indexed"
+            }
+          ]
+        }
+      ]
+    },
+    "candidateOnDemand": {
+      "inputs": {
+        "editor": "1.108.0",
+        "provider": "navigator",
+        "codeSha256": "6d3e558f9d17bf273e8fa0bd11c9988052696dcc18b3e8f4c020feff8e6f0e8b",
+        "vsixSha256": {
+          "release.vsix": "7ba55d3891d20d0542691a1c6ea0e27875f249066885483e8913da35b5fb7448"
+        },
+        "contractSha256": "2273da19fadc175ec6ebeac1eb8dbae694db05335369ab54a598d5b4f45862a1",
+        "backendSha256": "7068357ab7a77bff7d362009a48ef08d6e6276ae4f74b4251a8b00b40f8393f8",
+        "modelSha256": "4d14363b4e56e6a84eada12f3d53bbe09e2223b9213980eac1aa876c5b00664f",
+        "fsharpNavigator.libraryCatalogPathSha256": "9fcd073b75849977ad25349623f69ae9e5344d35f4744f3c367cb64019f75ced",
+        "fsharpNavigator.builtinEnvironmentPathSha256": "0b72150035ffa9f0ccc0239944e6d4b93c02c818c58530b29b6b60a5ca90655b"
+      },
+      "runs": [
+        {
+          "phase": "coldProfile",
+          "counts": {
+            "correct": 17,
+            "wrongExact": 0,
+            "unavailable": 29,
+            "noNativeResponse": 0
+          },
+          "unavailableIndices": [
+            3,
+            5,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            29,
+            31,
+            32,
+            33,
+            34,
+            35,
+            39,
+            44,
+            45
+          ],
+          "firstResult": "correct",
+          "firstActiveBefore": false,
+          "firstProviderMs": 5659.43,
+          "returnedLocationsSha256": "d798f8ed296c21013d4f9deb936a99188632b8ddb573bf769736d4b5d434c045",
+          "sampledPeakDesktopTreeMiB": 1456.6,
+          "sampleCount": 357,
+          "retryAfter46": "correct",
+          "engines": [
+            {
+              "compilerLaunches": 0,
+              "helperStarts": 0,
+              "mode": "indexed"
+            }
+          ]
+        },
+        {
+          "phase": "restartedProfile",
+          "counts": {
+            "correct": 17,
+            "wrongExact": 0,
+            "unavailable": 29,
+            "noNativeResponse": 0
+          },
+          "unavailableIndices": [
+            3,
+            5,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            29,
+            31,
+            32,
+            33,
+            34,
+            35,
+            39,
+            44,
+            45
+          ],
+          "firstResult": "correct",
+          "firstActiveBefore": false,
+          "firstProviderMs": 1192.78,
+          "returnedLocationsSha256": "d798f8ed296c21013d4f9deb936a99188632b8ddb573bf769736d4b5d434c045",
+          "sampledPeakDesktopTreeMiB": 1459.9,
+          "sampleCount": 210,
+          "retryAfter46": "correct",
+          "engines": [
+            {
+              "compilerLaunches": 0,
+              "helperStarts": 0,
+              "mode": "indexed"
+            }
+          ]
+        }
+      ]
+    },
+    "candidateConfiguredSnapshot": {
+      "inputs": {
+        "editor": "1.108.0",
+        "provider": "navigator",
+        "codeSha256": "6d3e558f9d17bf273e8fa0bd11c9988052696dcc18b3e8f4c020feff8e6f0e8b",
+        "vsixSha256": {
+          "release.vsix": "7ba55d3891d20d0542691a1c6ea0e27875f249066885483e8913da35b5fb7448"
+        },
+        "contractSha256": "2273da19fadc175ec6ebeac1eb8dbae694db05335369ab54a598d5b4f45862a1",
+        "backendSha256": "7068357ab7a77bff7d362009a48ef08d6e6276ae4f74b4251a8b00b40f8393f8",
+        "modelSha256": "50a685e736e612aeb0b3ec5a7500f3fb601e9bdf382ef7b3b57de1124d815bd0",
+        "fsharpNavigator.libraryCatalogPathSha256": "9ecd86150714ccfe96cf4cdaab87f6e81b63a6c5cc84c1db789f6a33699f0c96",
+        "fsharpNavigator.builtinEnvironmentPathSha256": "e1eca3e0683b1a75f7377cdb217d9c5659efe9a6bc2a395e70ccf316c5d373fb",
+        "fsharpNavigator.semanticSnapshotPathSha256": "ebcf7a12156023f67d62685856f9d4f11ac510dc9bfa57e8535dcc5f71e7f718"
+      },
+      "runs": [
+        {
+          "phase": "coldProfile",
+          "counts": {
+            "correct": 17,
+            "wrongExact": 0,
+            "unavailable": 29,
+            "noNativeResponse": 0
+          },
+          "unavailableIndices": [
+            3,
+            5,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            29,
+            31,
+            32,
+            33,
+            34,
+            35,
+            39,
+            44,
+            45
+          ],
+          "firstResult": "correct",
+          "firstActiveBefore": false,
+          "firstProviderMs": 2230.67,
+          "returnedLocationsSha256": "d798f8ed296c21013d4f9deb936a99188632b8ddb573bf769736d4b5d434c045",
+          "sampledPeakDesktopTreeMiB": 1485.6,
+          "sampleCount": 147,
+          "retryAfter46": "correct",
+          "engines": [
+            {
+              "compilerLaunches": 0,
+              "helperStarts": 0,
+              "mode": "indexed"
+            }
+          ]
+        },
+        {
+          "phase": "restartedProfile",
+          "counts": {
+            "correct": 17,
+            "wrongExact": 0,
+            "unavailable": 29,
+            "noNativeResponse": 0
+          },
+          "unavailableIndices": [
+            3,
+            5,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            29,
+            31,
+            32,
+            33,
+            34,
+            35,
+            39,
+            44,
+            45
+          ],
+          "firstResult": "correct",
+          "firstActiveBefore": false,
+          "firstProviderMs": 549.99,
+          "returnedLocationsSha256": "d798f8ed296c21013d4f9deb936a99188632b8ddb573bf769736d4b5d434c045",
+          "sampledPeakDesktopTreeMiB": 1462.4,
+          "sampleCount": 108,
+          "retryAfter46": "correct",
+          "engines": [
+            {
+              "compilerLaunches": 0,
+              "helperStarts": 0,
+              "mode": "indexed"
+            }
+          ]
+        }
+      ]
+    },
+    "candidateExplicitSnapshotIndex": {
+      "inputs": {
+        "editor": "1.108.0",
+        "provider": "navigator",
+        "codeSha256": "6d3e558f9d17bf273e8fa0bd11c9988052696dcc18b3e8f4c020feff8e6f0e8b",
+        "vsixSha256": {
+          "release.vsix": "7ba55d3891d20d0542691a1c6ea0e27875f249066885483e8913da35b5fb7448"
+        },
+        "contractSha256": "2273da19fadc175ec6ebeac1eb8dbae694db05335369ab54a598d5b4f45862a1",
+        "backendSha256": "7068357ab7a77bff7d362009a48ef08d6e6276ae4f74b4251a8b00b40f8393f8",
+        "modelSha256": "50a685e736e612aeb0b3ec5a7500f3fb601e9bdf382ef7b3b57de1124d815bd0",
+        "fsharpNavigator.libraryCatalogPathSha256": "9ecd86150714ccfe96cf4cdaab87f6e81b63a6c5cc84c1db789f6a33699f0c96",
+        "fsharpNavigator.builtinEnvironmentPathSha256": "e1eca3e0683b1a75f7377cdb217d9c5659efe9a6bc2a395e70ccf316c5d373fb",
+        "fsharpNavigator.semanticSnapshotPathSha256": "ebcf7a12156023f67d62685856f9d4f11ac510dc9bfa57e8535dcc5f71e7f718"
+      },
+      "runs": [
+        {
+          "phase": "coldProfile",
+          "counts": {
+            "correct": 46,
+            "wrongExact": 0,
+            "unavailable": 0,
+            "noNativeResponse": 0
+          },
+          "unavailableIndices": [],
+          "firstResult": "correct",
+          "firstActiveBefore": true,
+          "firstProviderMs": 178.28,
+          "returnedLocationsSha256": "fa6a5497746953dd5e002583b11eacc466778bd43c80de2428aaaa3229154e40",
+          "sampledPeakDesktopTreeMiB": 1553.7,
+          "sampleCount": 124,
+          "explicitIndexMs": 1111.03,
+          "retryAfter46": "correct",
+          "engines": [
+            {
+              "compilerLaunches": 0,
+              "helperStarts": 0,
+              "mode": "indexed"
+            }
+          ]
+        },
+        {
+          "phase": "restartedProfile",
+          "counts": {
+            "correct": 46,
+            "wrongExact": 0,
+            "unavailable": 0,
+            "noNativeResponse": 0
+          },
+          "unavailableIndices": [],
+          "firstResult": "correct",
+          "firstActiveBefore": true,
+          "firstProviderMs": 117.88,
+          "returnedLocationsSha256": "fa6a5497746953dd5e002583b11eacc466778bd43c80de2428aaaa3229154e40",
+          "sampledPeakDesktopTreeMiB": 1542.4,
+          "sampleCount": 91,
+          "explicitIndexMs": 707.36,
+          "retryAfter46": "correct",
+          "engines": [
+            {
+              "compilerLaunches": 0,
+              "helperStarts": 0,
+              "mode": "indexed"
+            }
+          ]
+        }
+      ]
+    },
+    "ionide": {
+      "inputs": {
+        "editor": "1.108.0",
+        "provider": "ionide",
+        "codeSha256": "6d3e558f9d17bf273e8fa0bd11c9988052696dcc18b3e8f4c020feff8e6f0e8b",
+        "vsixSha256": {
+          "DotnetRuntimeExtension.vsix": "a4cff5409f66e3827ee2c6a727ae59382290a182a653ca0f9ac97c63536ee541",
+          "CSharp.vsix": "3be755b4ccdb2a31d435910b6ff6c13ca34993ba085202f939be97a674fc0189",
+          "Ionide.Ionide-fsharp-8.1.0.vsix": "30c6668b9790a36ed1f2e83a15c754e67102986e25863e368f55d67743a6d73a"
+        },
+        "contractSha256": "2273da19fadc175ec6ebeac1eb8dbae694db05335369ab54a598d5b4f45862a1"
+      },
+      "runs": [
+        {
+          "phase": "coldProfile",
+          "counts": {
+            "correct": 46,
+            "incorrectLocations": 0,
+            "unavailable": 0
+          },
+          "unavailableIndices": [],
+          "firstResult": "correct",
+          "firstActiveBefore": true,
+          "firstProviderMs": 13635.37,
+          "returnedLocationsSha256": "ee5faf73775d7241d2e909464d1c42137594b14bb6f4dc9ddf0dc919752cd632",
+          "sampledPeakDesktopTreeMiB": 2149.8,
+          "sampleCount": 648,
+          "retryAfter46": "correct",
+          "separateSecondPass": {
+            "correct": 46,
+            "incorrectLocations": 0,
+            "unavailable": 0
+          },
+          "separateSecondPassLocationsSha256": "ee5faf73775d7241d2e909464d1c42137594b14bb6f4dc9ddf0dc919752cd632",
+          "readinessPollsAfterFirstPass": 0
+        },
+        {
+          "phase": "restartedProfile",
+          "counts": {
+            "correct": 46,
+            "incorrectLocations": 0,
+            "unavailable": 0
+          },
+          "unavailableIndices": [],
+          "firstResult": "correct",
+          "firstActiveBefore": true,
+          "firstProviderMs": 23073.3,
+          "returnedLocationsSha256": "ee5faf73775d7241d2e909464d1c42137594b14bb6f4dc9ddf0dc919752cd632",
+          "sampledPeakDesktopTreeMiB": 2144.2,
+          "sampleCount": 626,
+          "retryAfter46": "correct",
+          "separateSecondPass": {
+            "correct": 46,
+            "incorrectLocations": 0,
+            "unavailable": 0
+          },
+          "separateSecondPassLocationsSha256": "ee5faf73775d7241d2e909464d1c42137594b14bb6f4dc9ddf0dc919752cd632",
+          "readinessPollsAfterFirstPass": 0
+        }
+      ]
+    }
+  }
+}

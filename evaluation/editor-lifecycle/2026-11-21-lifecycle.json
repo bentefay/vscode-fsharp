@@ -1,0 +1,448 @@
+{
+  "date": "2026-11-21",
+  "fixture": "evaluation/editor-lifecycle/fixture",
+  "platform": "Linux x64",
+  "treeMemory": "50 ms Linux process-family RSS samples in MiB. Shared pages are counted in each process. Brief processes and peaks can be missed.",
+  "provenance": {
+    "baseline": {
+      "editor": "1.108.0",
+      "provider": "navigator",
+      "codeSha256": "6d3e558f9d17bf273e8fa0bd11c9988052696dcc18b3e8f4c020feff8e6f0e8b",
+      "vsixSha256": {
+        "baseline-immutable.vsix": "187848175662d6e6e516650bef83db2a5722d95363df694e04ce6fcac3d61ad4"
+      },
+      "sourceSha256": "95788db2d68a73cb53d1227741035872025505e676712a0aa7053149d8f30f6f",
+      "projectSha256": "709a40f1feb98794eb7288f9a96ba474b8b5237224be325f7f3b09b07208ae1b",
+      "backendSha256": "710f046e290da02e8e85362add92125334f5ec7e1bb498f1201fc25eb6905fed",
+      "modelSha256": "ff00f05bdb91f8d9be11d839cec887992d5d4fc5c8e30c23b70095280db0b7e7"
+    },
+    "candidate": {
+      "editor": "1.108.0",
+      "provider": "navigator",
+      "codeSha256": "6d3e558f9d17bf273e8fa0bd11c9988052696dcc18b3e8f4c020feff8e6f0e8b",
+      "vsixSha256": {
+        "release.vsix": "7ba55d3891d20d0542691a1c6ea0e27875f249066885483e8913da35b5fb7448"
+      },
+      "sourceSha256": "95788db2d68a73cb53d1227741035872025505e676712a0aa7053149d8f30f6f",
+      "projectSha256": "709a40f1feb98794eb7288f9a96ba474b8b5237224be325f7f3b09b07208ae1b",
+      "backendSha256": "7068357ab7a77bff7d362009a48ef08d6e6276ae4f74b4251a8b00b40f8393f8",
+      "modelSha256": "ff00f05bdb91f8d9be11d839cec887992d5d4fc5c8e30c23b70095280db0b7e7"
+    },
+    "ionide": {
+      "editor": "1.108.0",
+      "provider": "ionide",
+      "codeSha256": "6d3e558f9d17bf273e8fa0bd11c9988052696dcc18b3e8f4c020feff8e6f0e8b",
+      "vsixSha256": {
+        "DotnetRuntimeExtension.vsix": "a4cff5409f66e3827ee2c6a727ae59382290a182a653ca0f9ac97c63536ee541",
+        "CSharp.vsix": "3be755b4ccdb2a31d435910b6ff6c13ca34993ba085202f939be97a674fc0189",
+        "Ionide.Ionide-fsharp-8.1.0.vsix": "30c6668b9790a36ed1f2e83a15c754e67102986e25863e368f55d67743a6d73a"
+      },
+      "sourceSha256": "95788db2d68a73cb53d1227741035872025505e676712a0aa7053149d8f30f6f",
+      "projectSha256": "709a40f1feb98794eb7288f9a96ba474b8b5237224be325f7f3b09b07208ae1b"
+    }
+  },
+  "trials": [
+    {
+      "trial": "base1",
+      "provider": "navigator",
+      "artifact": "baseline",
+      "runs": [
+        {
+          "phase": "coldProfile",
+          "alreadyActive": true,
+          "stageStatus": {
+            "first": "correct",
+            "firstReferences": "correct",
+            "editToAnswer": "correct",
+            "dirtyReferences": "correct"
+          },
+          "retryOutcomes": {
+            "readinessRetry": [],
+            "editRetry": [],
+            "referenceRetry": []
+          },
+          "warmCorrect": 8,
+          "launchToFirstCorrectMs": 3932.1,
+          "providerDemandToFirstCorrectMs": 231.63,
+          "firstCorrectReferencesMs": 381.66,
+          "warmDefinitionMedianMs": 4.14,
+          "editToCurrentDefinitionMs": 44.22,
+          "editToCurrentReferencesMs": 46.88,
+          "peakTreeRssMiB": 1201.7,
+          "firstAnswerNearestTreeRssMiB": 1181.32,
+          "rssSampleCount": 68,
+          "processesObserved": 6,
+          "engine": {
+            "helperStarts": 0,
+            "compilerLaunches": 0,
+            "source": "indexed"
+          }
+        },
+        {
+          "phase": "restartedProfile",
+          "alreadyActive": true,
+          "stageStatus": {
+            "first": "correct",
+            "firstReferences": "correct",
+            "editToAnswer": "correct",
+            "dirtyReferences": "correct"
+          },
+          "retryOutcomes": {
+            "readinessRetry": [],
+            "editRetry": [],
+            "referenceRetry": []
+          },
+          "warmCorrect": 8,
+          "launchToFirstCorrectMs": 2988.79,
+          "providerDemandToFirstCorrectMs": 358.24,
+          "firstCorrectReferencesMs": 91.38,
+          "warmDefinitionMedianMs": 6.88,
+          "editToCurrentDefinitionMs": 47.55,
+          "editToCurrentReferencesMs": 49.99,
+          "peakTreeRssMiB": 1211.52,
+          "firstAnswerNearestTreeRssMiB": 1183.52,
+          "rssSampleCount": 45,
+          "processesObserved": 10,
+          "engine": {
+            "helperStarts": 0,
+            "compilerLaunches": 0,
+            "source": "indexed"
+          }
+        }
+      ]
+    },
+    {
+      "trial": "candidate1",
+      "provider": "navigator",
+      "artifact": "candidate",
+      "runs": [
+        {
+          "phase": "coldProfile",
+          "alreadyActive": false,
+          "stageStatus": {
+            "first": "correct",
+            "firstReferences": "correct",
+            "editToAnswer": "correct",
+            "dirtyReferences": "correct"
+          },
+          "retryOutcomes": {
+            "readinessRetry": [],
+            "editRetry": [],
+            "referenceRetry": []
+          },
+          "warmCorrect": 8,
+          "launchToFirstCorrectMs": 3638.8,
+          "providerDemandToFirstCorrectMs": 100.53,
+          "firstCorrectReferencesMs": 52.87,
+          "warmDefinitionMedianMs": 24.73,
+          "editToCurrentDefinitionMs": 72.17,
+          "editToCurrentReferencesMs": 77.28,
+          "peakTreeRssMiB": 1232.68,
+          "firstAnswerNearestTreeRssMiB": 1129.0,
+          "rssSampleCount": 60,
+          "processesObserved": 4,
+          "engine": {
+            "helperStarts": 0,
+            "compilerLaunches": 0,
+            "source": "local-lexical"
+          }
+        },
+        {
+          "phase": "restartedProfile",
+          "alreadyActive": false,
+          "stageStatus": {
+            "first": "correct",
+            "firstReferences": "correct",
+            "editToAnswer": "correct",
+            "dirtyReferences": "correct"
+          },
+          "retryOutcomes": {
+            "readinessRetry": [],
+            "editRetry": [],
+            "referenceRetry": []
+          },
+          "warmCorrect": 8,
+          "launchToFirstCorrectMs": 2479.16,
+          "providerDemandToFirstCorrectMs": 83.98,
+          "firstCorrectReferencesMs": 10.34,
+          "warmDefinitionMedianMs": 11.41,
+          "editToCurrentDefinitionMs": 37.81,
+          "editToCurrentReferencesMs": 40.05,
+          "peakTreeRssMiB": 1198.8,
+          "firstAnswerNearestTreeRssMiB": 1099.34,
+          "rssSampleCount": 44,
+          "processesObserved": 4,
+          "engine": {
+            "helperStarts": 0,
+            "compilerLaunches": 0,
+            "source": "local-lexical"
+          }
+        }
+      ]
+    },
+    {
+      "trial": "ionide1",
+      "provider": "ionide",
+      "artifact": "ionide",
+      "runs": [
+        {
+          "phase": "coldProfile",
+          "alreadyActive": true,
+          "stageStatus": {
+            "first": "correct",
+            "firstReferences": "correct",
+            "editToAnswer": "correct",
+            "dirtyReferences": "correct"
+          },
+          "retryOutcomes": {
+            "readinessRetry": [],
+            "editRetry": [],
+            "referenceRetry": []
+          },
+          "warmCorrect": 8,
+          "launchToFirstCorrectMs": 7711.42,
+          "providerDemandToFirstCorrectMs": 2869.57,
+          "firstCorrectReferencesMs": 84.09,
+          "warmDefinitionMedianMs": 4.59,
+          "editToCurrentDefinitionMs": 88.63,
+          "editToCurrentReferencesMs": 97.53,
+          "peakTreeRssMiB": 1588.07,
+          "firstAnswerNearestTreeRssMiB": 1571.6,
+          "rssSampleCount": 121,
+          "processesObserved": 8,
+          "engine": null
+        },
+        {
+          "phase": "restartedProfile",
+          "alreadyActive": true,
+          "stageStatus": {
+            "first": "correct",
+            "firstReferences": "correct",
+            "editToAnswer": "correct",
+            "dirtyReferences": "correct"
+          },
+          "retryOutcomes": {
+            "readinessRetry": [],
+            "editRetry": [],
+            "referenceRetry": []
+          },
+          "warmCorrect": 8,
+          "launchToFirstCorrectMs": 7095.27,
+          "providerDemandToFirstCorrectMs": 2812.04,
+          "firstCorrectReferencesMs": 79.74,
+          "warmDefinitionMedianMs": 2.53,
+          "editToCurrentDefinitionMs": 79.85,
+          "editToCurrentReferencesMs": 86.53,
+          "peakTreeRssMiB": 1544.58,
+          "firstAnswerNearestTreeRssMiB": 1512.89,
+          "rssSampleCount": 110,
+          "processesObserved": 8,
+          "engine": null
+        }
+      ]
+    },
+    {
+      "trial": "ionide2",
+      "provider": "ionide",
+      "artifact": "ionide",
+      "runs": [
+        {
+          "phase": "coldProfile",
+          "alreadyActive": true,
+          "stageStatus": {
+            "first": "correct",
+            "firstReferences": "correct",
+            "editToAnswer": "wrong",
+            "dirtyReferences": "wrong"
+          },
+          "retryOutcomes": {
+            "readinessRetry": [],
+            "editRetry": [
+              "correct"
+            ],
+            "referenceRetry": [
+              "correct"
+            ]
+          },
+          "warmCorrect": 8,
+          "launchToFirstCorrectMs": 9106.35,
+          "providerDemandToFirstCorrectMs": 2937.97,
+          "firstCorrectReferencesMs": 117.01,
+          "warmDefinitionMedianMs": 3.75,
+          "editToCurrentDefinitionMs": 153.63,
+          "editToCurrentReferencesMs": 156.63,
+          "peakTreeRssMiB": 1633.82,
+          "firstAnswerNearestTreeRssMiB": 1597.85,
+          "rssSampleCount": 129,
+          "processesObserved": 9,
+          "engine": null
+        },
+        {
+          "phase": "restartedProfile",
+          "alreadyActive": true,
+          "stageStatus": {
+            "first": "correct",
+            "firstReferences": "correct",
+            "editToAnswer": "correct",
+            "dirtyReferences": "correct"
+          },
+          "retryOutcomes": {
+            "readinessRetry": [],
+            "editRetry": [],
+            "referenceRetry": []
+          },
+          "warmCorrect": 8,
+          "launchToFirstCorrectMs": 7933.51,
+          "providerDemandToFirstCorrectMs": 2979.3,
+          "firstCorrectReferencesMs": 98.94,
+          "warmDefinitionMedianMs": 4.4,
+          "editToCurrentDefinitionMs": 71.41,
+          "editToCurrentReferencesMs": 75.23,
+          "peakTreeRssMiB": 1611.62,
+          "firstAnswerNearestTreeRssMiB": 1591.38,
+          "rssSampleCount": 114,
+          "processesObserved": 4,
+          "engine": null
+        }
+      ]
+    },
+    {
+      "trial": "candidate2",
+      "provider": "navigator",
+      "artifact": "candidate",
+      "runs": [
+        {
+          "phase": "coldProfile",
+          "alreadyActive": false,
+          "stageStatus": {
+            "first": "correct",
+            "firstReferences": "correct",
+            "editToAnswer": "correct",
+            "dirtyReferences": "correct"
+          },
+          "retryOutcomes": {
+            "readinessRetry": [],
+            "editRetry": [],
+            "referenceRetry": []
+          },
+          "warmCorrect": 8,
+          "launchToFirstCorrectMs": 4673.58,
+          "providerDemandToFirstCorrectMs": 139.74,
+          "firstCorrectReferencesMs": 17.97,
+          "warmDefinitionMedianMs": 3.52,
+          "editToCurrentDefinitionMs": 27.22,
+          "editToCurrentReferencesMs": 29.53,
+          "peakTreeRssMiB": 1225.55,
+          "firstAnswerNearestTreeRssMiB": 1170.81,
+          "rssSampleCount": 61,
+          "processesObserved": 4,
+          "engine": {
+            "helperStarts": 0,
+            "compilerLaunches": 0,
+            "source": "local-lexical"
+          }
+        },
+        {
+          "phase": "restartedProfile",
+          "alreadyActive": false,
+          "stageStatus": {
+            "first": "correct",
+            "firstReferences": "correct",
+            "editToAnswer": "correct",
+            "dirtyReferences": "correct"
+          },
+          "retryOutcomes": {
+            "readinessRetry": [],
+            "editRetry": [],
+            "referenceRetry": []
+          },
+          "warmCorrect": 8,
+          "launchToFirstCorrectMs": 4185.22,
+          "providerDemandToFirstCorrectMs": 849.11,
+          "firstCorrectReferencesMs": 61.34,
+          "warmDefinitionMedianMs": 3.3,
+          "editToCurrentDefinitionMs": 28.65,
+          "editToCurrentReferencesMs": 31.04,
+          "peakTreeRssMiB": 1197.27,
+          "firstAnswerNearestTreeRssMiB": 1144.07,
+          "rssSampleCount": 58,
+          "processesObserved": 4,
+          "engine": {
+            "helperStarts": 0,
+            "compilerLaunches": 0,
+            "source": "local-lexical"
+          }
+        }
+      ]
+    },
+    {
+      "trial": "base2",
+      "provider": "navigator",
+      "artifact": "baseline",
+      "runs": [
+        {
+          "phase": "coldProfile",
+          "alreadyActive": true,
+          "stageStatus": {
+            "first": "correct",
+            "firstReferences": "correct",
+            "editToAnswer": "correct",
+            "dirtyReferences": "correct"
+          },
+          "retryOutcomes": {
+            "readinessRetry": [],
+            "editRetry": [],
+            "referenceRetry": []
+          },
+          "warmCorrect": 8,
+          "launchToFirstCorrectMs": 3869.17,
+          "providerDemandToFirstCorrectMs": 214.9,
+          "firstCorrectReferencesMs": 177.42,
+          "warmDefinitionMedianMs": 22.15,
+          "editToCurrentDefinitionMs": 65.01,
+          "editToCurrentReferencesMs": 68.52,
+          "peakTreeRssMiB": 1246.0,
+          "firstAnswerNearestTreeRssMiB": 1192.16,
+          "rssSampleCount": 62,
+          "processesObserved": 4,
+          "engine": {
+            "helperStarts": 0,
+            "compilerLaunches": 0,
+            "source": "indexed"
+          }
+        },
+        {
+          "phase": "restartedProfile",
+          "alreadyActive": true,
+          "stageStatus": {
+            "first": "correct",
+            "firstReferences": "correct",
+            "editToAnswer": "correct",
+            "dirtyReferences": "correct"
+          },
+          "retryOutcomes": {
+            "readinessRetry": [],
+            "editRetry": [],
+            "referenceRetry": []
+          },
+          "warmCorrect": 8,
+          "launchToFirstCorrectMs": 2881.62,
+          "providerDemandToFirstCorrectMs": 379.33,
+          "firstCorrectReferencesMs": 25.38,
+          "warmDefinitionMedianMs": 1.78,
+          "editToCurrentDefinitionMs": 33.97,
+          "editToCurrentReferencesMs": 36.4,
+          "peakTreeRssMiB": 1214.98,
+          "firstAnswerNearestTreeRssMiB": 1212.07,
+          "rssSampleCount": 45,
+          "processesObserved": 4,
+          "engine": {
+            "helperStarts": 0,
+            "compilerLaunches": 0,
+            "source": "indexed"
+          }
+        }
+      ]
+    }
+  ]
+}
