@@ -1533,12 +1533,12 @@ impl Workspace {
                                 && parsed.tokens[token].start < o.scope_end
                         })
                 });
-                if (local.is_none()
+                let needs_name_coverage = (local.is_none()
                     && !(Self::has_member_syntax(parsed, token)
                         && method != "navigation/references"))
                     || shadowable_open
-                    || (method == "navigation/references" && local.is_some_and(|d| d.top_level))
-                {
+                    || (method == "navigation/references" && local.is_some_and(|d| d.top_level));
+                if needs_name_coverage && !parsed.possible_named_argument(token) {
                     self.ensure_name_coverage(&parsed.tokens[token].text)?;
                 }
             }
@@ -1597,6 +1597,11 @@ impl Workspace {
                                 .unwrap_or(false),
                         )?
                     }
+                } else if parsed.possible_named_argument(token) {
+                    self.empty(
+                        false,
+                        "The binding of this call argument name is not proven",
+                    )
                 } else if method == "navigation/definition" {
                     self.external_definition(&path, &parsed, token)?
                 } else {
