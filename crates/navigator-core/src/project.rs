@@ -134,7 +134,7 @@ pub(crate) fn has_signature<'a>(path: &str, visible: impl IntoIterator<Item = &'
 }
 // A compiled script can add sources through #load. The evaluated model
 // records its path, but has no dependency certificate for that source closure.
-fn explicit_source(path: &Path) -> bool {
+pub(crate) fn explicit_source(path: &Path) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
         .is_some_and(|ext| ext.eq_ignore_ascii_case("fs") || ext.eq_ignore_ascii_case("fsi"))

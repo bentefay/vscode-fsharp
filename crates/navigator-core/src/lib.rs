@@ -389,27 +389,47 @@ impl Workspace {
         }
         true
     }
-    // Signature pairing is not determined by the physical basename: differently
-    // named files with the same explicit module can form a compiler pair. Until
-    // that pairing is certified, only a closed project without any signature
-    // proves the absence of signature-imposed declarations or constraints.
-    fn possible_signature_context(&self, path: &str) -> bool {
+    // Signatures can pair with differently named implementations. A factory
+    // proof retains the whole-project guard. For an ordinary implementation
+    // formal, the compiler checks only previously encountered signatures.
+    fn possible_signature_context(&self, path: &str, ordinary_formal: bool) -> bool {
         if !self.context_exact(path) {
             return true;
         }
-        self.model
+        let Some(project) = self
+            .model
             .source_instance_project(path, self.active_project.as_deref())
-            .is_none_or(|project| {
-                // The compiler accepts mixed-case signature extensions. More
-                // generally, absence is only known for recognized implementation
-                // inputs. Even .fsx can #load a signature absent from project.files.
-                project.files.iter().any(|file| {
-                    !Path::new(file)
-                        .extension()
-                        .and_then(|extension| extension.to_str())
-                        .is_some_and(|extension| extension.eq_ignore_ascii_case("fs"))
-                })
-            })
+        else {
+            return true;
+        };
+        let Some(first_non_implementation) = project.files.iter().position(|file| {
+            !Path::new(file)
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("fs"))
+        }) else {
+            return false;
+        };
+        // Only the evaluated fsc input order can narrow the domain. Linked
+        // project instances and duplicate occurrences need separate identities.
+        let before_first_signature = ordinary_formal
+            && project.evaluation == "design-time-fsc-arguments"
+            && project.membership_reusable == Some(true)
+            && !project.compiler_args.is_empty()
+            && project.files[first_non_implementation..]
+                .iter()
+                .all(|file| project::explicit_source(Path::new(file)))
+            && project.files[..first_non_implementation]
+                .iter()
+                .any(|file| file == path)
+            && project
+                .files
+                .iter()
+                .filter(|file| file.as_str() == path)
+                .count()
+                == 1
+            && self.model.source_instance_project(path, None).is_some();
+        !before_first_signature
     }
     fn ambiguous_instance(&self, path: &str) -> bool {
         self.model
@@ -1764,7 +1784,7 @@ impl Workspace {
         {
             if !origin.ordinary_function_formals.contains(&symbol.token) {
                 Some("Callable parameter references may include named arguments outside the body")
-            } else if self.possible_signature_context(&symbol.path) {
+            } else if self.possible_signature_context(&symbol.path, true) {
                 Some("Function parameter reference identity may include an included signature")
             } else {
                 None
@@ -2549,7 +2569,7 @@ mod integration_tests {
         let (path, mut ws) = fixture();
         ws.ensure_model().unwrap();
         let main = normalize(path.join("Main.fs"));
-        assert!(!ws.possible_signature_context(&main));
+        assert!(!ws.possible_signature_context(&main, false));
         for (name, possible) in [
             ("Another.fs", false),
             ("Another.FS", false),
@@ -2564,13 +2584,46 @@ mod integration_tests {
             ("dir.fsi/Another", true),
         ] {
             ws.model.projects[0].files.push(normalize(path.join(name)));
-            assert_eq!(ws.possible_signature_context(&main), possible, "{name}");
+            assert_eq!(
+                ws.possible_signature_context(&main, false),
+                possible,
+                "{name}"
+            );
             ws.model.projects[0].files.pop();
         }
         ws.model.projects[0].exact = false;
-        assert!(ws.possible_signature_context(&main));
+        assert!(ws.possible_signature_context(&main, false));
         drop(ws);
         fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn only_unshared_ordered_formals_preceding_all_signatures_have_a_local_domain() {
+        let (root, mut ws) = fixture();
+        ws.ensure_model().unwrap();
+        let target = normalize(root.join("Main.fs"));
+        let sig = normalize(root.join("Elsewhere.FsI"));
+        ws.model.projects[0].files.push(sig.clone());
+        // A provisional XML list does not certify compiler order.
+        assert!(ws.possible_signature_context(&target, true));
+        let project = &mut ws.model.projects[0];
+        project.evaluation = "design-time-fsc-arguments".into();
+        project.membership_reusable = Some(true);
+        project.compiler_args = project.files.clone();
+        assert!(!ws.possible_signature_context(&target, true));
+        assert!(ws.possible_signature_context(&target, false));
+        ws.model.projects[0].files.push(target.clone());
+        assert!(ws.possible_signature_context(&target, true));
+        ws.model.projects[0].files.pop();
+        let mut second = ws.model.projects[0].clone();
+        second.path = normalize(root.join("Second.fsproj"));
+        ws.model.projects.push(second);
+        ws.active_project = Some(ws.model.projects[0].path.clone());
+        assert!(ws.possible_signature_context(&target, true));
+        ws.model.projects.pop();
+        ws.model.projects[0].files.insert(0, sig);
+        assert!(ws.possible_signature_context(&target, true));
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
     }
     #[test]
     fn callable_parameter_body_sets_are_not_complete_named_argument_domains() {

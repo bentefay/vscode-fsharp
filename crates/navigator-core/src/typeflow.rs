@@ -866,7 +866,7 @@ impl Workspace {
         if !record.method_result_literal_group
             || !record.method_result_eligible
             || !self.proof_step(depth)
-            || self.possible_signature_context(path)
+            || self.possible_signature_context(path, false)
         {
             return Ok(false);
         }
