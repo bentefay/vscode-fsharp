@@ -120,10 +120,21 @@ accepted dirty text. Neither is a hard native RSS limit. Native file input is
 also guarded by `maxFileBytes` (8 MiB default). `helperMemoryLimitMb` is a sampled
 RSS guard for the explicitly requested semantic helper; `memoryLimitMb` is a
 compatibility alias. Observed memory and configured budgets must be distinct.
-The implementation is authoritative and tests pin it. Preserve ordered runs
-of folders rather than globally merging paths. Native project parsing must
-report its evaluation limitations; exact MSBuild order is available only from
-an evaluated manifest.
+A tree request reads solution layout from selected `.sln` or `.slnx` inputs.
+Directory discovery retains solution paths, and prepared graphs without a
+selected solution can use root-level solution files. Solution folders contain
+their documents first, followed by nested folders and projects in declaration
+order. Projects outside those solutions remain visible as roots. An unreadable
+layout or a solution project missing from the graph yields a diagnostic and
+approximate tree completeness.
+
+The order of a project's `files` array determines its `compileIndex` sequence.
+Evaluated `virtualPath` and literal MSBuild `Link` metadata supply display
+folders. Only consecutive entries share a folder at a given level, so the
+virtual paths `A/One.fs`, `B/Two.fs` and `A/Three.fs` produce three directory
+runs. Files retain physical URIs for navigation, and each folder run has a
+distinct tree item ID. Authoritative MSBuild compile inputs require an evaluated
+manifest.
 
 The separate .NET helper also uses request/reply JSON lines. It implements
 `workspace/evaluate`, `metadata/export`, `semantic/export` and

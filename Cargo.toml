@@ -21,6 +21,7 @@ walkdir = "2"
 quick-xml = "0.37"
 notify = "7"
 url = "2"
+percent-encoding = "=2.3.2"
 libc = "=0.2.191"
 
 [patch.crates-io]

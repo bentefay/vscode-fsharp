@@ -466,6 +466,7 @@ dependencies = [
  "blake3",
  "libc",
  "notify",
+ "percent-encoding",
  "quick-xml",
  "rusqlite",
  "serde",

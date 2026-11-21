@@ -17,6 +17,7 @@ walkdir.workspace = true
 quick-xml.workspace = true
 notify.workspace = true
 url.workspace = true
+percent-encoding.workspace = true
 tree-sitter = "=0.27.2"
 tree-sitter-fsharp = "=0.3.13"
 

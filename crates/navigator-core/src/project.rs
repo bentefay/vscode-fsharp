@@ -14,6 +14,8 @@ pub mod environment;
 #[path = "membership.rs"]
 pub mod membership;
 pub use membership::SourceMembership;
+#[path = "solution_tree.rs"]
+mod solution_tree;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -166,6 +168,7 @@ pub fn excluded(name: &str) -> bool {
 pub fn discover(root: &str) -> Result<Model> {
     let mut projects = Vec::new();
     let mut sources = Vec::new();
+    let mut solutions = Vec::new();
     let mut exact = true;
     let mut diagnostics = Vec::new();
     for entry in WalkDir::new(root)
@@ -179,6 +182,9 @@ pub fn discover(root: &str) -> Result<Model> {
             continue;
         }
         let p = e.path();
+        if solution_tree::is_solution(p) {
+            solutions.push(normalize(p));
+        }
         if is_source(p) {
             sources.push(normalize(p))
         }
@@ -235,7 +241,7 @@ pub fn discover(root: &str) -> Result<Model> {
         files,
         exact,
         diagnostics,
-        inputs: Vec::new(),
+        inputs: solutions,
     })
 }
 
@@ -246,6 +252,8 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
     reader.config_mut().trim_text(true);
     let mut files = Vec::new();
     let mut refs = Vec::new();
+    let mut items = Vec::new();
+    let mut compile_item = None;
     // MSBuild can inherit OtherFlags even when the project does not define it.
     let mut exact = !std::env::vars_os().any(|(key, value)| {
         key.to_str()
@@ -259,10 +267,14 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
     let mut property = String::new();
     let parent = path.parent().unwrap_or(Path::new("."));
     loop {
-        match reader.read_event() {
-            Ok(Event::Start(e)) | Ok(Event::Empty(e)) => {
+        let event = reader.read_event()?;
+        let empty = matches!(event, Event::Empty(_));
+        match event {
+            Event::Start(e) | Event::Empty(e) => {
                 let name = String::from_utf8_lossy(e.name().as_ref()).into_owned();
                 property = name.clone();
+                let mut include = None;
+                let mut link = None;
                 for a in e.attributes().flatten() {
                     let key = String::from_utf8_lossy(a.key.as_ref());
                     let value = a.unescape_value()?.into_owned();
@@ -277,7 +289,10 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                         crate::foreground::entries(1)?;
                         let source = parent.join(value.replace('\\', "/"));
                         exact &= explicit_source(&source);
-                        files.push(normalize(source));
+                        include = Some(normalize(source));
+                    }
+                    if name == "Compile" && key == "Link" {
+                        link = Some(value.clone());
                     }
                     if name == "Compile" && matches!(key.as_ref(), "Remove" | "Update") {
                         exact = false;
@@ -285,6 +300,21 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                     if name == "ProjectReference" && key == "Include" {
                         crate::foreground::entries(1)?;
                         refs.push(normalize(parent.join(value.replace('\\', "/"))));
+                    }
+                }
+                if name == "Compile" {
+                    compile_item = None;
+                    if let Some(path) = include {
+                        let i = files.len();
+                        let mut item = json!({"path":path,"compileIndex":i});
+                        if let Some(link) = link {
+                            item["virtualPath"] = json!(link);
+                        }
+                        items.push(item);
+                        files.push(path);
+                        if !empty {
+                            compile_item = Some(i);
+                        }
                     }
                 }
                 if name.eq_ignore_ascii_case("OtherFlags")
@@ -296,7 +326,12 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                     exact = false;
                 }
             }
-            Ok(Event::Text(text)) => {
+            Event::Text(text) => {
+                if property == "Link" {
+                    if let Some(i) = compile_item {
+                        items[i]["virtualPath"] = json!(text.unescape()?.as_ref());
+                    }
+                }
                 if matches!(
                     property.as_str(),
                     "DefineConstants" | "TargetFramework" | "Configuration"
@@ -320,9 +355,13 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                     }
                 }
             }
-            Ok(Event::End(_)) => property.clear(),
-            Ok(Event::Eof) => break,
-            Err(e) => return Err(e.into()),
+            Event::End(e) => {
+                if e.name().as_ref() == b"Compile" {
+                    compile_item = None;
+                }
+                property.clear();
+            }
+            Event::Eof => break,
             _ => {}
         }
     }
@@ -345,7 +384,7 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                 .into_owned(),
             files,
             references: refs,
-            items: Vec::new(),
+            items,
             assembly_references: Vec::new(),
             workspace_assembly_references: Vec::new(),
             defines,
@@ -615,15 +654,7 @@ impl Model {
             .is_some_and(|p| check(self, p, &mut HashSet::new()))
     }
     pub fn tree(&self) -> Value {
-        let nodes:Vec<Value>=self.projects.iter().map(|p|{
-            let children:Vec<Value>=p.files.iter().enumerate().map(|(i,f)|{
-                let virtual_path=p.items.get(i).and_then(|x|x.get("virtualPath")).and_then(Value::as_str).map(str::to_string)
-                    .unwrap_or_else(||Path::new(f).strip_prefix(Path::new(&p.path).parent().unwrap()).unwrap_or(Path::new(f)).to_string_lossy().into_owned());
-                json!({"id":format!("{}:{}",p.path,i),"label":virtual_path,"kind":"file","path":f,"uri":uri(f),"compileIndex":i})
-            }).collect();
-            json!({"id":p.path,"label":p.name,"kind":"project","path":p.path,"uri":uri(&p.path),"children":children})
-        }).collect();
-        json!({"nodes":nodes,"projects":self.projects,"completeness":if self.exact{"exact"}else{"approximate"},"source":"project-model","diagnostics":self.diagnostics})
+        solution_tree::tree(self)
     }
 }
 
