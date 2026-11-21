@@ -1782,10 +1782,14 @@ impl Workspace {
         };
         let mut labels = HashSet::new();
         let mut heads = HashSet::from([method.token]);
-        for arg in origin.call_argument_name_candidates.iter().filter(|arg| {
-            arg.callee
-                .is_some_and(|head| origin.tokens[head].text == method.name)
-        }) {
+        for arg in &origin.call_argument_name_candidates {
+            let Some(head) = arg.callee else { continue };
+            let Some(head_token) = origin.tokens.get(head) else {
+                return Ok(None);
+            };
+            if head_token.text != method.name {
+                continue;
+            }
             self.cancellation.check()?;
             if self
                 .call_argument_binding(&symbol.path, origin, arg.token)?
@@ -1795,7 +1799,7 @@ impl Workspace {
                 return Ok(None);
             }
             labels.insert(arg.token);
-            heads.insert(arg.callee.unwrap());
+            heads.insert(head);
         }
         if labels.is_empty()
             || origin
@@ -1995,7 +1999,12 @@ impl Workspace {
                             continue;
                         }
                     }
-                    let argument_binding = if parsed.possible_named_argument(token) {
+                    let argument_binding = if labels
+                        .as_ref()
+                        .is_some_and(|labels| labels.contains(&token))
+                    {
+                        Some(symbol.clone())
+                    } else if parsed.possible_named_argument(token) {
                         let Some(binding) = self.call_argument_binding(&path, &parsed, token)?
                         else {
                             complete = false;
