@@ -43,6 +43,11 @@ impl<T> Lookup<T> {
 enum AllowedTerm<'a> {
     External(&'a serde_json::Value),
     DocumentModule(usize),
+    /// A source type at the end of a path may have module prefixes.
+    StaticMethodOwner,
+    /// The existing ordered source module lookup selects the export. Terms
+    /// (especially opened values) still have to be excluded at every prefix.
+    SourceCallModule,
 }
 type TypeLookup = Lookup<TypeIdentity>;
 type DeclarationLookup = Lookup<Symbol>;
@@ -781,7 +786,14 @@ impl Workspace {
         let Some(qualifier) = parsed.qualifier(token) else {
             return Ok(None);
         };
-        if self.resolve(path, parsed, call.receiver)?.is_some() {
+        if !self.term_qualification_clear_except(
+            path,
+            parsed,
+            call.receiver,
+            &qualifier,
+            depth + 1,
+            Some(AllowedTerm::StaticMethodOwner),
+        )? {
             return Ok(None);
         }
         let Some(identity) = self.named_type(path, parsed, call.receiver, &qualifier, depth + 1)?
@@ -2622,6 +2634,23 @@ impl Workspace {
         }
         Ok(Some(false))
     }
+    pub(crate) fn module_call_root_clear(
+        &mut self,
+        path: &str,
+        p: &ParsedFile,
+        token: usize,
+        qualifier: &str,
+    ) -> Result<bool> {
+        self.term_qualification_clear_except(
+            path,
+            p,
+            token,
+            qualifier,
+            1,
+            Some(AllowedTerm::SourceCallModule),
+        )
+    }
+
     fn term_qualification_clear(
         &mut self,
         path: &str,
@@ -2687,12 +2716,13 @@ impl Workspace {
             scopes
         };
         if !global {
-            // Module abbreviations capture an ordered module environment. Until
-            // that environment is represented here, they are not nominal roots.
-            if parsed
-                .aliases
-                .iter()
-                .any(|a| a.name == parts[0] && a.offset < offset && offset < a.scope_end)
+            // Only the source module resolver follows a module abbreviation in
+            // its declaration-time environment. It cannot supply a nominal root.
+            if !matches!(allowed, Some(AllowedTerm::SourceCallModule))
+                && parsed
+                    .aliases
+                    .iter()
+                    .any(|a| a.name == parts[0] && a.offset < offset && offset < a.scope_end)
             {
                 return Ok(false);
             }
@@ -2790,7 +2820,7 @@ impl Workspace {
             }
             for row in scopes {
                 if row["kind"] != "module"
-                    && !matches!(allowed, Some(AllowedTerm::DocumentModule(_)))
+                    && matches!(allowed, None | Some(AllowedTerm::External(_)))
                 {
                     continue;
                 }
@@ -2931,12 +2961,31 @@ impl Workspace {
                     }
                 }
             }
+            let mut saw_source_scope = false;
             for (file, module, valid) in self.module_facts(part)? {
                 if !visible.contains(&file) {
                     continue;
                 }
                 if !valid {
                     return Ok(false);
+                }
+                if matches!(
+                    allowed,
+                    Some(AllowedTerm::StaticMethodOwner | AllowedTerm::SourceCallModule)
+                ) {
+                    if file == path && module.start >= offset {
+                        continue;
+                    }
+                    // A second source scope can supply a different path under
+                    // an open. A static receiver also excludes a final module.
+                    if saw_source_scope
+                        || (matches!(allowed, Some(AllowedTerm::StaticMethodOwner))
+                            && position + 1 == parts.len())
+                    {
+                        return Ok(false);
+                    }
+                    saw_source_scope = true;
+                    continue;
                 }
                 if let Some(AllowedTerm::DocumentModule(start)) = allowed {
                     // Avoid selecting a sibling by spelling in the presence of another
@@ -2954,7 +3003,10 @@ impl Workspace {
                 }
             }
         }
-        Ok(allowed.is_none() || allowed_visible)
+        Ok(matches!(
+            allowed,
+            None | Some(AllowedTerm::SourceCallModule | AllowedTerm::StaticMethodOwner)
+        ) || allowed_visible)
     }
     /// A root module in the compiler-selected references can supply an expression
     /// qualifier when no source or metadata declaration can shadow that name.
@@ -5876,9 +5928,30 @@ mod tests {
         fs::remove_dir_all(path).unwrap();
     }
     #[test]
+    fn a_source_module_function_can_win_over_a_same_named_static_method() {
+        let (path, mut ws) = workspace(
+            "module Main\nmodule C =\n    let M b=b\ntype C = static member M(x:int)=x\nlet caller x = C.M(x=x)\n",
+        );
+        certify_type_names(&path, &mut ws, json!({}));
+        let head = query(&mut ws, &path, "navigation/definition", 4, 17);
+        assert_eq!(head["completeness"], "exact", "{head}");
+        assert_eq!(
+            head["locations"][0]["range"]["start"],
+            json!({"line":2,"character":8})
+        );
+        let refs = query(&mut ws, &path, "navigation/references", 3, 23);
+        assert_eq!(refs["completeness"], "exact", "{refs}");
+        assert_eq!(refs["locations"], json!([]));
+        fs::remove_dir_all(path).unwrap();
+    }
+
+    #[test]
     fn unique_static_method_propagates_a_proven_record_return() {
         let source="module Main\ntype Input={Text:string}\ntype First={Name:string}\ntype Second={Name:string}\ntype Factory =\n    static member Create(input:Input) : First = {Name=input.Text}\nlet read (input:Input)=\n    let created=Factory.Create input\n    created.Name\n";
         let (path, mut ws) = workspace(source);
+        let unprepared = query(&mut ws, &path, "navigation/definition", 7, 24);
+        assert_eq!(unprepared["completeness"], "unavailable", "{unprepared}");
+        certify_type_names(&path, &mut ws, json!({}));
         let method = query(&mut ws, &path, "navigation/definition", 7, 24);
         assert_eq!(method["completeness"], "exact", "{method}");
         assert_eq!(method["locations"][0]["range"]["start"]["line"], 5);

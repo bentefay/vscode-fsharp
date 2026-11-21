@@ -1149,6 +1149,17 @@ impl Workspace {
         if p.possible_named_argument(token) {
             return self.call_argument_binding(path, p, token);
         }
+        // An ordered open can replace an earlier function with a constructor,
+        // including one with a lowercase name. A value-only export lookup
+        // cannot establish which binding owns the call or its references.
+        if p.call_argument_name_candidates
+            .iter()
+            .any(|argument| argument.callee == Some(token))
+            && p.qualifier(token).is_none()
+            && !p.proven_function_value(token)
+        {
+            return Ok(None);
+        }
         if Self::has_member_syntax(p, token) {
             if let Some(member) = self.member_binding(path, p, token)? {
                 return Ok(Some(member));
@@ -1173,6 +1184,16 @@ impl Workspace {
             p.opens.clone()
         };
         if let Some(d) = p.local_binding(token) {
+            if d.top_level
+                && d.token != token
+                && p.expression_type_candidates.iter().any(|c| {
+                    c.token == token
+                        && matches!(c.role, syntax::ExpressionTypeRole::ApplicationHead)
+                })
+                && !p.uncontested_application_binding(token, d)
+            {
+                return Ok(None);
+            }
             // An `open` later in the same module can shadow an earlier module
             // value; lexical parameters/local lets still take precedence.
             if d.top_level && d.token != token {
@@ -1231,6 +1252,11 @@ impl Workspace {
             if p.declarations
                 .iter()
                 .any(|d| d.name == first && d.visible_start <= t.start && t.start < d.scope_end)
+            {
+                return Ok(None);
+            }
+            if p.method_calls.iter().any(|call| call.member == token)
+                && !self.module_call_root_clear(path, p, token, &q)?
             {
                 return Ok(None);
             }
@@ -2836,13 +2862,15 @@ mod integration_tests {
             "module Consumer\nopen Imported\nmodule A =\n    let g a=a\nlet caller x = A.g(x=x)\n",
         )
         .unwrap();
-        let def = ws
-            .dispatch(
-                "navigation/definition",
-                &json!({"path":path,"line":4,"character":19}),
-            )
-            .unwrap();
-        assert_eq!(def["completeness"], "unavailable", "{def}");
+        for column in [17, 19] {
+            let def = ws
+                .dispatch(
+                    "navigation/definition",
+                    &json!({"path":path,"line":4,"character":column}),
+                )
+                .unwrap();
+            assert_eq!(def["completeness"], "unavailable", "{def}");
+        }
         let refs = ws
             .dispatch(
                 "navigation/references",
@@ -2852,6 +2880,40 @@ mod integration_tests {
         assert_eq!(refs["completeness"], "unavailable", "{refs}");
         assert_eq!(refs["locations"].as_array().unwrap().len(), 2, "{refs}");
         drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn an_opened_lowercase_constructor_competes_with_an_earlier_function() {
+        let (root, mut ws) = fixture();
+        let imported = root.join("A.fs");
+        let main = root.join("Main.fs");
+        fs::write(&imported, "module Imported\ntype g(x:int)=member _.P=x\n").unwrap();
+        fs::write(
+            &main,
+            "module Consumer\nlet g a=a\nopen Imported\nlet caller x = g(x=x)\nlet other = g(1)\n",
+        )
+        .unwrap();
+        let def = ws
+            .dispatch(
+                "navigation/definition",
+                &json!({"path":main,"line":3,"character":15}),
+            )
+            .unwrap();
+        assert_eq!(def["completeness"], "unavailable", "{def}");
+        let ordinary = ws
+            .dispatch(
+                "navigation/definition",
+                &json!({"path":main,"line":4,"character":12}),
+            )
+            .unwrap();
+        assert_eq!(ordinary["completeness"], "unavailable", "{ordinary}");
+        for (path, line, column) in [(&imported, 1, 5), (&main, 1, 4), (&main, 3, 15)] {
+            for include in [true, false] {
+                let refs = ws.dispatch("navigation/references", &json!({"path":path,"line":line,"character":column,"includeDeclaration":include})).unwrap();
+                assert_eq!(refs["completeness"], "unavailable", "{refs}");
+            }
+        }
         fs::remove_dir_all(root).unwrap();
     }
 

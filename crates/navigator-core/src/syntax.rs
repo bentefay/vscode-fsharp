@@ -991,11 +991,10 @@ impl ParsedFile {
             .is_some_and(|head| self.proven_function_value(head))
     }
 
-    fn proven_function_value(&self, head: usize) -> bool {
+    pub(crate) fn proven_function_value(&self, head: usize) -> bool {
         if self.explicit_constructor_heads.contains(&head) || !self.binding_supported(head) {
             return false;
         }
-        let t = &self.tokens[head];
         // A value from an earlier open or an assembly AutoOpen can take
         // precedence over a later source module. Only an unqualified local
         // declaration proves a function value in a document summary.
@@ -1005,9 +1004,12 @@ impl ParsedFile {
         let Some(d) = self.lexical_binding(head) else {
             return false;
         };
-        if !self.function_value_heads.contains(&d.token) && d.kind != "parameter" {
-            return false;
-        }
+        (self.function_value_heads.contains(&d.token) || d.kind == "parameter")
+            && self.uncontested_application_binding(head, d)
+    }
+
+    pub(crate) fn uncontested_application_binding(&self, head: usize, d: &Declaration) -> bool {
+        let t = &self.tokens[head];
         let is_name = |name: &str| name == t.text;
         let after = self.tokens[d.token].start;
         // An intervening open (including an attributed module which may
