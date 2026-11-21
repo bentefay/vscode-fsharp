@@ -75,3 +75,19 @@ The independent 100-query fixture remains in `fixtures/expectations.json` and
 `--reference-normalization vscode`. Materialize fixture source files into `WORK/fixtures` before preparing their
 model, then pass `--work WORK`, because the runner appends `fixtures`. Do not change the fixture queries
 or combine this denominator with Grace or supplemental local-fast-path sites.
+
+### Opt-in offline semantic snapshot
+
+For a separate clean-source replay, run `cli/bin/run prepare --semantic-snapshot`
+on the pinned Grace.Types workspace and record its `--metrics` output. Supply
+the resulting `projects.json`, `libraries.json` and `builtins.json` in the
+replay command above, add `--semantic-snapshot /path/to/export/semantic.json`
+and select a new output filename. Preserve the export environment, including
+the .NET host path, for validation.
+
+This option sends an explicit `workspace/index` before the original queries.
+The report records import time and sampled native process-tree memory. Inspect
+each query's `source` to count answers served by `persisted-semantic`.
+After scoring, the driver edits an overlay and checks both that the imported
+answer is invalidated and that a fresh import rejects the dirty buffer. The
+supplemental edit does not change the scored queries or the Grace checkout.
