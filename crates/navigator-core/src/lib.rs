@@ -1350,8 +1350,15 @@ impl Workspace {
         self.index.counters.query_count += 1;
         let path = path_param(p)?;
         let actual = self.overlays.get(&path).map(|overlay| overlay.version);
-        let requested = p.get("documentVersion").or_else(|| p.get("version"));
-        if let Some(requested) = requested {
+        // A null optional version is sent by unversioned protocol clients.
+        // If both aliases carry a version, each must match the acknowledged text.
+        let mut versioned = false;
+        for requested in [p.get("documentVersion"), p.get("version")]
+            .into_iter()
+            .flatten()
+            .filter(|v| !v.is_null())
+        {
+            versioned = true;
             let v = requested
                 .as_i64()
                 .context("Invalid query document version")?;
@@ -1375,7 +1382,7 @@ impl Workspace {
         )
         .context("Character exceeds u32")?;
         let hover = method == "navigation/hover";
-        if self.mode == Mode::Indexed && !hover && requested.is_some() {
+        if self.mode == Mode::Indexed && !hover && versioned {
             if let Some(overlay) = self.overlays.get(&path) {
                 let at = local_lexical::Position {
                     line,
