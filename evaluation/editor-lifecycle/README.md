@@ -44,3 +44,26 @@ after the editor opens the document. `alreadyActive` distinguishes an earlier
 activation from one initiated by the probe. Restore, preparation, VSIX installation,
 display setup and OS cache eviction are outside these timings. All measurements use
 OS caches in their current state.
+
+## Grace46 in the editor
+
+Supply the frozen Grace checkout and the preparation settings for its actual
+`src/Grace.Types` workspace. The same launcher opens the 23 original source
+sites and requests each definition and reference set through the registered
+providers. It records extension activation and whether the adapter received a
+fresh native result. A retry of the opening query is appended after all 46 scored
+operations. The scorer verifies the corpus revision and source digests and uses
+the native evaluation's location comparison. The report distinguishes wrong
+exact answers, unsupported native results and requests with no observed native
+answer.
+
+```sh
+scripts/with-local-tools extension/test/with-display.sh python3 evaluation/editor-lifecycle/measure.py \
+  --code "$CODE_BINARY" --provider navigator --vsix "$NAVIGATOR_VSIX" --backend "$FROZEN_BACKEND" \
+  --workspace "$GRACE_ROOT/src/Grace.Types" --model "$GRACE_MODEL" --grace-settings "$PREPARED_SETTINGS_JSON" \
+  --output .cache/editor-lifecycle/grace-trial
+```
+
+For on-demand navigation, supply the catalog and builtin environment settings.
+An explicitly supplied `fsharpNavigator.semanticSnapshotPath` is recorded as a
+separate preparation mode. Keep its compilation and export costs with that mode.

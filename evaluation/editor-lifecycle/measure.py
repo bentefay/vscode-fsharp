@@ -13,6 +13,7 @@ import time
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 from run import file_sha, process_identity, process_tree_details
+import grace_score
 
 
 def observe_editor(args, env, output):
@@ -64,6 +65,7 @@ def main():
     parser.add_argument('--workspace', type=Path, required=True, help='Restored copy of this directory’s fixture')
     parser.add_argument('--backend', type=Path, help='Frozen navigator executable')
     parser.add_argument('--model', type=Path, help='Current evaluated model for the same workspace')
+    parser.add_argument('--grace-settings', type=Path, help='Run the unchanged Grace46 contract using explicit Navigator preparation settings')
     parser.add_argument('--output', type=Path, required=True, help='New directory outside the fixture')
     args = parser.parse_args()
     nav = args.provider == 'navigator'
@@ -72,9 +74,15 @@ def main():
     out, workspace, code = args.output.resolve(), args.workspace.resolve(), args.code.resolve()
     if out.is_relative_to(workspace):
         parser.error('Store measurement artifacts outside the fixture')
-    for name in ('Lifecycle.fs', 'Lifecycle.fsproj'):
-        if file_sha(workspace/name) != file_sha(HERE/'fixture'/name):
-            parser.error('Source and project must match the fixed lifecycle fixture')
+    grace = args.grace_settings is not None
+    if grace:
+        if not nav:
+            parser.error('The Grace scorer checks Navigator native completeness through the registered providers')
+        corpus = grace_score.inputs(workspace)
+    else:
+        for name in ('Lifecycle.fs', 'Lifecycle.fsproj'):
+            if file_sha(workspace/name) != file_sha(HERE/'fixture'/name):
+                parser.error('Source and project must match the fixed lifecycle fixture')
     out.mkdir(parents=True, exist_ok=False)
     packages = [path.resolve() for path in args.vsix]
     env = {k: v for k, v in os.environ.items() if not k.startswith(('VSCODE_', 'ELECTRON_')) and
@@ -82,8 +90,12 @@ def main():
     env['FSNAV_PROVIDER'] = 'bentefay.fsharp-navigator' if nav else 'Ionide.Ionide-fsharp'
     editor = json.loads((code.parent/'resources/app/package.json').read_text())['version']
     report = dict(editor=editor, provider=args.provider, codeSha256=file_sha(code),
-                  vsixSha256={p.name: file_sha(p) for p in packages}, sourceSha256=file_sha(workspace/'Lifecycle.fs'),
-                  projectSha256=file_sha(workspace/'Lifecycle.fsproj'), runs=[])
+                  vsixSha256={p.name: file_sha(p) for p in packages}, runs=[])
+    if grace:
+        env['FSNAV_GRACE_ROOT'] = str(corpus)
+        report['contractSha256'] = file_sha(grace_score.CONTRACT)
+    else:
+        report.update(sourceSha256=file_sha(workspace/'Lifecycle.fs'), projectSha256=file_sha(workspace/'Lifecycle.fsproj'))
     if nav:
         report.update(backendSha256=file_sha(args.backend), modelSha256=file_sha(args.model))
     with tempfile.TemporaryDirectory(prefix='fsnav-editor-measure-') as temp:
@@ -97,6 +109,13 @@ def main():
         settings = {'telemetry.telemetryLevel': 'off', 'update.mode': 'none', 'extensions.autoUpdate': False,
                     'extensions.autoCheckUpdates': False, 'workbench.enableExperiments': False, 'files.hotExit': 'off',
                     'workbench.startupEditor': 'none', 'window.restoreWindows': 'none'}
+        if grace:
+            provided = json.loads(args.grace_settings.read_text())
+            for key in ('libraryCatalogPath', 'builtinEnvironmentPath', 'semanticSnapshotPath'):
+                setting = 'fsharpNavigator.' + key
+                if provided.get(setting):
+                    settings[setting] = str(Path(provided[setting]).resolve())
+                    report[setting + 'Sha256'] = file_sha(settings[setting])
         if nav:
             settings.update({'fsharpNavigator.mode': 'indexed', 'fsharpNavigator.backendPath': str(args.backend.resolve()),
                              'fsharpNavigator.evaluatedModelPath': str(args.model.resolve())})
@@ -110,13 +129,20 @@ def main():
                    '--ozone-platform=x11', '--disable-gpu', '--disable-updates', '--disable-telemetry',
                    '--skip-welcome', '--skip-release-notes',
                    '--extensionDevelopmentPath=' + str(HERE.parent/'ionide-host'),
-                   '--extensionTestsPath=' + str(HERE/'query.cjs')]
+                   '--extensionTestsPath=' + str(HERE/('grace.cjs' if grace else 'query.cjs'))]
         for phase in ('coldProfile', 'restartedProfile'):
             result = observe_editor(command, env, out/(phase+'.json'))
+            if grace and result['query'] and not result['exitCode']:
+                grace_score.inputs(workspace)
+                result['counts'] = grace_score.score(result['query'], corpus)
             report['runs'].append(dict(phase=phase, **result))
             (out/'report.json').write_text(json.dumps(report, indent=2))
     for run in report['runs']:
         query = run['query']
+        if grace:
+            if run['exitCode'] or run.get('counts', {}).get('wrongExact') != 0:
+                raise SystemExit('Failed Grace editor run; inspect report.json')
+            continue
         if (run['exitCode'] or not query or query.get('error') or not query.get('firstUsefulProviderMs')
                 or (nav and (query['engine']['helperStarts'] != 0 or query['engine']['compilerLaunches'] != 0))
                 or any(s['status'] != 'correct' for s in query['samples'] if s['stage'] != 'readinessRetry')):
