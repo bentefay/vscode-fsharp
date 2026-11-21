@@ -22,10 +22,10 @@ def inputs(workspace):
     return root
 
 
-def score(query, root):
+def score(query, root, navigator=True, rows_key='rows'):
     sites = [s for s in json.loads(CONTRACT.read_text())['selected'] if s['classification'] == 'source']
     operations = [(s, method) for s in sites for method in ('definition', 'references')]
-    if len(operations) != 46 or len(query.get('rows', [])) != len(operations):
+    if len(operations) != 46 or len(query.get(rows_key, [])) != len(operations):
         raise ValueError('Incomplete Grace46 capture')
     def assess(site, method, row):
         if site['name'] != row['name'] or method != row['method']:
@@ -34,13 +34,19 @@ def score(query, root):
         targets = [site['declaration']] if method == 'definition' else site['reference_locations']
         expected = sorted(set(canonical_location(dict(loc, path=str(root/loc['path'])), root) for loc in targets))
         correct = actual == expected if method == 'definition' else equivalent_locations(actual, expected, root)
+        if not navigator:
+            if not actual:
+                return 'unavailable'
+            return 'correct' if correct else 'incorrectLocations'
         if not row['nativeResultObserved']:
             return 'noNativeResponse'
         if row['completeness'] != 'exact':
             return 'unavailable'
         return 'correct' if correct else 'wrongExact'
     counts = dict(correct=0, wrongExact=0, unavailable=0, noNativeResponse=0)
-    for (site, method), row in zip(operations, query['rows']):
+    if not navigator:
+        counts = dict(correct=0, incorrectLocations=0, unavailable=0)
+    for (site, method), row in zip(operations, query[rows_key]):
         row['status'] = assess(site, method, row)
         counts[row['status']] += 1
     if query.get('firstRequestRetry'):

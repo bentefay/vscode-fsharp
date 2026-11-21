@@ -65,6 +65,7 @@ def main():
     parser.add_argument('--workspace', type=Path, required=True, help='Restored copy of this directory’s fixture')
     parser.add_argument('--backend', type=Path, help='Frozen navigator executable')
     parser.add_argument('--model', type=Path, help='Current evaluated model for the same workspace')
+    parser.add_argument('--grace', action='store_true', help='Replay the frozen Grace46 contract through the selected provider')
     parser.add_argument('--grace-settings', type=Path, help='Run the unchanged Grace46 contract using explicit Navigator preparation settings')
     parser.add_argument('--output', type=Path, required=True, help='New directory outside the fixture')
     args = parser.parse_args()
@@ -74,10 +75,10 @@ def main():
     out, workspace, code = args.output.resolve(), args.workspace.resolve(), args.code.resolve()
     if out.is_relative_to(workspace):
         parser.error('Store measurement artifacts outside the fixture')
-    grace = args.grace_settings is not None
+    grace = args.grace or args.grace_settings is not None
     if grace:
-        if not nav:
-            parser.error('The Grace scorer checks Navigator native completeness through the registered providers')
+        if args.grace_settings and not nav:
+            parser.error('--grace-settings configures Navigator inputs')
         corpus = grace_score.inputs(workspace)
     else:
         for name in ('Lifecycle.fs', 'Lifecycle.fsproj'):
@@ -109,7 +110,7 @@ def main():
         settings = {'telemetry.telemetryLevel': 'off', 'update.mode': 'none', 'extensions.autoUpdate': False,
                     'extensions.autoCheckUpdates': False, 'workbench.enableExperiments': False, 'files.hotExit': 'off',
                     'workbench.startupEditor': 'none', 'window.restoreWindows': 'none'}
-        if grace:
+        if args.grace_settings:
             provided = json.loads(args.grace_settings.read_text())
             for key in ('libraryCatalogPath', 'builtinEnvironmentPath', 'semanticSnapshotPath'):
                 setting = 'fsharpNavigator.' + key
@@ -134,13 +135,15 @@ def main():
             result = observe_editor(command, env, out/(phase+'.json'))
             if grace and result['query'] and not result['exitCode']:
                 grace_score.inputs(workspace)
-                result['counts'] = grace_score.score(result['query'], corpus)
+                result['counts'] = grace_score.score(result['query'], corpus, nav)
+                if not nav:
+                    result['subsequentCounts'] = grace_score.score(result['query'], corpus, False, 'subsequentRows')
             report['runs'].append(dict(phase=phase, **result))
             (out/'report.json').write_text(json.dumps(report, indent=2))
     for run in report['runs']:
         query = run['query']
         if grace:
-            if run['exitCode'] or run.get('counts', {}).get('wrongExact') != 0:
+            if run['exitCode'] or not run.get('counts') or (nav and run['counts']['wrongExact'] != 0):
                 raise SystemExit('Failed Grace editor run; inspect report.json')
             continue
         if (run['exitCode'] or not query or query.get('error') or not query.get('firstUsefulProviderMs')

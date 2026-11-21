@@ -67,3 +67,11 @@ scripts/with-local-tools extension/test/with-display.sh python3 evaluation/edito
 For on-demand navigation, supply the catalog and builtin environment settings.
 An explicitly supplied `fsharpNavigator.semanticSnapshotPath` is recorded as a
 separate preparation mode. Keep its compilation and export costs with that mode.
+
+For an Ionide comparison, use `--provider ionide --grace`, the same Grace.Types
+workspace, and the reviewed Ionide, C# and .NET runtime extension packages.
+The driver submits the identical 46 operations before retrying the opening
+definition. If that definition still has no result, the driver retries at
+250 ms intervals for up to 30 seconds before a separate 46-operation replay.
+The two passes retain their own denominators. Ionide is scored by the returned
+editor locations, with empty and incorrect answers recorded separately.
