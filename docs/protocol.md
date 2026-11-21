@@ -87,6 +87,15 @@ clears the cache. Workspace stats expose `localProofAttempts`, `localProofHits`,
 `localProofMicros`. Parse and proof metrics include unsuccessful work. Cache
 hits reuse the answer without parsing the document.
 
+A definition proof for a single-use ASCII parameter can also establish the
+complete declaration-inclusive reference answer at that cursor. When the cursor
+is on the use, the URI is at most 512 bytes and the cache has spare capacity,
+the engine stores the two proven ranges in a compact positive entry. Its key
+identifies the reference operation and the declaration flag. On a matching
+reference request the engine formats the locations, labels the result with its
+own proof ID and attaches the current workspace snapshot. Multi-use parameters
+and declaration-exclusive requests follow the regular proof path.
+
 Hover result:
 
 ```json
