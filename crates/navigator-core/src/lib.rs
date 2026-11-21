@@ -2599,6 +2599,39 @@ mod integration_tests {
         fs::remove_dir_all(path).unwrap();
     }
     #[test]
+    fn earlier_open_value_can_win_over_a_later_module_in_a_qualified_call() {
+        let (root, mut ws) = fixture();
+        fs::write(
+            root.join("A.fs"),
+            "module Imported\ntype Proxy() = member _.g(x:int)=x\nlet A=Proxy()\n",
+        )
+        .unwrap();
+        let path = root.join("Main.fs");
+        fs::write(
+            &path,
+            "module Consumer\nopen Imported\nmodule A =\n    let g a=a\nlet caller x = A.g(x=x)\n",
+        )
+        .unwrap();
+        let def = ws
+            .dispatch(
+                "navigation/definition",
+                &json!({"path":path,"line":4,"character":19}),
+            )
+            .unwrap();
+        assert_eq!(def["completeness"], "unavailable", "{def}");
+        let refs = ws
+            .dispatch(
+                "navigation/references",
+                &json!({"path":path,"line":4,"character":21,"includeDeclaration":true}),
+            )
+            .unwrap();
+        assert_eq!(refs["completeness"], "unavailable", "{refs}");
+        assert_eq!(refs["locations"].as_array().unwrap().len(), 2, "{refs}");
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn qualified_equality_operand_uses_its_full_module_value_range() {
         let (root, mut ws) = fixture();
         let path = root.join("Main.fs");

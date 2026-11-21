@@ -981,47 +981,19 @@ impl ParsedFile {
             return false;
         }
         let t = &self.tokens[head];
-        let qualifier = self.qualifier(head);
-        // Only a directly declared sibling module in this document supplies a
-        // qualified witness. Module abbreviations, receiver members and paths
-        // needing a project/import lookup stay unresolved here.
-        let declaration = if let Some(root) = qualifier.as_deref() {
-            let Some(owner) = self.module_at(head) else {
-                return false;
-            };
-            let module = format!("{owner}.{root}");
-            if root.contains('.')
-                || self.lexical_binding(head - 2).is_some()
-                || self.aliases.iter().any(|a| a.name == root)
-                || self
-                    .owned_types
-                    .iter()
-                    .any(|ty| ty.name.rsplit('.').next() == Some(root))
-                || !self
-                    .modules
-                    .iter()
-                    .any(|m| m.name == module && m.end <= t.start)
-            {
-                return false;
-            }
-            let mut declarations = self.declarations.iter().filter(|d| {
-                d.top_level
-                    && d.name == t.text
-                    && self.declaration_module(d) == Some(module.as_str())
-            });
-            let selected = declarations.next();
-            if declarations.next().is_some() {
-                return false;
-            }
-            selected
-        } else {
-            self.lexical_binding(head)
+        // A value from an earlier open or an assembly AutoOpen can take
+        // precedence over a later source module. Only an unqualified local
+        // declaration proves a function value in a document summary.
+        if self.qualifier(head).is_some() {
+            return false;
+        }
+        let Some(d) = self.lexical_binding(head) else {
+            return false;
         };
-        let Some(d) = declaration else { return false };
         if !self.function_value_heads.contains(&d.token) && d.kind != "parameter" {
             return false;
         }
-        let is_name = |name: &str| name == t.text || qualifier.as_deref() == Some(name);
+        let is_name = |name: &str| name == t.text;
         let after = self.tokens[d.token].start;
         // An intervening open (including an attributed module which may
         // auto-open) or a competing nominal/pattern binding can select a
