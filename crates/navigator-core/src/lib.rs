@@ -2009,14 +2009,28 @@ impl Workspace {
         {
             return Ok(self.empty(true, "Qualified receiver is a workspace value"));
         }
-        let owner=match self.qualified_nominal_receiver(path,p,token,&qualifier,0)? {
-            typeflow::Lookup::Resolved(library_types::TypeExpr::Source{..})=>return Ok(json!({"hover":null,"contents":null,"ownership":"workspace","completeness":"exact","source":self.mode.name(),"reason":"The qualified nominal owner is declared in the workspace"})),
-            typeflow::Lookup::Resolved(library_types::TypeExpr::Named{identity,..})=>identity,
-            _=>return Ok(self.empty(true,"The selected external nominal owner is not proven; module values require a separate import certificate")),
+        let (full, assembly, xml) = match self
+            .qualified_nominal_receiver(path, p, token, &qualifier, 0)?
+        {
+            typeflow::Lookup::Resolved(library_types::TypeExpr::Source { .. }) => {
+                return Ok(
+                    json!({"hover":null,"contents":null,"ownership":"workspace","completeness":"exact","source":self.mode.name(),"reason":"The qualified nominal owner is declared in the workspace"}),
+                )
+            }
+            typeflow::Lookup::Resolved(library_types::TypeExpr::Named { identity, .. }) => (
+                format!("{}.{}", identity.full_name, t.text),
+                identity.assembly_path,
+                None,
+            ),
+            _ => {
+                let Some((identity, xml)) =
+                    self.external_root_module_value(path, p, token, &qualifier)?
+                else {
+                    return Ok(self.empty(true, "The external owner of this use is not proven"));
+                };
+                (identity.full_name, identity.assembly_path, Some(xml))
+            }
         };
-        // A unique row in a subset catalog does not resolve namespace/type
-        // precedence. The selected assembly identity must be established first.
-        let full = format!("{}.{}", owner.full_name, t.text);
         if !self.ensure_metadata()? {
             return Ok(self.empty(true, "External metadata is missing or stale"));
         }
@@ -2024,8 +2038,10 @@ impl Workspace {
             .into_iter()
             .filter(|s| {
                 s.get("isExternal").and_then(Value::as_bool) == Some(true)
-                    && s.get("assemblyPath").and_then(Value::as_str)
-                        == Some(owner.assembly_path.as_str())
+                    && s.get("assemblyPath").and_then(Value::as_str) == Some(assembly.as_str())
+                    && xml
+                        .as_deref()
+                        .is_none_or(|id| s["xmlDocId"] == id && s["fullName"] == full)
             })
             .collect::<Vec<_>>();
         if matches.len() != 1 {

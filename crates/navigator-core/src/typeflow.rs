@@ -2766,6 +2766,118 @@ impl Workspace {
         }
         Ok(allowed.is_none() || allowed_visible)
     }
+    /// A root module in the compiler-selected references can supply an expression
+    /// qualifier when no source or metadata declaration can shadow that name.
+    /// Nested modules, abbreviations and overload selection need separate proofs.
+    pub(crate) fn external_root_module_value(
+        &mut self,
+        path: &str,
+        parsed: &ParsedFile,
+        token: usize,
+        root: &str,
+    ) -> Result<Option<(LibraryIdentity, String)>> {
+        let Some(head) = token.checked_sub(2) else {
+            return Ok(None);
+        };
+        if parsed.tokens[head].text != root
+            || !parsed.qualifier_roots.contains(&head)
+            || !parsed.binding_supported(head)
+            || !self.context_exact(path)
+            || !self.ensure_builtins()?
+        {
+            return Ok(None);
+        }
+        let env = self.builtin_environment.as_ref().unwrap();
+        let db = &self.index.db;
+        let Some(scopes) = env.scope_names(db, root)? else {
+            return Ok(None);
+        };
+        let [owner] = scopes.as_slice() else {
+            return Ok(None);
+        };
+        if owner["kind"] != "module"
+            || owner["sourceFullName"] != root
+            || owner["enclosingScope"] != ""
+            || !env
+                .type_names(db, root)?
+                .is_some_and(|rows| rows.is_empty())
+            || !env
+                .term_names(db, root)?
+                .is_some_and(|rows| rows.is_empty())
+        {
+            return Ok(None);
+        }
+        let name = &parsed.tokens[token].text;
+        let Some(terms) = env.term_names(db, name)? else {
+            return Ok(None);
+        };
+        let mut matching = terms.iter().filter(|row| row["declaringScope"] == root);
+        let Some(term) = matching.next() else {
+            return Ok(None);
+        };
+        let full = format!("{root}.{name}");
+        let Ok(identity) = serde_json::from_value::<LibraryIdentity>(term["identity"].clone())
+        else {
+            return Ok(None);
+        };
+        let Some(xml) = term["xmlDocId"].as_str().filter(|s| !s.is_empty()) else {
+            return Ok(None);
+        };
+        if matching.next().is_some()
+            || term["kind"] != "value"
+            || term["isStatic"] != true
+            || term["sourceFullName"] != full
+            || term["displayName"] != name.as_str()
+            || owner["identity"]["assemblyPath"] != identity.assembly_path
+            || owner["identity"]["assemblyName"] != identity.assembly_name
+        {
+            return Ok(None);
+        }
+        let project = self
+            .model
+            .source_instance_project(path, self.active_project.as_deref())
+            .unwrap();
+        if !project
+            .reference_bindings
+            .iter()
+            .any(|r| r["path"] == identity.assembly_path && r["isWorkspace"] == false)
+            || project
+                .reference_bindings
+                .iter()
+                .any(|r| r["isWorkspace"] == true)
+        {
+            return Ok(None);
+        }
+
+        // A file can create an implicit source module even when the root's
+        // spelling never occurs in its text. Check that domain separately.
+        let visible = self.visible_files(path);
+        if visible.iter().any(|file| {
+            std::path::Path::new(file)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .is_none_or(|stem| stem.split('.').any(|part| part.eq_ignore_ascii_case(root)))
+        }) {
+            return Ok(None);
+        }
+        // Be conservative with competing source roles, including aliases and
+        // opened values. Multiple plain root uses in this document are fine.
+        for file in self.nominal_candidate_paths(root)? {
+            if visible.contains(&file) && file != path {
+                return Ok(None);
+            }
+        }
+        if !self.index_errors.is_empty()
+            || parsed
+                .tokens
+                .iter()
+                .enumerate()
+                .any(|(i, t)| t.ident && t.text == root && !parsed.qualifier_roots.contains(&i))
+        {
+            return Ok(None);
+        }
+        Ok(Some((identity, xml.to_owned())))
+    }
     pub(crate) fn qualified_nominal_receiver(
         &mut self,
         path: &str,
