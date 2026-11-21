@@ -5,7 +5,9 @@ providers for one F# application-lambda parameter. It checks every URI, range an
 occurrence before and after an unsaved buffer edit. It launches a fresh, disposable
 desktop profile and then restarts Code with that same profile and index. The output
 retains the first request, readiness retries, eight identical warm definitions, both
-complete reference sets and edit-to-answer. A short setup guide follows.
+complete reference sets and edit-to-answer. An incorrect or unavailable edit response
+remains in the report. Additional bounded probes record time to each first current
+answer following that edit. A short setup guide follows.
 
 ```sh
 mkdir -p .cache/editor-lifecycle

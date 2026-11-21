@@ -49,8 +49,21 @@ exports.run = async function () {
     edit.insert(uri, new vscode.Position(1, 23), ' ');
     const beforeEdit = performance.now();
     if (!await vscode.workspace.applyEdit(edit)) throw new Error('Workspace edit was rejected');
-    await query('editToAnswer', 'definition', 1, beforeEdit);
-    await query('dirtyReferences', 'references', 1);
+    let editDefinition = await query('editToAnswer', 'definition', 1, beforeEdit);
+    if (editDefinition === 'correct') result.editToCurrentDefinitionMs = performance.now() - beforeEdit;
+    let editReferences = await query('dirtyReferences', 'references', 1);
+    if (editReferences === 'correct') result.editToCurrentReferencesMs = performance.now() - beforeEdit;
+    while ((editDefinition !== 'correct' || editReferences !== 'correct') && performance.now() - beforeEdit < 10_000) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      if (editDefinition !== 'correct') {
+        editDefinition = await query('editRetry', 'definition', 1);
+        if (editDefinition === 'correct') result.editToCurrentDefinitionMs = performance.now() - beforeEdit;
+      }
+      if (editReferences !== 'correct') {
+        editReferences = await query('referenceRetry', 'references', 1);
+        if (editReferences === 'correct') result.editToCurrentReferencesMs = performance.now() - beforeEdit;
+      }
+    }
     if (extension.id.toLowerCase() === 'bentefay.fsharp-navigator') {
       const [stats] = await api.stats();
       result.engine = { helperStarts: stats.helperStarts, compilerLaunches: stats.compilerLaunches, source: api.lastResult?.source };
