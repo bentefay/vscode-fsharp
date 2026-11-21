@@ -46,11 +46,12 @@ async function main() {
     }
   }
   const binary = process.env.FSHARP_VSCODE_PATH || await downloadAndUnzipVSCode(version);
-  const args = [workspace, '--user-data-dir', userData, '--extensions-dir', extensions,
+  const profileArgs = ['--user-data-dir', userData, '--extensions-dir', extensions];
+  if (Number(version.split('.')[1]) >= 131) profileArgs.push('--shared-data-dir', path.join(temporary, 'shared-data'));
+  const args = [workspace, ...profileArgs,
     '--skip-welcome', '--skip-release-notes', '--disable-updates', '--disable-telemetry', '--no-sandbox', '--disable-gpu',
     ...(process.platform === 'linux' ? ['--ozone-platform=x11'] : []),
   ];
-  if (Number(version.split('.')[1]) >= 131) args.push('--shared-data-dir', path.join(temporary, 'shared-data'));
   const testPath = path.join(__dirname, 'suite.cjs');
   try {
     if (env.FSHARP_TEST_UNTRUSTED !== '1') Object.assign(settings, await prepareWorkspace(temporary, workspace, root, env));
@@ -58,7 +59,7 @@ async function main() {
     let developmentPath = root;
     if (process.env.FSHARP_TEST_VSIX) {
       const launcher = path.join(path.dirname(binary), 'bin', 'code');
-      await run(launcher, ['--user-data-dir', userData, '--extensions-dir', extensions, '--install-extension', path.resolve(process.env.FSHARP_TEST_VSIX), '--force'], env);
+      await run(launcher, [...profileArgs, '--install-extension', path.resolve(process.env.FSHARP_TEST_VSIX), '--force'], env);
       const installed = JSON.parse(await fs.readFile(path.join(extensions, 'extensions.json'), 'utf8'));
       if (!installed.some(entry => entry.identifier.id === 'bentefay.fsharp-navigator')) throw new Error('The disposable profile lacks the tested extension.');
       developmentPath = path.join(temporary, 'probe');
