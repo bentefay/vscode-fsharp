@@ -361,6 +361,11 @@ pub struct LiteralProjectionSpan {
     pub literal_kind: String,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum FactoryAtom {
+    Literal(IntrinsicLiteral),
+    Identifier(usize),
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RecordExpression {
     pub fields: Vec<usize>,
     pub copy: Option<usize>,
@@ -379,6 +384,10 @@ pub struct RecordExpression {
     /// closed intrinsic-literal record RHS. No semantic leaf inference implied.
     #[serde(default)]
     pub method_result_literal_group: bool,
+    /// Direct fields of a singleton static record factory. Every RHS is an
+    /// intrinsic literal or a bare name requiring a declaration-bound formal.
+    #[serde(default)]
+    pub factory_atoms: Vec<(usize, FactoryAtom)>,
     /// All same-spelling tokens except the declaration, in the enclosing type
     /// group. If eligibility is false this list may be budget-truncated.
     pub method_result_uses: Vec<usize>,

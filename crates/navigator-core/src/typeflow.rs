@@ -1036,6 +1036,110 @@ impl Workspace {
         };
         self.named_type(path, parsed, field.token, &field.type_name, depth + 1)
     }
+    // Check the complete selected type-name inventory as well as the
+    // primitive abbreviations. An opened library can itself define `string`.
+    fn factory_primitive(
+        &mut self,
+        path: &str,
+        parsed: &ParsedFile,
+        at: usize,
+        name: &str,
+    ) -> Result<Option<&'static str>> {
+        let Some(primitive) = self.primitive_annotation(path, parsed, at, name)? else {
+            return Ok(None);
+        };
+        let environment = self
+            .builtin_environment
+            .as_ref()
+            .expect("validated primitive environment");
+        let builtin = environment
+            .unique_type(name, 0)
+            .expect("validated primitive abbreviation");
+        let Some(entries) = environment.type_names(&self.index.db, name)? else {
+            return Ok(None);
+        };
+        let mut zero = entries
+            .iter()
+            .filter(|e| e["genericArity"].as_u64() == Some(0));
+        if !zero
+            .next()
+            .is_some_and(|e| e["identity"] == builtin["identity"])
+            || zero.next().is_some()
+        {
+            return Ok(None);
+        }
+        Ok(Some(primitive))
+    }
+
+    fn forwarding_factory_proven(
+        &mut self,
+        path: &str,
+        parsed: &ParsedFile,
+        record: &crate::syntax::RecordExpression,
+    ) -> Result<bool> {
+        use crate::syntax::{FactoryAtom, IntrinsicLiteral};
+        if record.factory_atoms.is_empty() || record.factory_atoms.len() != record.fields.len() {
+            return Ok(false);
+        }
+        let Some(method) = parsed
+            .method_declarations
+            .iter()
+            .find(|m| Some(m.token) == record.method_result && m.is_static && m.supported)
+        else {
+            return Ok(false);
+        };
+        let Some(owner) = parsed.record_types.iter().find(|r| {
+            r.token == method.type_token && r.kind == "record" && r.type_parameters.is_empty()
+        }) else {
+            return Ok(false);
+        };
+        if owner.fields.iter().filter(|f| f.kind == "field").count() != record.fields.len() {
+            return Ok(false);
+        }
+        if method.parameters.len() > 32 {
+            return Ok(false);
+        }
+        let mut formals = std::collections::HashMap::new();
+        for parameter in &method.parameters {
+            let (Some(binding), Some(ty)) = (
+                parameter.binding,
+                self.factory_primitive(path, parsed, parameter.token, &parameter.type_name)?,
+            ) else {
+                return Ok(false);
+            };
+            formals.insert(binding, ty);
+        }
+        for (label, atom) in &record.factory_atoms {
+            let Some(field) = owner
+                .fields
+                .iter()
+                .find(|f| f.name == parsed.tokens[*label].text && f.kind == "field")
+            else {
+                return Ok(false);
+            };
+            let (Some(name), Some(at)) = (&field.type_name, field.type_token) else {
+                return Ok(false);
+            };
+            let Some(expected) = self.factory_primitive(path, parsed, at, name)? else {
+                return Ok(false);
+            };
+            let actual = match atom {
+                FactoryAtom::Literal(IntrinsicLiteral::String) => Some("string"),
+                FactoryAtom::Literal(IntrinsicLiteral::UnsuffixedDecimalInt32) => Some("int"),
+                FactoryAtom::Identifier(use_token) => {
+                    let Some(binding) = parsed.local_binding(*use_token) else {
+                        return Ok(false);
+                    };
+                    formals.get(&binding.token).copied()
+                }
+            };
+            if actual != Some(expected) {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
     fn fresh_method_result_proven(
         &mut self,
         path: &str,
@@ -1043,10 +1147,14 @@ impl Workspace {
         record: &crate::syntax::RecordExpression,
         depth: usize,
     ) -> Result<bool> {
-        if !record.method_result_literal_group
-            || !record.method_result_eligible
+        if !record.method_result_eligible
             || !self.proof_step(depth)
             || self.possible_signature_context(path, false)
+        {
+            return Ok(false);
+        }
+        if !record.method_result_literal_group
+            && !self.forwarding_factory_proven(path, parsed, record)?
         {
             return Ok(false);
         }
@@ -1635,6 +1743,8 @@ impl Workspace {
                 "unresolved-nested-record-context"
             } else if record.argument.is_some() {
                 "unresolved-record-argument-context"
+            } else if !record.factory_atoms.is_empty() {
+                "unresolved-forwarded-factory-type"
             } else if record.method_result.is_some() && !record.method_result_literal_group {
                 "unclosed-factory-constraint-group"
             } else if record.method_result.is_some() && !record.fresh_method_result {
@@ -4063,6 +4173,14 @@ impl Workspace {
             }
         }
         let record = matches.into_iter().max_by_key(|r| r.start)?;
+        if method_result.is_some_and(|r| !r.factory_atoms.is_empty())
+            && !parsed
+                .method_declarations
+                .iter()
+                .any(|m| m.token == binding && m.type_token == record.token)
+        {
+            return None;
+        }
         if !record.type_parameters.is_empty() {
             return None;
         }
@@ -4930,6 +5048,9 @@ mod tests {
         .unwrap()
     }
     fn certify_type_names(path: &PathBuf, ws: &mut Workspace, names: Value) {
+        certify_type_environment(path, ws, names, json!({}));
+    }
+    fn certify_type_environment(path: &PathBuf, ws: &mut Workspace, names: Value, types: Value) {
         use sha2::{Digest, Sha256};
         ws.ensure_model().unwrap();
         let assembly = path.join("Certificate.dll");
@@ -4940,7 +5061,7 @@ mod tests {
                 vec![json!({"path":assembly,"identity":"Certificate","isWorkspace":false})];
         }
         let environment = path.join("type-inventory.json");
-        fs::write(&environment,crate::certified_metadata_fixture(json!({"schemaVersion":1,"factsVersion":2,"kind":"builtin-environment","completeness":"exact","typeNameInventory":"all-external-type-declarations","scopeNameInventory":"all-external-namespace-and-module-declarations","termNameInventory":"all-external-expression-bindings","scopeNames":{},"termNames":{},"assemblyAutoOpens":[],"certificateScope":"selected-reference-declaration-inventory","inputHashes":[{"path":assembly,"sha256":format!("{:x}",Sha256::digest(fs::read(&assembly).unwrap()))}],"referenceBindings":[{"path":assembly,"identity":"Certificate"}],"workspaceAssemblies":[],"types":{},"patterns":{},"typeNames":names})).to_string()).unwrap();
+        fs::write(&environment,crate::certified_metadata_fixture(json!({"schemaVersion":1,"factsVersion":2,"kind":"builtin-environment","completeness":"exact","typeNameInventory":"all-external-type-declarations","scopeNameInventory":"all-external-namespace-and-module-declarations","termNameInventory":"all-external-expression-bindings","scopeNames":{},"termNames":{},"assemblyAutoOpens":[],"certificateScope":"selected-reference-declaration-inventory","inputHashes":[{"path":assembly,"sha256":format!("{:x}",Sha256::digest(fs::read(&assembly).unwrap()))}],"referenceBindings":[{"path":assembly,"identity":"Certificate"}],"workspaceAssemblies":[],"types":types,"patterns":{},"typeNames":names})).to_string()).unwrap();
         ws.builtin_path = Some(environment.to_string_lossy().into_owned());
     }
     #[test]
@@ -5568,6 +5689,69 @@ mod tests {
             result["completeness"], "exact",
             "Explicit return evidence is independent of signature absence: {result}"
         );
+        drop(ws);
+        fs::remove_dir_all(path).unwrap();
+    }
+
+    #[test]
+    fn forwarded_factory_fields_require_closed_types_and_a_bound_formal_after_edits() {
+        let source = "module Main\ntype Earlier={Name:string; Payload:string}\ntype Target=\n    {Name:string; Payload:string}\n    static member Make(value:string) = {Name=\"a\"; Payload=value}\n";
+        let (path, mut ws) = workspace(source);
+        let id = json!({"fullName":"Microsoft.FSharp.Core.string", "assemblyName":"FSharp.Core"});
+        let entry = json!({"genericArity":0,"identity":id,"sourceFullName":"Microsoft.FSharp.Core.string","isAbbreviation":true});
+        let primitive = json!({"genericArity":0,"identity":id,"isBuiltin":true,"canonicalType":{"identity":{"fullName":"System.String"}}});
+        certify_type_environment(
+            &path,
+            &mut ws,
+            json!({"string":[entry]}),
+            json!({"string":[primitive]}),
+        );
+        let query_label = |ws: &mut Workspace, text: &str, method: &str| {
+            let (line, text) = text
+                .lines()
+                .enumerate()
+                .find(|(_, line)| line.contains("Name=\"a\""))
+                .unwrap();
+            query(ws, &path, method, line, text.find("Name=").unwrap())
+        };
+        let definition = query_label(&mut ws, source, "navigation/definition");
+        assert_eq!(definition["completeness"], "exact", "{definition}");
+        assert_eq!(
+            definition["locations"][0]["range"]["start"],
+            json!({"line":3,"character":5})
+        );
+        let refs = query_label(&mut ws, source, "navigation/references");
+        assert_eq!(refs["completeness"], "exact", "{refs}");
+        assert_eq!(refs["locations"].as_array().unwrap().len(), 1);
+        for (i, changed) in [
+            source.replace("Payload=value}", "Payload=(id value)}"),
+            source
+                .replace("type Earlier", "let outside = \"outside\"\ntype Earlier")
+                .replace("Payload=value}", "Payload=outside}"),
+            source.replace("Make(value:string)", "Make(value:string, unused:obj)"),
+            source.replace("type Earlier", "type string=System.String\ntype Earlier"),
+            source.replace(
+                "    static member Make",
+                "    member _.Other=0\n    static member Make",
+            ),
+            source.replace(
+                "{Name:string; Payload:string}\n    static",
+                "{Name:string; Payload:string; Item:string}\n    static",
+            ),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            ws.dispatch(
+                "document/change",
+                &json!({"path":path.join("Main.fs"),"text":changed,"version":i+1}),
+            )
+            .unwrap();
+            for method in ["navigation/definition", "navigation/references"] {
+                let result = query_label(&mut ws, &changed, method);
+                assert_eq!(result["completeness"], "unavailable", "{changed}\n{result}");
+            }
+        }
         drop(ws);
         fs::remove_dir_all(path).unwrap();
     }

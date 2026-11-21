@@ -4,7 +4,7 @@
 use crate::syntax::{
     Alias, AppliedAttribute, ArgumentSource, BindingTypeFact, CallArgumentContext,
     CallArgumentNameCandidate, Declaration, DeclaredParameterType, ExpressionTypeCandidate,
-    ExpressionTypeRole, FunctionResultFact, FunctionReturn, Import, IntrinsicLiteral,
+    ExpressionTypeRole, FactoryAtom, FunctionResultFact, FunctionReturn, Import, IntrinsicLiteral,
     LiteralProjectionSpan, MatchBranch, MatchExpression, MemberAccess, MethodCall,
     MethodDeclaration, ModuleScope, ParsedFile, PatternBinding, PatternDeclaration,
     PipelineApplication, PipelineArgument, RecordExpression, RecordField, RecordPatternBinding,
@@ -26,6 +26,16 @@ struct Context {
     end: usize,
     depth: u32,
     top: bool,
+}
+
+#[derive(Default)]
+struct RecordMethodContext {
+    token: Option<usize>,
+    annotation: Option<(String, usize)>,
+    eligible: bool,
+    uses: Vec<usize>,
+    literal_group: bool,
+    factory_atoms: Vec<(usize, FactoryAtom)>,
 }
 
 struct Extractor<'a> {
@@ -3574,6 +3584,7 @@ impl Extractor<'_> {
             fresh_method_result: false,
             method_result_eligible: false,
             method_result_literal_group: false,
+            factory_atoms: Vec::new(),
             method_result_uses: Vec::new(),
             argument: None,
             type_name: annotation.as_ref().map(|x| x.0.clone()),
@@ -3732,25 +3743,23 @@ impl Extractor<'_> {
                 }
             }
         }
-        let context = self.record_method_result(expression);
-        let method_result = context.as_ref().map(|x| x.0);
-        let method_result_eligible = annotation.is_none() && context.as_ref().is_some_and(|x| x.2);
-        let method_result_literal_group = context.as_ref().is_some_and(|x| x.4);
-        let method_result_uses = context.as_ref().map(|x| x.3.clone()).unwrap_or_default();
-        let fresh_method_result = method_result_eligible && method_result_uses.is_empty();
+        let context = self.record_method_result(expression).unwrap_or_default();
+        let method_result_eligible = annotation.is_none() && context.eligible;
+        let fresh_method_result = method_result_eligible && context.uses.is_empty();
         if annotation.is_none() {
-            annotation = context.and_then(|x| x.1);
+            annotation = context.annotation;
         }
         self.parsed.record_expressions.push(RecordExpression {
             fields,
             copy,
             binding,
             parent_field,
-            method_result,
+            method_result: context.token,
             fresh_method_result,
             method_result_eligible,
-            method_result_literal_group,
-            method_result_uses,
+            method_result_literal_group: context.literal_group,
+            factory_atoms: context.factory_atoms,
+            method_result_uses: context.uses,
             argument: self.record_argument_context(expression),
             type_name: annotation.as_ref().map(|x| x.0.clone()),
             type_token: annotation.map(|x| x.1),
@@ -3906,12 +3915,98 @@ impl Extractor<'_> {
         }
         true
     }
-    fn literal_method_group(
+    // This additional envelope admits only plain attribute constructors with
+    // no arguments or one decimal constant. A computed/type argument could
+    // itself participate in inference of the checking group.
+    fn data_attributes(&self, node: Node<'_>) -> bool {
+        if node.kind() != "attributes" {
+            return false;
+        }
+        let attrs = method_children(node);
+        !attrs.is_empty()
+            && attrs.len() <= 16
+            && attrs.iter().all(|a| {
+                let parts = method_children(*a);
+                if a.kind() != "attribute" || parts.is_empty() || parts[0].kind() != "simple_type" {
+                    return false;
+                }
+                let name = raw(parts[0], self.source);
+                if name.is_empty() || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                {
+                    return false;
+                }
+                match parts.as_slice() {
+                    [_] => true,
+                    [_, arg] if arg.kind() == "paren_expression" => {
+                        let value = unwrap_expression(*arg);
+                        let number = raw(value, self.source);
+                        let digits = number.strip_suffix('u').unwrap_or(number);
+                        value.kind() == "const"
+                            && !digits.is_empty()
+                            && digits.bytes().all(|b| b.is_ascii_digit())
+                    }
+                    _ => false,
+                }
+            })
+    }
+
+    fn forwarding_atoms(&self, body: Node<'_>) -> Option<Vec<(usize, FactoryAtom)>> {
+        if body.kind() != "brace_expression" || self.intersects_literal_island(body) {
+            return None;
+        }
+        let children = method_children(body);
+        let [initializers] = children.as_slice() else {
+            return None;
+        };
+        if initializers.kind() != "field_initializers" {
+            return None;
+        }
+        let fields = method_children(*initializers);
+        if fields.is_empty() || fields.len() > 32 {
+            return None;
+        }
+        let mut atoms = Vec::new();
+        for field in fields {
+            if field.kind() != "field_initializer" || method_children(field).len() != 2 {
+                return None;
+            }
+            let label = field.child_by_field_name("field")?;
+            let value = field.child_by_field_name("value")?;
+            let label_token = self.simple_value_token(label)?;
+            if self.parsed.tokens[label_token].text != raw(label, self.source) {
+                return None;
+            }
+            let atom = match self.literal_argument(value) {
+                ArgumentSource::IntrinsicLiteral(lit) => FactoryAtom::Literal(lit),
+                ArgumentSource::Unknown => {
+                    let token = self.simple_value_token(value)?;
+                    let name = raw(value, self.source);
+                    if name != self.parsed.tokens[token].text
+                        || !name.as_bytes().first()?.is_ascii_lowercase()
+                        || !name
+                            .bytes()
+                            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'\'')
+                    {
+                        return None;
+                    }
+                    FactoryAtom::Identifier(token)
+                }
+            };
+            atoms.push((label_token, atom));
+        }
+        atoms
+            .iter()
+            .any(|(_, a)| matches!(a, FactoryAtom::Identifier(_)))
+            .then_some(atoms)
+    }
+
+    fn closed_method_group(
         &self,
         group: Node<'_>,
         owner: Node<'_>,
         member: Node<'_>,
         body: Node<'_>,
+        allow_data_attributes: bool,
     ) -> bool {
         if group.kind() != "type_definition"
             || group.has_error()
@@ -3921,7 +4016,11 @@ impl Extractor<'_> {
             return false;
         }
         let groups = method_children(group);
-        if groups.len() != 1 || groups[0].id() != owner.id() {
+        if !groups.iter().any(|n| n.id() == owner.id())
+            || groups.iter().any(|n| {
+                n.id() != owner.id() && !(allow_data_attributes && self.data_attributes(*n))
+            })
+        {
             return false;
         }
         let parts = method_children(owner);
@@ -3965,6 +4064,9 @@ impl Extractor<'_> {
                             return false;
                         }
                         budget -= 1;
+                        if allow_data_attributes && self.data_attributes(node) {
+                            continue;
+                        }
                         // Closed declaration syntax only. Generic constraints,
                         // attributes/static arguments and opaque type forms
                         // are deliberately outside this first certificate.
@@ -4048,12 +4150,9 @@ impl Extractor<'_> {
                 _ => return false,
             }
         }
-        names == 1 && extensions == 1 && self.literal_value_tree(body)
+        names == 1 && extensions == 1
     }
-    fn record_method_result(
-        &mut self,
-        mut expression: Node<'_>,
-    ) -> Option<(usize, Option<(String, usize)>, bool, Vec<usize>, bool)> {
+    fn record_method_result(&mut self, mut expression: Node<'_>) -> Option<RecordMethodContext> {
         let method = loop {
             let parent = expression.parent()?;
             match parent.kind() {
@@ -4231,8 +4330,28 @@ impl Extractor<'_> {
                 fresh &= eligible;
             }
         }
-        let literal_group = fresh && self.literal_method_group(group, owner, member, bodies[0]);
-        Some((token, annotation, fresh, uses, literal_group))
+        let body = bodies[0];
+        let literal_group = fresh
+            && self.literal_value_tree(body)
+            && self.closed_method_group(group, owner, member, body, false);
+        let atoms = if fresh
+            && uses.is_empty()
+            && !literal_group
+            && owner.kind() == "record_type_defn"
+            && self.closed_method_group(group, owner, member, body, true)
+        {
+            self.forwarding_atoms(body).unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        Some(RecordMethodContext {
+            token: Some(token),
+            annotation,
+            eligible: fresh,
+            uses,
+            literal_group,
+            factory_atoms: atoms,
+        })
     }
     fn extract_unconstrained_member(&mut self, node: Node<'_>, declarations: &HashSet<usize>) {
         let cs = children(node);
@@ -6304,6 +6423,43 @@ let choose value=
             .collect();
         assert_eq!(uses.last().copied().flatten(), Some(parameters[0]));
         assert!(uses.iter().any(|x| x.is_some_and(|t| t != parameters[0])));
+    }
+
+    #[test]
+    fn factory_forwarding_requires_direct_fields_and_closed_attribute_arguments() {
+        let source = "module M\n[<First; Second>]\ntype Item =\n    { [<Marker(3u)>] Name:string; Number:int }\n    static member Build(value:string) = {Name=value; Number=3}\n";
+        let p = parse(source);
+        let fields = &p.record_expressions.last().unwrap().factory_atoms;
+        assert!(matches!(
+            fields.as_slice(),
+            [
+                (_, FactoryAtom::Identifier(_)),
+                (
+                    _,
+                    FactoryAtom::Literal(IntrinsicLiteral::UnsuffixedDecimalInt32)
+                )
+            ]
+        ));
+        for changed in [
+            source.replace("3u", "Constants.Value"),
+            source.replace("3u", "typeof<Item>"),
+            source.replace("First; Second", "First(typeof<Item>); Second"),
+            source.replace("Name=value", "Name=(fun () -> value)()"),
+            source.replace("Number=3", "Number=1+2"),
+            source.replace("{Name=value", "{Item.Name=value"),
+            source.replace(
+                "static member Build",
+                "static member Count=0\n    static member Build",
+            ),
+        ] {
+            let p = parse(&changed);
+            assert!(
+                p.record_expressions
+                    .iter()
+                    .all(|r| r.factory_atoms.is_empty()),
+                "{changed}"
+            );
+        }
     }
 
     #[test]
