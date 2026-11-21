@@ -4903,8 +4903,45 @@ mod tests {
             caller["locations"][0]["range"]["start"],
             json!({"line":2,"character":21})
         );
-        let callee = query(&mut ws, &path, "navigation/references", 2, 19);
-        assert_eq!(callee["completeness"], "unavailable", "{callee}");
+        for (line, character) in [(1, 25), (1, 33), (2, 19)] {
+            for include in [false, true] {
+                let callee = ws
+                    .dispatch(
+                        "navigation/references",
+                        &json!({
+                            "path": path.join("Main.fs"), "line": line, "character": character,
+                            "includeDeclaration": include
+                        }),
+                    )
+                    .unwrap();
+                assert_eq!(callee["completeness"], "exact", "{callee}");
+                let mut starts = callee["locations"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|loc| {
+                        let start = &loc["range"]["start"];
+                        (
+                            start["line"].as_u64().unwrap(),
+                            start["character"].as_u64().unwrap(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                starts.sort_unstable();
+                let expected = if include {
+                    vec![(1, 25), (1, 33), (2, 19)]
+                } else {
+                    vec![(1, 33), (2, 19)]
+                };
+                assert_eq!(starts, expected);
+            }
+        }
+        let source = fs::read_to_string(path.join("Main.fs")).unwrap();
+        // A second, positional call needs a separate proof. A cached clean
+        // answer must not survive the new use of the method in this buffer.
+        ws.dispatch("document/change", &json!({"path":path.join("Main.fs"),"text":format!("{source}let other = C.M(true)\n"),"version":1})).unwrap();
+        let dirty = query(&mut ws, &path, "navigation/references", 2, 19);
+        assert_eq!(dirty["completeness"], "unavailable", "{dirty}");
         assert_eq!(ws.index.counters.helper_starts, 0);
         fs::remove_dir_all(path).unwrap();
     }

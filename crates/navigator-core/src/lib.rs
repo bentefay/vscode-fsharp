@@ -1728,6 +1728,68 @@ impl Workspace {
         self.cancellation.check()?;
         Ok(result)
     }
+    /// A static formal can be used by name outside its declaration body. Close
+    /// that domain only when every call to this method is accounted for, and
+    /// no other compiled source can contain another use of the formal's name.
+    fn static_parameter_labels(
+        &mut self,
+        symbol: &Symbol,
+        origin: &ParsedFile,
+    ) -> Result<Option<HashSet<usize>>> {
+        if self.mode != Mode::Indexed
+            || self.builtin_path.is_none()
+            || self.model.projects.len() != 1
+            || self.possible_signature_context(&symbol.path, false)
+            || !origin.uncertain.is_empty()
+        {
+            return Ok(None);
+        }
+        let Some(method) = origin.method_declarations.iter().find(|m| {
+            m.supported
+                && m.is_static
+                && m.parameters.len() == 1
+                && m.parameters[0].binding == Some(symbol.token)
+        }) else {
+            return Ok(None);
+        };
+        let mut labels = HashSet::new();
+        let mut heads = HashSet::from([method.token]);
+        for arg in origin.call_argument_name_candidates.iter().filter(|arg| {
+            arg.callee
+                .is_some_and(|head| origin.tokens[head].text == method.name)
+        }) {
+            self.cancellation.check()?;
+            if self
+                .call_argument_binding(&symbol.path, origin, arg.token)?
+                .as_ref()
+                != Some(symbol)
+            {
+                return Ok(None);
+            }
+            labels.insert(arg.token);
+            heads.insert(arg.callee.unwrap());
+        }
+        if labels.is_empty()
+            || origin
+                .tokens
+                .iter()
+                .enumerate()
+                .any(|(i, t)| t.ident && t.text == method.name && !heads.contains(&i))
+        {
+            return Ok(None);
+        }
+        self.ensure_name_coverage(&symbol.name)?;
+        if !self.index_errors.is_empty()
+            || self
+                .index
+                .candidate_paths(&symbol.name)?
+                .iter()
+                .any(|p| p != &symbol.path)
+        {
+            return Ok(None);
+        }
+        Ok(Some(labels))
+    }
     fn references(&mut self, symbol: &Symbol, include_decl: bool, trace: bool) -> Result<Value> {
         if !symbol
             .name
@@ -1780,12 +1842,16 @@ impl Workspace {
                 "Declaration scope contains unsupported reference syntax",
             ));
         }
+        let mut labels = None;
         let parameter_gap = if symbol.local
             && declaration.is_some_and(|d| d.kind == "parameter")
             && !origin.signature_independent_formals.contains(&symbol.token)
         {
             if !origin.ordinary_function_formals.contains(&symbol.token) {
-                Some("Callable parameter references may include named arguments outside the body")
+                labels = self.static_parameter_labels(symbol, &origin)?;
+                labels.is_none().then_some(
+                    "Callable parameter references may include named arguments outside the body",
+                )
             } else if self.possible_signature_context(&symbol.path, true) {
                 Some("Function parameter reference identity may include an included signature")
             } else {
@@ -1893,6 +1959,9 @@ impl Workspace {
                         let d = declaration.expect("Local symbols have declarations");
                         let t = &parsed.tokens[token];
                         if token != symbol.token
+                            && !labels
+                                .as_ref()
+                                .is_some_and(|labels| labels.contains(&token))
                             && !(d.visible_start <= t.start && t.start < d.scope_end)
                         {
                             continue;
