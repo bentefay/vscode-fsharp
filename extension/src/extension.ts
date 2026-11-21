@@ -173,6 +173,24 @@ class Navigator implements vscode.Disposable {
     return session;
   }
 
+  private async synchronize(session: Session, cursor?: vscode.TextDocument): Promise<void> {
+    // Clean tabs need no overlay unless they contain the requested cursor.
+    for (const open of vscode.workspace.textDocuments) {
+      if (open.languageId === 'fsharp' && open.uri.scheme === 'file' && (open === cursor || open.isDirty) && this.folderFor(open.uri)?.uri.toString() === session.folder.uri.toString()) {
+        session.overlays.schedule(open.uri.fsPath, open);
+      }
+    }
+    await session.overlays.flush();
+  }
+
+  async indexWorkspace(): Promise<void> {
+    for (const folder of vscode.workspace.workspaceFolders ?? []) {
+      const session = await this.session(folder);
+      await this.synchronize(session);
+      await session.backend.request('workspace/index', {}, undefined, 120_000);
+    }
+  }
+
   async query(method: string, document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, includeDeclaration?: boolean): Promise<QueryResult | undefined> {
     // The cursor belongs to the version that invoked this provider, even if
     // initialization or an earlier overlay acknowledgement takes time.
@@ -186,13 +204,7 @@ class Navigator implements vscode.Disposable {
     this.navigation.add(cancellation);
     try {
       const session = await this.session(folder);
-      // Synchronize the cursor and dirty dependencies, not every clean open tab.
-      for (const open of vscode.workspace.textDocuments) {
-        if (open.languageId === 'fsharp' && open.uri.scheme === 'file' && (open === document || open.isDirty) && this.folderFor(open.uri)?.uri.toString() === folder.uri.toString()) {
-          session.overlays.schedule(open.uri.fsPath, open);
-        }
-      }
-      await session.overlays.flush();
+      await this.synchronize(session, document);
       if (cancellation.token.isCancellationRequested || document.isClosed || document.version !== version || epoch !== this.epoch) return undefined;
       const result = await session.backend.request<QueryResult>(method, {
         path: document.uri.fsPath, line: position.line, character: position.character,
@@ -340,6 +352,7 @@ export function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand('fsharpNavigator.openProjectFile', (uri: vscode.Uri, projectPath: string, workspaceUri: string) => navigator.openProjectFile(uri, projectPath, workspaceUri)),
     vscode.commands.registerCommand('fsharpNavigator.refresh', () => tree.refresh()),
+    vscode.commands.registerCommand('fsharpNavigator.indexWorkspace', () => navigator.indexWorkspace()),
     vscode.commands.registerCommand('fsharpNavigator.restart', () => navigator.restart()),
     vscode.commands.registerCommand('fsharpNavigator.selectMode', async () => {
       const choice = await vscode.window.showQuickPick([

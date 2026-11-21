@@ -6,7 +6,6 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{HashMap, HashSet},
-    fs,
     path::{Path, PathBuf},
 };
 use walkdir::WalkDir;
@@ -133,6 +132,7 @@ pub fn discover(root: &str) -> Result<Model> {
         .filter_entry(|e| e.depth() == 0 || !excluded(&e.file_name().to_string_lossy()))
     {
         crate::cancellation::check()?;
+        crate::foreground::entry()?;
         let e = entry?;
         if !e.file_type().is_file() {
             continue;
@@ -199,7 +199,8 @@ pub fn discover(root: &str) -> Result<Model> {
 }
 
 fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
-    let source = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    let source = crate::foreground::read_text(path, u64::MAX)
+        .with_context(|| format!("read {}", path.display()))?;
     let mut reader = Reader::from_str(&source);
     reader.config_mut().trim_text(true);
     let mut files = Vec::new();
@@ -227,12 +228,14 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                             exact = false;
                             continue;
                         }
+                        crate::foreground::entry()?;
                         files.push(normalize(parent.join(value.replace('\\', "/"))));
                     }
                     if name == "Compile" && matches!(key.as_ref(), "Remove" | "Update") {
                         exact = false;
                     }
                     if name == "ProjectReference" && key == "Include" {
+                        crate::foreground::entry()?;
                         refs.push(normalize(parent.join(value.replace('\\', "/"))));
                     }
                 }
@@ -568,6 +571,7 @@ impl Model {
 #[cfg(test)]
 mod membership_model_tests {
     use super::*;
+    use std::fs;
     fn fixture() -> PathBuf {
         let root = std::env::temp_dir().join(format!(
             "fsnav-model-membership-{}-{}",

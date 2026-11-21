@@ -154,16 +154,7 @@ fn stamp(path: &str) -> Result<(u64, u64)> {
     ))
 }
 fn bounded_source(path: &str, limit: usize) -> Result<String> {
-    use std::io::Read;
-    let mut source = String::new();
-    fs::File::open(path)?
-        .take(limit as u64 + 1)
-        .read_to_string(&mut source)?;
-    anyhow::ensure!(
-        source.len() <= limit,
-        "Source exceeds configured maxFileBytes: {path}"
-    );
-    Ok(source)
+    crate::foreground::read_text(Path::new(path), limit as u64)
 }
 impl Index {
     pub fn open(dir: &Path, memory_mb: u64, max_file_bytes: usize) -> Result<Self> {
@@ -525,6 +516,7 @@ impl Index {
                 params![path, mtime, len, dirty],
             )?;
             if eager && self.needs_summary(path)? {
+                crate::foreground::parse()?;
                 let parsed = if indexed {
                     if path.ends_with(".fsi") {
                         crate::treesitter::parse_signature(source)
@@ -548,6 +540,7 @@ impl Index {
         let parsed = if !eager {
             None
         } else {
+            crate::foreground::parse()?;
             Some(if indexed {
                 if path.ends_with(".fsi") {
                     crate::treesitter::parse_signature(source)
@@ -663,6 +656,7 @@ impl Index {
             hash.ends_with(blake3::hash(source.as_bytes()).to_hex().as_str()),
             "File changed while query was pending; refresh and retry: {path}"
         );
+        crate::foreground::parse()?;
         let parsed = if hash.starts_with("lexical-") {
             syntax::parse(&source)
         } else if path.ends_with(".fsi") {
@@ -715,6 +709,7 @@ impl Index {
     ) -> Result<ParsedFile> {
         self.cancellation.check()?;
         let _scope = self.cancellation.enter();
+        crate::foreground::parse()?;
         let projected = crate::context::project(source, context, &self.cancellation)?;
         let parsed = if path.ends_with(".fsi") {
             crate::treesitter::parse_signature(&projected)
@@ -1299,7 +1294,8 @@ impl Index {
                         continue;
                     }
                     let identity = disk_identity(path)?;
-                    let mut f = fs::File::open(path)?;
+                    crate::foreground::file(identity.len)?;
+                    let mut f = fs::File::open(path)?.take(identity.len.saturating_add(1));
                     let mut hash = Sha256::new();
                     let mut buf = [0u8; 65536];
                     let mut size = 0;
@@ -1518,8 +1514,10 @@ impl Index {
             if !missing && !directory {
                 use sha2::{Digest, Sha256};
                 use std::io::Read;
+                let len = expected.1;
                 let expected: Option<String> = r.get(5)?;
-                let mut file = fs::File::open(&path)?;
+                crate::foreground::file(len)?;
+                let mut file = fs::File::open(&path)?.take(len.saturating_add(1));
                 let mut hash = Sha256::new();
                 let mut buffer = [0u8; 65536];
                 let mut size = 0;

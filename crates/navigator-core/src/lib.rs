@@ -3,6 +3,7 @@ pub mod cancellation;
 pub mod context;
 pub mod decompiler;
 mod document_navigation;
+mod foreground;
 mod helper;
 mod index;
 mod library_types;
@@ -99,6 +100,7 @@ pub struct Workspace {
     context_hash: String,
     model_hash: String,
     events: Receiver<notify::Result<notify::Event>>,
+    pending_refresh: HashSet<String>,
     _watcher: Option<RecommendedWatcher>,
     watcher_reliable: bool,
     decompiler_path: Option<String>,
@@ -231,6 +233,7 @@ impl Workspace {
             context_hash: String::new(),
             model_hash: String::new(),
             events,
+            pending_refresh: HashSet::new(),
             _watcher: None,
             decompiler_path: p
                 .get("decompilerPath")
@@ -433,7 +436,9 @@ impl Workspace {
                 };
                 return match result {
                     Ok(parsed) => Ok(parsed),
-                    Err(e) if e.is::<cancellation::Cancelled>() => Err(e),
+                    Err(e) if e.is::<cancellation::Cancelled>() || e.is::<foreground::Limit>() => {
+                        Err(e)
+                    }
                     Err(e) => {
                         let mut empty = syntax::parse("");
                         empty.supported = false;
@@ -697,7 +702,7 @@ impl Workspace {
                 .index
                 .search_name(&path, name, self.mode != Mode::Lexical)
             {
-                if e.is::<cancellation::Cancelled>() {
+                if e.is::<cancellation::Cancelled>() || e.is::<foreground::Limit>() {
                     self.refresh_snapshot()?;
                     return Err(e);
                 }
@@ -756,7 +761,7 @@ impl Workspace {
                 Ok(changed)
             }
             Err(e) => {
-                if e.is::<cancellation::Cancelled>() {
+                if e.is::<cancellation::Cancelled>() || e.is::<foreground::Limit>() {
                     return Err(e);
                 }
                 self.index_errors.insert(path.into(), e.to_string());
@@ -765,7 +770,7 @@ impl Workspace {
         }
     }
     fn drain_events(&mut self) -> Result<()> {
-        let mut paths = HashSet::new();
+        let mut paths = std::mem::take(&mut self.pending_refresh);
         let mut context_changed = false;
         let mut semantic_changed = false;
         for event in self.events.try_iter() {
@@ -836,9 +841,18 @@ impl Workspace {
             self.refresh_context()?;
         }
         let mut changed = false;
-        for p in paths {
-            if self.model.files.contains(&p) {
-                changed |= self.refresh_file(&p, true)?;
+        let mut paths = paths.into_iter();
+        while let Some(path) = paths.next() {
+            match self.refresh_file(&path, true) {
+                Ok(updated) => changed |= updated,
+                Err(error) => {
+                    self.pending_refresh.insert(path);
+                    self.pending_refresh.extend(paths);
+                    self.semantic_revision += 1;
+                    self.covered_names.clear();
+                    self.refresh_snapshot()?;
+                    return Err(error);
+                }
             }
         }
         if changed || context_changed || semantic_changed {
@@ -941,6 +955,7 @@ impl Workspace {
             }
             "workspace/index" => {
                 self.ensure_model()?;
+                self.drain_events()?;
                 let mut changed = false;
                 for path in self.model.files.clone() {
                     changed |= self.refresh_file(
@@ -950,6 +965,9 @@ impl Workspace {
                 }
                 if changed {
                     self.refresh_snapshot()?;
+                }
+                if let Some(path) = self.semantic_path.clone() {
+                    self.dispatch_inner("semantic/import", &json!({"path":path}))?;
                 }
                 self.stats()
             }
@@ -998,7 +1016,10 @@ impl Workspace {
             "semantic/import" => {
                 self.ensure_model()?;
                 for o in self.overlays.values() {
-                    let disk = fs::read_to_string(&o.path)?;
+                    let disk = foreground::read_text(
+                        Path::new(&o.path),
+                        self.index.max_file_bytes as u64,
+                    )?;
                     self.index.counters.files_read += 1;
                     self.index.counters.bytes_read += disk.len() as u64;
                     anyhow::ensure!(
@@ -1006,7 +1027,10 @@ impl Workspace {
                         "Import a semantic snapshot only with clean buffers"
                     );
                 }
-                let value: Value = serde_json::from_str(&fs::read_to_string(string(p, "path")?)?)?;
+                let value: Value = serde_json::from_str(&foreground::read_text(
+                    Path::new(string(p, "path")?),
+                    u64::MAX,
+                )?)?;
                 let projects = self
                     .model
                     .projects
@@ -1024,7 +1048,29 @@ impl Workspace {
                 )
             }
             "navigation/definition" | "navigation/references" | "navigation/hover" => {
-                self.navigation(method, p)
+                if self.mode != Mode::Indexed {
+                    return self.navigation(method, p);
+                }
+                let _scope = foreground::Scope::enter();
+                let answer = self.navigation(method, p);
+                self.cancellation.check()?;
+                if let Err(limit) = foreground::check() {
+                    // Some speculative proof edges intentionally suppress errors.
+                    // Never publish a positive answer or a name-absence certificate
+                    // if part of its required work was declined.
+                    self.covered_names.clear();
+                    self.refresh_snapshot()?;
+                    let mut unavailable =
+                        self.empty(method == "navigation/hover", &limit.to_string());
+                    let version = self.overlays.get(&path_param(p)?).map(|o| o.version);
+                    unavailable["documentVersion"] = json!(version);
+                    unavailable["version"] = json!(version);
+                    unavailable["snapshotId"] = json!(self.snapshot);
+                    unavailable["snapshot"] = json!(self.epoch);
+                    Ok(unavailable)
+                } else {
+                    answer
+                }
             }
             "$/cancelRequest" => Ok(
                 json!({"cancelled":false,"reason":"The daemon routes cancellation by request ID; direct library callers cancel the installed request token"}),
@@ -1595,6 +1641,7 @@ impl Workspace {
                     && value.get("symbol").is_some())
             {
                 self.cancellation.check()?;
+                foreground::check()?;
                 self.index.put_answer(&key, &self.snapshot, &value)?;
             }
             value
@@ -2241,6 +2288,98 @@ mod integration_tests {
         let ws = Workspace::open(&json!({"root":path,"mode":"indexed"})).unwrap();
         (path, ws)
     }
+    #[test]
+    fn bounded_discovery_and_cold_reads_recover_after_explicit_index() {
+        let (root, initial) = fixture();
+        drop(initial);
+        let mut project = String::from("<Project><ItemGroup>");
+        for number in 0..foreground::MAX_READS + 16 {
+            let name = format!("N{number}.fs");
+            fs::write(
+                root.join(&name),
+                format!("module N{number}\nlet value = 3\n"),
+            )
+            .unwrap();
+            project.push_str(&format!("<Compile Include=\"{name}\"/>"));
+        }
+        project.push_str("</ItemGroup></Project>");
+        fs::write(root.join("Unrelated.fsproj"), project).unwrap();
+        let noise = root.join("noise");
+        fs::create_dir(&noise).unwrap();
+        for number in 0..foreground::MAX_ENTRIES {
+            fs::write(noise.join(number.to_string()), "").unwrap();
+        }
+        let mut ws = Workspace::open(&json!({"root":root,"mode":"indexed"})).unwrap();
+        let cursor = json!({"path":root.join("Main.fs"),"line":3,"character":13});
+        let query = |ws: &mut Workspace| ws.dispatch("navigation/definition", &cursor).unwrap();
+        let cold = query(&mut ws);
+        assert_eq!(cold["completeness"], "unavailable", "{cold}");
+        assert!(!ws.model_loaded);
+        assert_eq!(ws.index.counters.files_read, 0);
+        let tree = ws.dispatch("workspace/tree", &json!({})).unwrap();
+        assert_eq!(tree["completeness"], "exact", "{tree}");
+        let partial = query(&mut ws);
+        assert_eq!(partial["completeness"], "unavailable", "{partial}");
+        assert!(partial["reason"].as_str().unwrap().contains("foreground"));
+        assert!(!ws.covered_names.contains("value"));
+        assert!(ws.index.counters.files_read <= foreground::MAX_READS as u64);
+        assert!(ws.index_errors.is_empty());
+        ws.dispatch("workspace/index", &json!({})).unwrap();
+        let reads = ws.index.counters.files_read;
+        let result = query(&mut ws);
+        assert_eq!(result["completeness"], "exact", "{result}");
+        assert!(result["locations"][0]["uri"]
+            .as_str()
+            .unwrap()
+            .ends_with("/B.fs"));
+        assert!(ws.index.counters.files_read - reads < 6);
+        assert!(ws.index.counters.files_parsed < 6);
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn oversized_configured_snapshot_is_imported_only_on_explicit_request() {
+        for large in [false, true] {
+            let (root, original) = fixture();
+            drop(original);
+            let file = root.join("Main.fs");
+            let text = "module Probe\nlet v = Unproven\n";
+            fs::write(&file, text).unwrap();
+            let range = json!({"start":{"line":1,"character":8},"end":{"line":1,"character":16}});
+            let declaration = json!({"path":file,"range":range});
+            use sha2::{Digest, Sha256};
+            let mut snapshot = json!({"kind":"semantic-snapshot","factsVersion":2,"projects":[{
+                "projectPath":root.join("Test.fsproj"),"completeness":"exact","contextId":"test",
+                "sourceMembership":[],"membershipReusable":true,"environmentCertificate":project::environment::empty_certificate(),
+                "sourceHashes":[{"path":file,"sha256":format!("{:x}",Sha256::digest(text.as_bytes()))}],
+                "occurrences":[{"symbolId":"probe","path":file,"range":range,"declaration":declaration,"isDefinition":false}]
+            }]});
+            if large {
+                snapshot["padding"] = json!(" ".repeat(4 * 1024 * 1024));
+            }
+            let artifact = root.join("snapshot.json");
+            fs::write(&artifact, snapshot.to_string()).unwrap();
+            let mut ws =
+                Workspace::open(&json!({"root":root,"semanticSnapshotPath":artifact})).unwrap();
+            let cursor = json!({"path":file,"line":1,"character":9});
+            let mut answer = ws.dispatch("navigation/definition", &cursor).unwrap();
+            if large {
+                assert_eq!(answer["completeness"], "unavailable", "{answer}");
+                assert!(!ws.semantic_loaded);
+                ws.dispatch("workspace/index", &json!({})).unwrap();
+                answer = ws.dispatch("navigation/definition", &cursor).unwrap();
+            }
+            assert!(ws.semantic_loaded);
+            assert_eq!(answer["completeness"], "exact", "{answer}");
+            assert_eq!(answer["locations"][0]["range"], range);
+            assert_eq!(ws.index.counters.helper_starts, 0);
+            drop(ws);
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
+
     #[test]
     fn exact_ordered_opens_and_scoped_references_without_helper() {
         let (path, mut ws) = fixture();

@@ -12,7 +12,7 @@ const root = path.resolve(__dirname, '../..');
 const binary = process.env.FSHARP_BACKEND_PATH || path.join(root, 'target/release/fsharp-navigator');
 const dependencyCount = 600;
 
-async function fixture(t) {
+async function fixture(t, files = dependencyCount) {
   const temporaryRoot = process.env.TMPDIR || path.join(root, '.cache/test-tmp');
   await fs.mkdir(temporaryRoot, { recursive: true });
   const temporary = await fs.mkdtemp(path.join(temporaryRoot, 'fsnav-cancellation-'));
@@ -21,7 +21,7 @@ async function fixture(t) {
   await fs.writeFile(path.join(workspace, 'Shared.fs'), 'module Shared\nlet target = 42\n');
   const names = ['Shared.fs'];
   const words = Array.from({ length: 200 }, (_, i) => `rawName${i}`).join(' ');
-  for (let i = 0; i < dependencyCount; i++) {
+  for (let i = 0; i < files; i++) {
     const name = `F${String(i).padStart(4, '0')}.fs`;
     names.push(name);
     await fs.writeFile(path.join(workspace, name), `module F${i}\nlet result = Shared.target\n// ${words}\n`);
@@ -114,8 +114,27 @@ test('native cancellation interrupts a running index and retry completes without
   await record('daemon-index', { kind: 'actual-native-daemon', foregroundMs, cancelledResponse: cancelled, partialFileCount: stats.indexFileCount, completedFileCount: retried.result.indexFileCount, limitations: 'Functional interruption/recovery test; timing is not a controlled benchmark.' });
 });
 
-test('dirty dependency cancels native reference coverage and a fresh definition plus complete retry succeed', async t => {
+test('explicit indexing enables navigation after cold workspace discovery is declined', async t => {
   const input = await fixture(t);
+  const editor = await createEditor(input.workspace, binary);
+  t.after(() => editor.dispose());
+  const document = await editor.open('Shared.fs');
+  const position = editor.position(document, 1, 'target');
+  const definition = () => editor.providers.definition.provideDefinition(document, position, editor.uncancelled);
+  assert.equal(await definition(), undefined);
+  assert.match(editor.api.lastResult.reason, /Index Workspace/);
+  assert.equal((await editor.api.stats())[0].filesRead, 0);
+  await editor.executeCommand('fsharpNavigator.indexWorkspace');
+  assert.equal((await definition())?.length, 1, JSON.stringify(editor.api.lastResult));
+  const stats = (await editor.api.stats())[0];
+  assert.equal(stats.indexFileCount, dependencyCount + 1);
+  assert.equal(stats.helperStarts, 0);
+});
+
+test('dirty dependency cancels native reference coverage and a fresh definition plus complete retry succeed', async t => {
+  // Keep the reference retry below the cold foreground read/parse limits.
+  const files = 48;
+  const input = await fixture(t, files);
   const editor = await createEditor(input.workspace, binary);
   t.after(() => editor.dispose());
   const document = await editor.open('Shared.fs');
@@ -134,10 +153,10 @@ test('dirty dependency cancels native reference coverage and a fresh definition 
   assert.equal((await definition())?.length, 1, JSON.stringify(editor.api.lastResult));
   const foregroundMs = performance.now() - started;
   const partial = (await editor.api.stats())[0];
-  assert.ok(partial.indexFileCount < dependencyCount + 1, 'The obsolete scan must stop, not merely discard its reply: ' + JSON.stringify(partial));
+  assert.ok(partial.indexFileCount < files + 1, 'The obsolete scan must stop, not merely discard its reply: ' + JSON.stringify(partial));
   assert.equal(partial.helperStarts, 0);
   const complete = await references();
-  assert.equal(complete?.length, dependencyCount + 1, JSON.stringify(editor.api.lastResult));
+  assert.equal(complete?.length, files + 1, JSON.stringify(editor.api.lastResult));
   assert.equal(editor.api.lastResult.completeness, 'exact');
   assert.equal(editor.api.lastResult.version, document.version);
   await record('adapter-dirty-references', { kind: 'compiled-adapter-real-native-mocked-editor-api', foregroundMs, partialFileCount: partial.indexFileCount, completedReferences: complete.length, limitations: 'Not an actual VS Code host run; functional cancellation/recovery test, not a controlled latency benchmark.' });
