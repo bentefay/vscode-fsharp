@@ -16,11 +16,10 @@ exports.run = async function () {
   try {
     if (!extension) throw new Error('Requested provider is missing from disposable profile');
     const start = performance.now();
-    const api = await extension.activate();
-    result.activateCallMs = performance.now() - start;
     const uri = vscode.Uri.file(path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, 'Lifecycle.fs'));
     const doc = await vscode.workspace.openTextDocument(uri);
     await vscode.window.showTextDocument(doc);
+    result.documentOpenMs = performance.now() - start;
     const query = async (stage, method, shift = 0, startTime = performance.now()) => {
       const cursor = new vscode.Position(1, 36 + shift);
       const command = method === 'definition' ? 'vscode.executeDefinitionProvider' : 'vscode.executeReferenceProvider';
@@ -67,6 +66,7 @@ exports.run = async function () {
       }
     }
     if (extension.id.toLowerCase() === 'bentefay.fsharp-navigator') {
+      const api = extension.exports;
       const [stats] = await api.stats();
       result.engine = { helperStarts: stats.helperStarts, compilerLaunches: stats.compilerLaunches, source: api.lastResult?.source };
     }

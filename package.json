@@ -21,7 +21,6 @@
   "main": "./extension/dist/extension.js",
   "activationEvents": [
     "onLanguage:fsharp",
-    "workspaceContains:**/*.fsproj",
     "onView:fsharpNavigator.solution"
   ],
   "capabilities": {

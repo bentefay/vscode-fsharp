@@ -32,6 +32,7 @@ Optional environment variables:
 | `FSHARP_VSCODE_VERSION` | Editor version label (default 1.108.0). |
 | `FSHARP_BACKEND_PATH` | Native development binary override. |
 | `FSHARP_TEST_VSIX` | Install this VSIX into the disposable profile; the development host contains only a probe. |
+| `FSHARP_TEST_TREE_FIRST=1` | Activate from opening the solution explorer before any F# document. The default opens the document first. |
 | `FSHARP_TEST_UNTRUSTED=1` | Direct host launch testing Workspace Trust without the standard test-electron override. |
 | `FSHARP_CAPTURE_SCREENSHOTS=1` | Capture tree/editor/hover images with ImageMagick `import`. |
 

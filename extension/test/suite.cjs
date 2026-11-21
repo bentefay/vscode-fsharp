@@ -17,10 +17,31 @@ exports.run = async function () {
   const untrusted = process.env.FSHARP_TEST_UNTRUSTED === '1';
   const packaged = Boolean(process.env.FSHARP_TEST_VSIX);
   if (!untrusted || !packaged) assert.ok(extension, 'Expected the installed or development extension in the host');
-  const activation = { alreadyActive: extension?.isActive ?? false, beforeMemory: process.memoryUsage(), startMs: performance.now() };
-  const api = untrusted ? undefined : await extension.activate();
-  activation.elapsedMs = performance.now() - activation.startMs;
-  activation.afterMemory = process.memoryUsage();
+  const eventually = async predicate => {
+    const end = Date.now() + 10_000;
+    while (Date.now() < end) {
+      if (await predicate()) return;
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    throw new Error('Timed out waiting for observable editor state');
+  };
+  const activation = {
+    alreadyActive: extension?.isActive ?? false,
+    initialFSharpDocuments: vscode.workspace.textDocuments.filter(doc => doc.languageId === 'fsharp').length,
+    beforeMemory: process.memoryUsage(),
+  };
+  const treeFirst = !untrusted && process.env.FSHARP_TEST_TREE_FIRST === '1';
+  if (!untrusted) {
+    assert.equal(activation.initialFSharpDocuments, 0, 'Fixture starts before opening any F# document');
+    assert.equal(activation.alreadyActive, false, 'Opening a project directory should defer activation');
+  }
+  const demandStart = performance.now();
+  if (treeFirst) {
+    await vscode.commands.executeCommand('workbench.view.extension.fsharpNavigator');
+    await eventually(() => extension.isActive);
+    assert.equal(vscode.workspace.textDocuments.some(doc => doc.languageId === 'fsharp'), false);
+    activation.treeDemandToActiveMs = performance.now() - demandStart;
+  }
   const executeProvider = async (command, ...args) => {
     const start = performance.now();
     try { return await vscode.commands.executeCommand(command, ...args); }
@@ -29,6 +50,12 @@ exports.run = async function () {
   const uri = name => vscode.Uri.file(path.join(root, name));
   const document = await vscode.workspace.openTextDocument(uri('Main.fs'));
   await vscode.window.showTextDocument(document);
+  if (!untrusted) {
+    await eventually(() => extension.isActive);
+    activation.demandToDocumentReadyMs = performance.now() - demandStart;
+  }
+  activation.afterMemory = process.memoryUsage();
+  const api = untrusted ? undefined : extension.exports;
   const position = (doc, line, text, offset = 1) => new vscode.Position(line, doc.lineAt(line).text.lastIndexOf(text) + offset);
   const definitions = async (doc, line, text) => {
     const values = await executeProvider('vscode.executeDefinitionProvider', doc.uri, position(doc, line, text));
@@ -39,14 +66,6 @@ exports.run = async function () {
     const start = Date.now();
     try { await action(); results.push({ name, status: 'passed', durationMs: Date.now() - start }); }
     catch (error) { results.push({ name, status: 'failed', error: error.stack, durationMs: Date.now() - start }); }
-  };
-  const eventually = async predicate => {
-    const end = Date.now() + 10_000;
-    while (Date.now() < end) {
-      if (await predicate()) return;
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-    throw new Error('Timed out waiting for observable editor state');
   };
   const screenshot = async name => {
     if (process.env.FSHARP_CAPTURE_SCREENSHOTS !== '1') return;
@@ -205,7 +224,7 @@ exports.run = async function () {
   }
   await fs.writeFile(path.join(process.env.FSHARP_TEST_RESULTS, 'results.json'), JSON.stringify({
     environment: { kind: 'actual-vscode-extension-host', vscode: vscode.version, node: process.version, extensionHostPid: process.pid, backendPids: api?.processIds ?? [] },
-    measurements: { activation, providerSamples, localLifecycle, finalExtensionHostMemory: process.memoryUsage(), limitations: 'Test-run timings, not repeated controlled benchmarks. Memory describes the shared extension-host process, not the entire editor process tree. alreadyActive activation cannot measure a cold activation.' },
+    measurements: { activation, providerSamples, localLifecycle, finalExtensionHostMemory: process.memoryUsage(), limitations: 'Test-run timings, not repeated controlled benchmarks. Memory describes the shared extension-host process, not the entire editor process tree. Demand timings include opening the editor document or solution view and waiting for activation.' },
     results,
   }, null, 2));
   for (const result of results) console.log(`${result.status}: ${result.name}${result.error ? '\n' + result.error : ''}`);
