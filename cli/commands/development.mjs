@@ -84,7 +84,14 @@ export class TestCommand extends Command {
   layer=Option.String();
   async execute(){
     if(this.layer==='unit') return check();
-    if(this.layer==='adapter'){await build();return exec('node',['--test','extension/test/nativeAdapter.test.cjs','extension/test/nativeCancellation.test.cjs'],{env:{...process.env,FSHARP_BACKEND_PATH:path.join(root,'target/release/fsharp-navigator')}});}
+    if (this.layer === 'adapter') {
+      await build();
+      await exec('node', ['--test', 'extension/test/nativeAdapter.test.cjs',
+        'extension/test/nativeCancellation.test.cjs', 'extension/test/localLexicalNative.test.cjs'], {
+        env: { ...process.env, FSHARP_BACKEND_PATH: path.join(root, 'target/release/fsharp-navigator') },
+      });
+      return;
+    }
     if(this.layer==='integration'){await build();return testHost(false);}
     if(this.layer==='ui'){await build();return testHost(true);}
     throw new Error('Expected unit, adapter (mocked editor API with real Rust), integration, or ui.');

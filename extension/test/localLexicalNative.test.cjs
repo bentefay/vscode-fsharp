@@ -1,6 +1,5 @@
 'use strict';
-// Staged acceptance suite: run only against an explicitly selected immutable
-// native candidate after document-local navigation is integrated. This executes
+// This suite executes
 // the shipped adapter and a real native process through an editor API double.
 // It neither starts VS Code nor measures editor activation latency.
 const { test } = require('node:test');
@@ -116,12 +115,16 @@ test('UTF16 source positions, warm requests and restart use acknowledged source 
   const first = proof(editor, document);
   assert.deepEqual(ranges(await query()), expected);
   assert.equal(proof(editor, document).sourceHash, first.sourceHash);
-  await assertNoProjectWork(editor);
+  const warm = await assertNoProjectWork(editor);
+  assert.equal(warm.localProofCacheHits, 1);
+  assert.equal(warm.localProofParsedBytes, Buffer.byteLength(source));
   editor.api.restart();
   assert.deepEqual(editor.api.processIds, []);
   assert.deepEqual(ranges(await query()), expected);
   assert.equal(proof(editor, document).sourceHash, first.sourceHash);
-  await assertNoProjectWork(editor);
+  const restarted = await assertNoProjectWork(editor);
+  assert.equal(restarted.localProofCacheHits, 0);
+  assert.equal(restarted.localProofParsedBytes, Buffer.byteLength(source));
 });
 
 test('edit while initialization is in flight withholds the old provider response', async t => {
@@ -142,6 +145,7 @@ for (const [name, source, token] of [
   ['direct RHS lambda', 'module M\nlet exported=fun x -> x+x\n', 'x+x'],
   ['returned lambda', 'module M\nlet exported ()=fun x -> x+x\n', 'x+x'],
   ['ambiguous named argument', 'module M\nlet values=List.map(fun x -> C.M(x=x)) [1]\n', 'x))'],
+  ['compound named argument', 'module M\ntype C = static member M(x:bool) = x\nlet values=List.map(fun x -> C.M(x=not x)) [true]\n', 'x=not'],
   ['directive', '#if DEBUG\nlet values=List.map(fun x -> x+x) [1]\n#endif\n', 'x+x'],
   ['parse error', 'module M\nlet broken = [1\nlet values=List.map(fun x -> x+x) [1]\n', 'x+x'],
   ['method parameter', 'module M\ntype C=static member M(x:int)=x+x\n', 'x+x'],

@@ -58,6 +58,24 @@ providers may expose only exact results; a separate candidate command can show
 approximate results explicitly. Cancellation/limits must not resemble a complete
 empty reference list.
 
+For indexed definition and reference requests, an explicit matching overlay
+version enables a document-local proof before project discovery. Eligible
+callback lambda and nested function parameters return `source: "local-lexical"`,
+`proofScope: "document"`, the acknowledged `sourceHash` (BLAKE3), and
+`documentProofId`. The `proof` object records the compiled engine and parser
+identities, algorithm version, UTF-16 declaration range and half-open body
+byte offsets. Document-scoped results omit `projectContextId` and carry the
+workspace snapshot current at dispatch. A stale version is a request error.
+
+The process-local cache retains positive serialized answers for up to 32
+distinct requests within 128 KiB of accounted storage. An acknowledged edit or
+close invalidates its document's entries. A mode change or cancelled request
+clears the cache. Workspace stats expose `localProofAttempts`, `localProofHits`,
+`localProofCacheHits`, `localProofCacheEntries`, `localProofCacheBytes`,
+`localProofParsedBytes`, `localProofVisitedNodes`, `localProofParseMicros` and
+`localProofMicros`. Parse and proof metrics include unsuccessful work. Cache
+hits reuse the answer without parsing the document.
+
 Hover result:
 
 ```json

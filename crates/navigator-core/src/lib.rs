@@ -2,9 +2,11 @@ mod builtins;
 pub mod cancellation;
 pub mod context;
 pub mod decompiler;
+mod document_navigation;
 mod helper;
 mod index;
 mod library_types;
+mod local_lexical;
 mod metadata;
 pub mod prepared;
 pub mod producer_contract;
@@ -71,6 +73,8 @@ struct Overlay {
     path: String,
     text: String,
     version: i64,
+    #[serde(skip)]
+    source_hash: String,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Symbol {
@@ -88,6 +92,7 @@ pub struct Workspace {
     model: Model,
     index: Index,
     overlays: HashMap<String, Overlay>,
+    document_navigation: document_navigation::DocumentNavigation,
     epoch: u64,
     snapshot: String,
     session_id: String,
@@ -220,6 +225,7 @@ impl Workspace {
             model,
             index,
             overlays: HashMap::new(),
+            document_navigation: Default::default(),
             epoch: 0,
             snapshot: String::new(),
             context_hash: String::new(),
@@ -858,12 +864,20 @@ impl Workspace {
         Ok(())
     }
     pub fn set_cancellation(&mut self, token: cancellation::CancellationToken) {
+        // Transport cancellation may win after dispatch returns but before the
+        // daemon commits completion under its admission lock.
+        if self.cancellation.is_cancelled() {
+            self.document_navigation.clear();
+        }
         self.index.set_cancellation(token.clone());
         self.cancellation = token;
     }
     pub fn dispatch(&mut self, method: &str, p: &Value) -> Result<Value> {
         let _scope = self.cancellation.enter();
-        self.cancellation.check()?;
+        if self.cancellation.is_cancelled() {
+            self.document_navigation.clear();
+            self.cancellation.check()?;
+        }
         self.index.begin_request();
         let result = self.dispatch_inner(method, p);
         self.index.end_request();
@@ -873,6 +887,7 @@ impl Workspace {
                 .err()
                 .is_some_and(|e| e.is::<cancellation::Cancelled>())
         {
+            self.document_navigation.clear();
             // A cancelled scan may have committed valid per-file facts, but
             // never a complete name-domain certificate or reusable answer.
             self.covered_names.clear();
@@ -895,6 +910,7 @@ impl Workspace {
                 let mode = Mode::parse(string(p, "mode")?)?;
                 if self.mode != mode {
                     self.helper = None;
+                    self.document_navigation.clear();
                     self.mode = mode;
                     self.covered_names.clear();
                     for o in self.overlays.values() {
@@ -909,8 +925,15 @@ impl Workspace {
             "document/open" | "document/change" | "update" => self.change(p),
             "document/close" | "close" => {
                 let path = path_param(p)?;
+                self.document_navigation.invalidate(&path);
                 self.overlays.remove(&path);
-                self.refresh_file(&path, true)?;
+                if self.model_loaded || self.mode != Mode::Indexed {
+                    self.refresh_file(&path, true)?;
+                } else {
+                    // Discard dirty postings now. The first disk query will
+                    // validate the saved source if it is ever needed.
+                    self.index.remove(&path)?;
+                }
                 self.semantic_revision += 1;
                 self.covered_names.clear();
                 self.refresh_snapshot()?;
@@ -1035,15 +1058,17 @@ impl Workspace {
             .sum::<usize>()
             + text.len();
         anyhow::ensure!(bytes<=self.overlay_budget,"Open document text exceeds configured overlayBudgetMb; close another document or raise budget");
-        let changed = self
+        let (changed, source_hash) = self
             .index
             .overlay(&path, text, self.mode != Mode::Lexical)?;
+        self.document_navigation.invalidate(&path);
         self.overlays.insert(
             path.clone(),
             Overlay {
                 path,
                 text: text.into(),
                 version,
+                source_hash: source_hash.to_hex().to_string(),
             },
         );
         if changed {
@@ -1321,12 +1346,63 @@ impl Workspace {
         }
     }
     fn navigation(&mut self, method: &str, p: &Value) -> Result<Value> {
-        self.type_proofs = Default::default();
-        self.ensure_model()?;
-        self.drain_events()?;
         let started = Instant::now();
         self.index.counters.query_count += 1;
         let path = path_param(p)?;
+        let actual = self.overlays.get(&path).map(|overlay| overlay.version);
+        let requested = p.get("documentVersion").or_else(|| p.get("version"));
+        if let Some(requested) = requested {
+            let v = requested
+                .as_i64()
+                .context("Invalid query document version")?;
+            anyhow::ensure!(
+                actual == Some(v),
+                "Stale query document version: requested {v}, current {actual:?}"
+            );
+        }
+        let line = u32::try_from(
+            p.get("line")
+                .or_else(|| p.get("position").and_then(|v| v.get("line")))
+                .and_then(Value::as_u64)
+                .context("Missing line")?,
+        )
+        .context("Line exceeds u32")?;
+        let col = u32::try_from(
+            p.get("character")
+                .or_else(|| p.get("position").and_then(|v| v.get("character")))
+                .and_then(Value::as_u64)
+                .context("Missing character")?,
+        )
+        .context("Character exceeds u32")?;
+        let hover = method == "navigation/hover";
+        if self.mode == Mode::Indexed && !hover && requested.is_some() {
+            if let Some(overlay) = self.overlays.get(&path) {
+                let at = local_lexical::Position {
+                    line,
+                    character: col,
+                };
+                let include_declaration = p
+                    .get("includeDeclaration")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                if let Some(mut answer) = self.document_navigation.query(
+                    overlay,
+                    at,
+                    method == "navigation/references",
+                    include_declaration,
+                    &self.cancellation,
+                )? {
+                    answer["snapshot"] = json!(self.epoch);
+                    answer["snapshotId"] = json!(self.snapshot);
+                    self.index.counters.query_time_micros += started.elapsed().as_micros() as u64;
+                    self.cancellation.check()?;
+                    return Ok(answer);
+                }
+            }
+        }
+        self.type_proofs = Default::default();
+        self.ensure_model()?;
+        self.drain_events()?;
         let requested_project = p
             .get("projectPath")
             .and_then(Value::as_str)
@@ -1349,28 +1425,6 @@ impl Workspace {
             ));
         }
         self.ensure_path(&path)?;
-        let requested = p
-            .get("documentVersion")
-            .or_else(|| p.get("version"))
-            .and_then(Value::as_i64);
-        let actual = self.overlays.get(&path).map(|o| o.version);
-        if let Some(v) = requested {
-            anyhow::ensure!(
-                actual == Some(v),
-                "Stale query document version: requested {v}, current {actual:?}"
-            );
-        }
-        let line = p
-            .get("line")
-            .or_else(|| p.get("position").and_then(|v| v.get("line")))
-            .and_then(Value::as_u64)
-            .context("Missing line")? as u32;
-        let col = p
-            .get("character")
-            .or_else(|| p.get("position").and_then(|v| v.get("character")))
-            .and_then(Value::as_u64)
-            .context("Missing character")? as u32;
-        let hover = method == "navigation/hover";
         let semantic_snapshot = format!("{}:semantic:{}", self.model_hash, self.semantic_revision);
         let semantic_cached = if self.mode == Mode::Indexed
             && !hover
@@ -2113,6 +2167,7 @@ impl Workspace {
     }
     pub fn stats(&self) -> Result<Value> {
         let mut stats = serde_json::to_value(&self.index.counters)?;
+        self.document_navigation.stats(&mut stats);
         stats["mode"] = json!(self.mode.name());
         stats["modelLoadMicros"] = json!(self.model_load_micros);
         stats["modelValidation"] = json!(self.model.validation_metrics);

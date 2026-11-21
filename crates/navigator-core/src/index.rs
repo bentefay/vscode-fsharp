@@ -415,11 +415,16 @@ impl Index {
             "Source exceeds configured maxFileBytes: {path}"
         );
         let (source, hash) = self.read_verified(path, &identity)?;
-        let changed = self.update(path, &source, mtime, len, false, indexed, false)?;
+        let (changed, _) = self.update(path, &source, mtime, len, false, indexed, false)?;
         self.remember_validation(path, identity, hash);
         Ok(changed)
     }
-    pub fn overlay(&mut self, path: &str, source: &str, indexed: bool) -> Result<bool> {
+    pub fn overlay(
+        &mut self,
+        path: &str,
+        source: &str,
+        indexed: bool,
+    ) -> Result<(bool, blake3::Hash)> {
         anyhow::ensure!(
             source.len() <= self.max_file_bytes,
             "Overlay exceeds maxFileBytes"
@@ -493,9 +498,10 @@ impl Index {
         dirty: bool,
         indexed: bool,
         eager: bool,
-    ) -> Result<bool> {
+    ) -> Result<(bool, blake3::Hash)> {
         self.cancellation.check()?;
         let _scope = self.cancellation.enter();
+        let source_hash = blake3::hash(source.as_bytes());
         let hash = format!(
             "{}:{}",
             if indexed {
@@ -503,7 +509,7 @@ impl Index {
             } else {
                 "lexical-summary2"
             },
-            blake3::hash(source.as_bytes()).to_hex()
+            source_hash.to_hex()
         );
         let old: Option<String> = self
             .db
@@ -537,7 +543,7 @@ impl Index {
                     self.invalidate_request_cache();
                 }
             }
-            return Ok(false);
+            return Ok((false, source_hash));
         }
         let parsed = if !eager {
             None
@@ -598,7 +604,7 @@ impl Index {
             self.counters.indexed_files += 1;
         }
         self.counters.invalidated_files += 1;
-        Ok(true)
+        Ok((true, source_hash))
     }
     pub fn remove(&mut self, path: &str) -> Result<()> {
         self.invalidate_request_cache();
