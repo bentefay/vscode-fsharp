@@ -1425,7 +1425,29 @@ impl Workspace {
         )
         .context("Character exceeds u32")?;
         let hover = method == "navigation/hover";
-        if self.mode == Mode::Indexed && !hover && versioned {
+        let mode = self.mode.name();
+        let answer_key = |project: Option<&str>| {
+            serde_json::to_string(&json!([
+                method,
+                path,
+                line,
+                col,
+                p.get("includeDeclaration"),
+                p.get("traceReferences"),
+                mode,
+                project
+            ]))
+        };
+        // A prior general proof is only a routing hint. The normal path below
+        // still selects the project, drains events and validates dependencies.
+        // Repeating a global query should not reparse a failed local proof.
+        let local_candidate = self.mode == Mode::Indexed && !hover && versioned;
+        let indexed_answer = local_candidate
+            && self.model_loaded
+            && self
+                .index
+                .has_answer(&answer_key(self.active_project.as_deref())?, &self.snapshot)?;
+        if local_candidate && !indexed_answer {
             if let Some(overlay) = self.overlays.get(&path) {
                 let at = local_lexical::Position {
                     line,
@@ -1521,16 +1543,7 @@ impl Workspace {
                 }
             }
         }
-        let key = serde_json::to_string(&json!([
-            method,
-            path,
-            line,
-            col,
-            p.get("includeDeclaration"),
-            p.get("traceReferences"),
-            self.mode.name(),
-            self.active_project
-        ]))?;
+        let key = answer_key(self.active_project.as_deref())?;
         let mut result = if self.mode == Mode::Semantic {
             self.semantic(method, p)?
         } else if let Some(cached) = semantic_cached {
@@ -2391,6 +2404,39 @@ mod integration_tests {
             drop(ws);
             fs::remove_dir_all(root).unwrap();
         }
+    }
+
+    #[test]
+    fn warm_indexed_definitions_skip_repeated_local_parsing_and_rebind_after_an_edit() {
+        let (root, mut ws) = fixture();
+        let main = root.join("Main.fs");
+        ws.dispatch(
+            "document/open",
+            &json!({"path":main,"text":fs::read_to_string(&main).unwrap(),"version":1}),
+        )
+        .unwrap();
+        let cursor = json!({"path":main,"line":3,"character":13,"version":1});
+        let first = ws.dispatch("navigation/definition", &cursor).unwrap();
+        assert!(first["locations"][0]["uri"]
+            .as_str()
+            .unwrap()
+            .ends_with("/B.fs"));
+        let before = ws.stats().unwrap()["localProofParsedBytes"]
+            .as_u64()
+            .unwrap();
+        assert!(before > 0);
+        let repeated = ws.dispatch("navigation/definition", &cursor).unwrap();
+        assert_eq!(repeated["locations"], first["locations"]);
+        assert_eq!(ws.stats().unwrap()["localProofParsedBytes"], before);
+        ws.dispatch("document/open", &json!({"path":root.join("B.fs"),"text":"module LibraryB\nlet other = 2\n","version":1})).unwrap();
+        let edited = ws.dispatch("navigation/definition", &cursor).unwrap();
+        assert_eq!(edited["completeness"], "exact");
+        assert!(edited["locations"][0]["uri"]
+            .as_str()
+            .unwrap()
+            .ends_with("/A.fs"));
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

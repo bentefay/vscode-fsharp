@@ -1117,6 +1117,13 @@ impl Index {
     pub fn has_module(&self, name: &str) -> Result<bool> {
         Ok(self.db.query_row("SELECT 1 FROM modules WHERE name=?1 UNION SELECT 1 FROM files WHERE module=?1 LIMIT 1",[name],|_|Ok(())).optional()?.is_some())
     }
+    pub fn has_answer(&self, key: &str, snapshot: &str) -> Result<bool> {
+        Ok(self.db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM answers WHERE key=?1 AND snapshot=?2)",
+            params![key, snapshot],
+            |row| row.get(0),
+        )?)
+    }
     pub fn answer(&mut self, key: &str, snapshot: &str) -> Result<Option<serde_json::Value>> {
         let r: Option<String> = self
             .db
