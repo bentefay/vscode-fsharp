@@ -1860,14 +1860,17 @@ impl Workspace {
             ));
         }
         let declaration = origin.declaration_at(symbol.token);
+        let method = origin
+            .method_declarations
+            .iter()
+            .find(|m| m.token == symbol.token);
+        let qualified_use_range = declaration.is_some_and(|d| d.top_level && d.kind == "value")
+            || method.is_some_and(|m| m.is_static);
         let is_member = origin
             .record_types
             .iter()
             .any(|r| r.fields.iter().any(|f| f.token == symbol.token))
-            || origin
-                .method_declarations
-                .iter()
-                .any(|m| m.token == symbol.token);
+            || method.is_some();
         let is_type = origin.type_aliases.iter().any(|a| a.token == symbol.token)
             || origin.record_types.iter().any(|r| r.token == symbol.token);
         let is_record_field = origin.record_types.iter().any(|record| {
@@ -2063,12 +2066,10 @@ impl Workspace {
                         let is_declaration = (path == found.path && token == found.token)
                             || path == symbol.path && parsed.tokens[token].range() == origin_range;
                         if equal && (include_decl || !is_declaration) {
-                            // FCS reports the written module qualification as part of a
-                            // value use's range, including an abbreviation such as A.x.
-                            let range = if !is_declaration
-                                && declaration.is_some_and(|d| d.top_level && d.kind == "value")
-                            {
-                                parsed.module_value_use_range(token)
+                            // FCS includes the written module/type path for
+                            // uses of module values and source static methods.
+                            let range = if !is_declaration && qualified_use_range {
+                                parsed.qualified_use_range(token)
                             } else {
                                 parsed.tokens[token].range()
                             };

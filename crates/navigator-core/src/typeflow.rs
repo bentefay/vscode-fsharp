@@ -43,8 +43,9 @@ impl<T> Lookup<T> {
 enum AllowedTerm<'a> {
     External(&'a serde_json::Value),
     DocumentModule(usize),
-    /// A source type at the end of a path may have module prefixes.
-    StaticMethodOwner,
+    /// A previously declared child module may shadow a global namespace
+    /// at the first component of a source static receiver.
+    StaticMethodOwner(Option<&'a str>),
     /// The existing ordered source module lookup selects the export. Terms
     /// (especially opened values) still have to be excluded at every prefix.
     SourceCallModule,
@@ -757,6 +758,35 @@ impl Workspace {
         )))
     }
 
+    fn local_static_receiver_module<'a>(
+        parsed: &ParsedFile,
+        token: usize,
+        qualifier: &'a str,
+        record: &RecordType,
+    ) -> Option<&'a str> {
+        let (root, name) = qualifier.split_once('.')?;
+        let parent = parsed.module_at(token)?;
+        let module = format!("{parent}.{root}");
+        let offset = parsed.tokens[token].start;
+        if name.contains('.') || record.name != format!("{module}.{name}") {
+            return None;
+        }
+        let owner = parsed.modules.iter().find(|m| {
+            m.name == module && m.start <= record.start && record.start < m.end && m.end <= offset
+        })?;
+        let later_import = parsed
+            .opens
+            .iter()
+            .any(|o| owner.end <= o.offset && o.offset < offset && offset < o.scope_end)
+            || parsed.attributes.iter().any(|a| {
+                a.owner_kind == "module"
+                    && owner.end <= a.owner_end
+                    && a.owner_end <= offset
+                    && offset < a.scope_end
+            });
+        (!later_import).then_some(root)
+    }
+
     fn method_binding(
         &mut self,
         path: &str,
@@ -786,14 +816,7 @@ impl Workspace {
         let Some(qualifier) = parsed.qualifier(token) else {
             return Ok(None);
         };
-        if !self.term_qualification_clear_except(
-            path,
-            parsed,
-            call.receiver,
-            &qualifier,
-            depth + 1,
-            Some(AllowedTerm::StaticMethodOwner),
-        )? {
+        if self.builtin_path.is_none() {
             return Ok(None);
         }
         let Some(identity) = self.named_type(path, parsed, call.receiver, &qualifier, depth + 1)?
@@ -814,6 +837,21 @@ impl Workspace {
             return Ok(None);
         };
         if record.base_type.is_some() || !record.type_parameters.is_empty() {
+            return Ok(None);
+        }
+        let local_root = if identity.path == path {
+            Self::local_static_receiver_module(parsed, token, &qualifier, record)
+        } else {
+            None
+        };
+        if !self.term_qualification_clear_except(
+            path,
+            parsed,
+            call.receiver,
+            &qualifier,
+            depth + 1,
+            Some(AllowedTerm::StaticMethodOwner(local_root)),
+        )? {
             return Ok(None);
         }
         let methods = owner
@@ -2772,6 +2810,32 @@ impl Workspace {
         self.term_qualification_clear_except(path, parsed, token, text, depth, None)
     }
 
+    fn compiled_with_visible_signature(&self, file: &str, visible: &[String]) -> bool {
+        if !project::implementation(file) {
+            return false;
+        }
+        let Some(owner) = self
+            .model
+            .source_instance_project(file, self.active_project.as_deref())
+        else {
+            return false;
+        };
+        if !owner.exact {
+            return false;
+        }
+        let mut peers = owner
+            .files
+            .iter()
+            .filter(|other| project::same_stem(file, other));
+        peers
+            .next()
+            .is_some_and(|sig| project::signature(sig) && visible.contains(sig))
+            && peers
+                .next()
+                .is_some_and(|implementation| implementation == file)
+            && peers.next().is_none()
+    }
+
     fn term_qualification_clear_except(
         &mut self,
         path: &str,
@@ -2855,6 +2919,23 @@ impl Workspace {
             return Ok(false);
         }
         let visible = self.visible_files(path);
+        if let Some(AllowedTerm::StaticMethodOwner(Some(root))) = allowed {
+            // A type can itself supply a static value at the next component.
+            // The source module proof does not model that competition.
+            if self
+                .type_candidate_paths(root)?
+                .iter()
+                .any(|p| visible.contains(p))
+                || self
+                    .builtin_environment
+                    .as_ref()
+                    .unwrap()
+                    .type_names(&self.index.db, root)?
+                    .is_none_or(|types| !types.is_empty())
+            {
+                return Ok(false);
+            }
+        }
         let mut allowed_visible = false;
         let mut prefix = String::new();
         for (position, part) in parts.iter().enumerate() {
@@ -2929,6 +3010,12 @@ impl Workspace {
                 }
             }
             for row in scopes {
+                if position == 0
+                    && row["kind"] == "namespace"
+                    && matches!(allowed, Some(AllowedTerm::StaticMethodOwner(Some(root))) if row["sourceFullName"].as_str() == Some(root))
+                {
+                    continue;
+                }
                 if row["kind"] != "module"
                     && matches!(allowed, None | Some(AllowedTerm::External(_)))
                 {
@@ -2976,7 +3063,7 @@ impl Workspace {
                 if !visible.contains(&file) {
                     continue;
                 }
-                if file != path && project::has_signature(&file, &visible) {
+                if file != path && self.compiled_with_visible_signature(&file, &visible) {
                     continue;
                 }
                 let loaded = if file == path {
@@ -3081,15 +3168,20 @@ impl Workspace {
                 }
                 if matches!(
                     allowed,
-                    Some(AllowedTerm::StaticMethodOwner | AllowedTerm::SourceCallModule)
+                    Some(AllowedTerm::StaticMethodOwner(_) | AllowedTerm::SourceCallModule)
                 ) {
+                    // Other files see the signature's public module, even
+                    // when both signature and implementation contain its name.
+                    if file != path && self.compiled_with_visible_signature(&file, &visible) {
+                        continue;
+                    }
                     if file == path && module.start >= offset {
                         continue;
                     }
                     // A second source scope can supply a different path under
                     // an open. A static receiver also excludes a final module.
                     if saw_source_scope
-                        || (matches!(allowed, Some(AllowedTerm::StaticMethodOwner))
+                        || (matches!(allowed, Some(AllowedTerm::StaticMethodOwner(_)))
                             && position + 1 == parts.len())
                     {
                         return Ok(false);
@@ -3115,7 +3207,7 @@ impl Workspace {
         }
         Ok(matches!(
             allowed,
-            None | Some(AllowedTerm::SourceCallModule | AllowedTerm::StaticMethodOwner)
+            None | Some(AllowedTerm::SourceCallModule | AllowedTerm::StaticMethodOwner(_))
         ) || allowed_visible)
     }
     /// A root module in the compiler-selected references can supply an expression
@@ -6094,10 +6186,48 @@ mod tests {
     }
 
     #[test]
+    fn a_paired_module_exposes_its_signature_to_qualified_calls() {
+        let (path, initial) = workspace("module Consumer\nlet read = Api.exposed 1\n");
+        drop(initial);
+        fs::write(
+            path.join("Api.fsi"),
+            "module Api\nval exposed: int -> int\n",
+        )
+        .unwrap();
+        fs::write(path.join("Api.fs"), "module Api\nlet exposed x=x\n").unwrap();
+        let project = path.join("Main.fsproj");
+        let xml = fs::read_to_string(&project).unwrap().replace(
+            "<Compile Include=\"Main.fs\"/>",
+            "<Compile Include=\"Api.fsi\"/><Compile Include=\"Api.fs\"/><Compile Include=\"Main.fs\"/>",
+        );
+        fs::write(project, xml).unwrap();
+        let mut ws = Workspace::open(&json!({"root":path})).unwrap();
+        certify_type_names(&path, &mut ws, json!({}));
+        let answer = query(&mut ws, &path, "navigation/definition", 1, 15);
+        assert_eq!(answer["completeness"], "exact", "{answer}");
+        assert_eq!(
+            answer["locations"][0]["uri"],
+            crate::project::uri(path.join("Api.fsi").to_str().unwrap())
+        );
+        let file = path.join("Api.fs").to_string_lossy().into_owned();
+        let visible = ws.visible_files(path.join("Main.fs").to_str().unwrap());
+        assert!(ws.compiled_with_visible_signature(&file, &visible));
+        ws.model.projects[0].files.swap(0, 1);
+        assert!(!ws.compiled_with_visible_signature(&file, &visible));
+        fs::remove_dir_all(path).unwrap();
+    }
+
+    #[test]
     fn source_qualified_static_member_hover_remains_repository_owned() {
         let source="namespace Main\nmodule LocalSystem =\n    module System =\n        type String =\n            static member IsNullOrEmpty (_value:string) = false\n    let value=System.String.IsNullOrEmpty \"\"\n";
         let (path, mut ws) = workspace(source);
         certify_type_names(&path, &mut ws, json!({}));
+        let inventory = path.join("type-inventory.json");
+        let mut environment: Value =
+            serde_json::from_slice(&fs::read(&inventory).unwrap()).unwrap();
+        environment["scopeNames"] =
+            json!({"System":[{"sourceFullName":"System","kind":"namespace","enclosingScope":""}]});
+        fs::write(inventory, serde_json::to_vec(&environment).unwrap()).unwrap();
         let col = source
             .lines()
             .nth(5)
@@ -6108,6 +6238,16 @@ mod tests {
         assert_eq!(result["completeness"], "exact", "{result}");
         assert_eq!(result["ownership"], "workspace", "{result}");
         assert!(result["hover"].is_null());
+        let refs = query(&mut ws, &path, "navigation/references", 5, col);
+        assert_eq!(refs["completeness"], "exact", "{refs}");
+        assert_eq!(refs["locations"].as_array().unwrap().len(), 1, "{refs}");
+        assert_eq!(
+            refs["locations"][0]["range"],
+            json!({
+                "start":{"line":5,"character":14},
+                "end":{"line":5,"character":col + "IsNullOrEmpty".len()}
+            })
+        );
         drop(ws);
         fs::remove_dir_all(path).unwrap();
     }

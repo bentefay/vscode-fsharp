@@ -1096,6 +1096,10 @@ impl ParsedFile {
     }
 
     pub fn module_value_use_range(&self, token: usize) -> Range {
+        self.qualified_use_range(token)
+    }
+
+    pub(crate) fn qualified_use_range(&self, token: usize) -> Range {
         let mut range = self.tokens[token].range();
         range.start = self.tokens[self.qualifier_start(token)].range().start;
         range
