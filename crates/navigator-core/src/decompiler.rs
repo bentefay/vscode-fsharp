@@ -590,7 +590,7 @@ mod tests {
         let temp = Temp::new();
         let pid_file = temp.0.join("grandchild.pid");
         let child_source = format!(
-            "import os,time;os.setsid();open({},'w').write(str(os.getpid()));time.sleep(30)",
+            "from pathlib import Path;import os,time;os.setsid();dest=Path({});tmp=dest.with_suffix('.tmp');tmp.write_text(str(os.getpid()));tmp.replace(dest);time.sleep(30)",
             serde_json::to_string(&pid_file.to_string_lossy()).unwrap()
         );
         let source=format!("import subprocess,sys,time\nsubprocess.Popen([sys.executable,'-c',{}])\ntime.sleep(30)\n",serde_json::to_string(&child_source).unwrap());
