@@ -390,7 +390,20 @@ impl Workspace {
         }
         self.model
             .source_instance_project(path, self.active_project.as_deref())
-            .is_none_or(|project| project.files.iter().any(|file| file.ends_with(".fsi")))
+            .is_none_or(|project| {
+                // The compiler accepts mixed-case signature extensions. More
+                // generally, absence is only known for recognized implementation
+                // inputs: unknown/legacy suffixes are not evidence of no .fsi.
+                project.files.iter().any(|file| {
+                    !Path::new(file)
+                        .extension()
+                        .and_then(|extension| extension.to_str())
+                        .is_some_and(|extension| {
+                            extension.eq_ignore_ascii_case("fs")
+                                || extension.eq_ignore_ascii_case("fsx")
+                        })
+                })
+            })
     }
     fn ambiguous_instance(&self, path: &str) -> bool {
         self.model
@@ -2182,17 +2195,23 @@ mod integration_tests {
     #[test]
     fn parameter_reference_domains_keep_local_sets_but_refuse_possible_signature_exports() {
         let source = "module Local\nlet ordinary ordinaryArg=ordinaryArg+ordinaryArg\nlet direct=fun directArg -> directArg+directArg\nlet returned ()=fun returnedArg -> returnedArg+returnedArg\nlet nested ()=let inner nestedArg=nestedArg+nestedArg in inner\nlet mapped=List.map (fun callbackArg -> callbackArg+callbackArg) [1]\nlet computed ()=let one=1 in fun computedArg -> computedArg+one\nlet pattern=function patternArg -> patternArg+patternArg\n";
-        for signature in [false, true] {
+        for signature_name in [
+            None,
+            Some("Signature.fsi"),
+            Some("Signature.FSI"),
+            Some("Signature.FsI"),
+        ] {
             let (path, ws) = fixture();
             drop(ws);
-            let signature_item = if signature {
-                "<Compile Include=\"Signature.fsi\"/>"
-            } else {
-                ""
-            };
+            let signature = signature_name.is_some();
+            let signature_item = signature_name
+                .map(|name| format!("<Compile Include=\"{name}\"/>"))
+                .unwrap_or_default();
             fs::write(path.join("Test.fsproj"), format!("<Project Sdk=\"Microsoft.NET.Sdk\"><ItemGroup>{signature_item}<Compile Include=\"Implementation.fs\"/></ItemGroup></Project>")).unwrap();
             // Different physical basenames can still be one compiler pair.
-            fs::write(path.join("Signature.fsi"), "module Local\nval ordinary:ordinaryArg:int -> int\nval direct:directArg:int -> int\nval returned:unit -> returnedArg:int -> int\nval nested:unit -> (int -> int)\nval mapped:int list\nval computed:unit -> (int -> int)\nval pattern:patternArg:int -> int\n").unwrap();
+            if let Some(name) = signature_name {
+                fs::write(path.join(name), "module Local\nval ordinary:ordinaryArg:int -> int\nval direct:directArg:int -> int\nval returned:unit -> returnedArg:int -> int\nval nested:unit -> (int -> int)\nval mapped:int list\nval computed:unit -> (int -> int)\nval pattern:patternArg:int -> int\n").unwrap();
+            }
             let implementation = path.join("Implementation.fs");
             fs::write(&implementation, source).unwrap();
             let mut ws = Workspace::open(&json!({"root":path,"mode":"indexed"})).unwrap();
@@ -2237,6 +2256,34 @@ mod integration_tests {
             drop(ws);
             fs::remove_dir_all(path).unwrap();
         }
+    }
+    #[test]
+    fn signature_absence_requires_only_recognized_implementation_inputs() {
+        let (path, mut ws) = fixture();
+        ws.ensure_model().unwrap();
+        let main = normalize(path.join("Main.fs"));
+        assert!(!ws.possible_signature_context(&main));
+        for (name, possible) in [
+            ("Another.fs", false),
+            ("Another.FS", false),
+            ("Another.FsX", false),
+            ("Another.fsi", true),
+            ("Another.FSI", true),
+            ("Another.FsI", true),
+            ("Another.fsscript", true),
+            ("Another.ml", true),
+            ("Another.fş", true),
+            ("Another.未知", true),
+            ("dir.fsi/Another", true),
+        ] {
+            ws.model.projects[0].files.push(normalize(path.join(name)));
+            assert_eq!(ws.possible_signature_context(&main), possible, "{name}");
+            ws.model.projects[0].files.pop();
+        }
+        ws.model.projects[0].exact = false;
+        assert!(ws.possible_signature_context(&main));
+        drop(ws);
+        fs::remove_dir_all(path).unwrap();
     }
     #[test]
     fn callable_parameter_body_sets_are_not_complete_named_argument_domains() {
