@@ -1,0 +1,403 @@
+{
+  "nativeSourceCommit": "1f375b27e2bb22605b4eee187667a7f15f14a0e9",
+  "nativeExecutableSha256": "b693cc9a1e03bd8d01c3c02aac468be113cfbc2cb2acc807039ce8d7ba46ee5e",
+  "baselineSourceCommit": "e8fb6a93dd68da38b3b952777ae7f1776be437d3",
+  "graceCommit": "39960e07b73cd142cc0c1fd070c0591be91c1933",
+  "fixed": {
+    "baseline": {
+      "synthetic": {
+        "by_method": {
+          "definition": {
+            "correct": 79
+          },
+          "references": {
+            "unavailable": 2,
+            "correct": 16
+          },
+          "hover": {
+            "correct": 3
+          }
+        },
+        "correct": 98,
+        "unavailable": 2,
+        "wrong_exact": 0,
+        "error": 0,
+        "executable_sha256": "710f046e290da02e8e85362add92125334f5ec7e1bb498f1201fc25eb6905fed",
+        "fixture_sha256": "48755937936e3591fc22a6ef591c33688a14fd71538d96fa95adf1555a531482",
+        "prepared_sha256": {
+          "model.json": "e20f6e6eee8c72cc22764684bb229e05bb51f9553c0bf1250cfd7908ee8c7319",
+          "catalog.json": "0b5ad1e093a5adeccde4da41b689ca3ed1408ea372229fdfda6b6468a5e3a1bd",
+          "environment.json": "a44b8562c943079d348ed3b58a8c2890a91906433fd3431165e94aa8b62f59ba"
+        },
+        "results_sha256": "39ecb8e9c7821e6a47a84b72458ff7a880164277dedb240c77bc3ddda4f72f70"
+      },
+      "grace": {
+        "by_method": {
+          "definition": {
+            "correct": 10,
+            "unavailable": 13
+          },
+          "references": {
+            "correct": 4,
+            "unavailable": 19
+          }
+        },
+        "correct": 14,
+        "unavailable": 32,
+        "wrong_exact": 0,
+        "error": 0,
+        "executable_sha256": "710f046e290da02e8e85362add92125334f5ec7e1bb498f1201fc25eb6905fed",
+        "fixture_sha256": "2273da19fadc175ec6ebeac1eb8dbae694db05335369ab54a598d5b4f45862a1",
+        "prepared_sha256": {
+          "model.json": "4d14363b4e56e6a84eada12f3d53bbe09e2223b9213980eac1aa876c5b00664f",
+          "catalog.json": "9fcd073b75849977ad25349623f69ae9e5344d35f4744f3c367cb64019f75ced",
+          "environment.json": "0b72150035ffa9f0ccc0239944e6d4b93c02c818c58530b29b6b60a5ca90655b"
+        },
+        "results_sha256": "d98392950440c6d84be92adbb3b80e9754c20449efe3baacfbcf2c13378133fe"
+      }
+    },
+    "candidate": {
+      "synthetic": {
+        "by_method": {
+          "definition": {
+            "correct": 79
+          },
+          "references": {
+            "correct": 18
+          },
+          "hover": {
+            "correct": 3
+          }
+        },
+        "correct": 100,
+        "unavailable": 0,
+        "wrong_exact": 0,
+        "error": 0,
+        "executable_sha256": "b693cc9a1e03bd8d01c3c02aac468be113cfbc2cb2acc807039ce8d7ba46ee5e",
+        "fixture_sha256": "48755937936e3591fc22a6ef591c33688a14fd71538d96fa95adf1555a531482",
+        "prepared_sha256": {
+          "model.json": "e20f6e6eee8c72cc22764684bb229e05bb51f9553c0bf1250cfd7908ee8c7319",
+          "catalog.json": "0b5ad1e093a5adeccde4da41b689ca3ed1408ea372229fdfda6b6468a5e3a1bd",
+          "environment.json": "a44b8562c943079d348ed3b58a8c2890a91906433fd3431165e94aa8b62f59ba"
+        },
+        "results_sha256": "0bac43f6a5bef8e9ea53a81e7c4c938bb5ec09460d85a7d80b4b5c793a61e993"
+      },
+      "grace": {
+        "by_method": {
+          "definition": {
+            "correct": 12,
+            "unavailable": 11
+          },
+          "references": {
+            "correct": 5,
+            "unavailable": 18
+          }
+        },
+        "correct": 17,
+        "unavailable": 29,
+        "wrong_exact": 0,
+        "error": 0,
+        "executable_sha256": "b693cc9a1e03bd8d01c3c02aac468be113cfbc2cb2acc807039ce8d7ba46ee5e",
+        "fixture_sha256": "2273da19fadc175ec6ebeac1eb8dbae694db05335369ab54a598d5b4f45862a1",
+        "prepared_sha256": {
+          "model.json": "4d14363b4e56e6a84eada12f3d53bbe09e2223b9213980eac1aa876c5b00664f",
+          "catalog.json": "9fcd073b75849977ad25349623f69ae9e5344d35f4744f3c367cb64019f75ced",
+          "environment.json": "0b72150035ffa9f0ccc0239944e6d4b93c02c818c58530b29b6b60a5ca90655b"
+        },
+        "results_sha256": "5d2edfeca86ce83b64a5e0e1d8d9ef8c3676522f2500e49c2a1cef610e631923"
+      }
+    }
+  },
+  "compilerControls": {
+    "sdk": "10.0.400",
+    "oracleScriptSha256": "da4a24867a65c4c0a7425989a4d362525a0a55fbf8d661222e4b714328ed1870",
+    "preparationHelperSha256": "1e4a07e29cd3b2fec00a87c104354a6384a56e148bdd236dc2cf750ce6092a65",
+    "engines": {
+      "previous": {
+        "binarySha256": "710f046e290da02e8e85362add92125334f5ec7e1bb498f1201fc25eb6905fed",
+        "counts": {
+          "correct": 357,
+          "unavailable": 98,
+          "wrong": 376
+        }
+      },
+      "candidate": {
+        "binarySha256": "b693cc9a1e03bd8d01c3c02aac468be113cfbc2cb2acc807039ce8d7ba46ee5e",
+        "counts": {
+          "correct": 328,
+          "unavailable": 503
+        }
+      }
+    }
+  },
+  "nativeLifecycle": {
+    "sourceSha256": "8b96de26c296267e760ad39c3466a6d6bf30fd6dcfccd9b83e189b026d75f0d3",
+    "modelSha256": "4d14363b4e56e6a84eada12f3d53bbe09e2223b9213980eac1aa876c5b00664f",
+    "binaries": {
+      "baseline": "710f046e290da02e8e85362add92125334f5ec7e1bb498f1201fc25eb6905fed",
+      "candidate": "b693cc9a1e03bd8d01c3c02aac468be113cfbc2cb2acc807039ce8d7ba46ee5e"
+    },
+    "summary": {
+      "baseline": {
+        "cold": {
+          "correct": 6,
+          "total": 6,
+          "wrongExact": 0,
+          "requestMsMedian": 186.898127,
+          "lifecycleMsMedian": 197.898803
+        },
+        "warm": {
+          "correct": 72,
+          "total": 72,
+          "wrongExact": 0,
+          "requestMsMedian": 0.4374125
+        },
+        "firstReferences": {
+          "correct": 6,
+          "total": 6,
+          "wrongExact": 0,
+          "requestMsMedian": 1.194062
+        },
+        "warmReferences": {
+          "correct": 72,
+          "total": 72,
+          "wrongExact": 0,
+          "requestMsMedian": 0.4526395
+        },
+        "edit": {
+          "correct": 6,
+          "total": 6,
+          "wrongExact": 0,
+          "requestMsMedian": 16.0768635,
+          "lifecycleMsMedian": 17.5585505
+        },
+        "restart": {
+          "correct": 6,
+          "total": 6,
+          "wrongExact": 0,
+          "requestMsMedian": 133.904919,
+          "lifecycleMsMedian": 138.13252649999998
+        },
+        "globalCold": {
+          "correct": 6,
+          "total": 6,
+          "wrongExact": 0,
+          "requestMsMedian": 144.94149
+        },
+        "globalWarm": {
+          "correct": 72,
+          "total": 72,
+          "wrongExact": 0,
+          "requestMsMedian": 0.333163
+        },
+        "firstTreeRssKiBMedian": 20534.0
+      },
+      "candidate": {
+        "cold": {
+          "correct": 6,
+          "total": 6,
+          "wrongExact": 0,
+          "requestMsMedian": 7.051933,
+          "lifecycleMsMedian": 13.947581
+        },
+        "warm": {
+          "correct": 72,
+          "total": 72,
+          "wrongExact": 0,
+          "requestMsMedian": 0.0841595
+        },
+        "firstReferences": {
+          "correct": 6,
+          "total": 6,
+          "wrongExact": 0,
+          "requestMsMedian": 0.06275249999999999
+        },
+        "warmReferences": {
+          "correct": 72,
+          "total": 72,
+          "wrongExact": 0,
+          "requestMsMedian": 0.0688165
+        },
+        "edit": {
+          "correct": 6,
+          "total": 6,
+          "wrongExact": 0,
+          "requestMsMedian": 6.9580649999999995,
+          "lifecycleMsMedian": 8.373833
+        },
+        "restart": {
+          "correct": 6,
+          "total": 6,
+          "wrongExact": 0,
+          "requestMsMedian": 7.814712,
+          "lifecycleMsMedian": 11.711580999999999
+        },
+        "globalCold": {
+          "correct": 6,
+          "total": 6,
+          "wrongExact": 0,
+          "requestMsMedian": 139.5556935
+        },
+        "globalWarm": {
+          "correct": 72,
+          "total": 72,
+          "wrongExact": 0,
+          "requestMsMedian": 0.359101
+        },
+        "firstTreeRssKiBMedian": 15166.0
+      }
+    }
+  },
+  "offlineGrace": {
+    "answersBySource": {
+      "persisted-semantic": 46
+    },
+    "correct": 46,
+    "strictRangeMatches": 46,
+    "invalidatedOnEdit": true,
+    "refuseDirtyImport": true,
+    "workspaceIndexMs": 1843.52,
+    "sampledPeakTreeKiB": 134356,
+    "snapshotBytes": 16530121,
+    "fullPreparationWallSeconds": 167.59,
+    "semanticExportWallSeconds": 46.71,
+    "semanticExportPeakMiB": 558.65
+  },
+  "desktopReport": "../../docs/editor-host-status.md",
+  "rawReportsSha256": {
+    "compilerControls": "ac58f4839f79e6e4ec22de4c0b33452a80f3e58e4ff4a90d4f70615599c83b19",
+    "nativeLifecycle": "91280db120e6420e6f078e7a3bf6e744f460fd2afdbdc8ac4757741a251f1746",
+    "offlineGrace": "bc04b07bcfe60abcdc989c5ab1224c1d48dc32eaaef006f839bc9eb9c0ed1cc3",
+    "singleUseFollowUp": "be222dd5ad0c3f397bb613c4b1e719b39a2591991b15841ef143f9b26f18f6a6",
+    "syntheticEdits": "1480f24dc3f26bb82e19f6480df002bf7634fe381992b70881be2abf069624dc"
+  },
+  "nativeSourceManifestSha256": "80d1c4264cd6dfa25b6de8b856665549f95735d4d16107ea86fd29a2ac8cedc2",
+  "fullExtensionSourceCommit": "1f375b27e2bb22605b4eee187667a7f15f14a0e9",
+  "linuxX64VsixSha256": "a8970dfaed1f327a5e15541aacc139c59ac82fc27c6efed14f9b148f16339c05",
+  "dirtyEdits": {
+    "edits": 7,
+    "checks": 15,
+    "correct": 15,
+    "expectedUnavailable": 1,
+    "wrongExact": 0,
+    "error": 0
+  },
+  "singleUseFollowUp": {
+    "sourceSha256": "8b96de26c296267e760ad39c3466a6d6bf30fd6dcfccd9b83e189b026d75f0d3",
+    "modelSha256": "4d14363b4e56e6a84eada12f3d53bbe09e2223b9213980eac1aa876c5b00664f",
+    "binaries": {
+      "baseline": "7068357ab7a77bff7d362009a48ef08d6e6276ae4f74b4251a8b00b40f8393f8",
+      "candidate": "b693cc9a1e03bd8d01c3c02aac468be113cfbc2cb2acc807039ce8d7ba46ee5e"
+    },
+    "summary": {
+      "baseline": {
+        "cold": {
+          "correct": 12,
+          "total": 12,
+          "wrongExact": 0,
+          "requestMsMedian": 8.820551,
+          "lifecycleMsMedian": 16.7672605
+        },
+        "warm": {
+          "correct": 144,
+          "total": 144,
+          "wrongExact": 0,
+          "requestMsMedian": 0.089422
+        },
+        "firstReferences": {
+          "correct": 12,
+          "total": 12,
+          "wrongExact": 0,
+          "requestMsMedian": 6.1929915
+        },
+        "warmReferences": {
+          "correct": 144,
+          "total": 144,
+          "wrongExact": 0,
+          "requestMsMedian": 0.0942045
+        },
+        "edit": {
+          "correct": 12,
+          "total": 12,
+          "wrongExact": 0,
+          "requestMsMedian": 6.415409499999999,
+          "lifecycleMsMedian": 7.834929
+        },
+        "restart": {
+          "correct": 12,
+          "total": 12,
+          "wrongExact": 0,
+          "requestMsMedian": 7.516463,
+          "lifecycleMsMedian": 11.325052
+        },
+        "globalCold": {
+          "correct": 12,
+          "total": 12,
+          "wrongExact": 0,
+          "requestMsMedian": 141.87824849999998
+        },
+        "globalWarm": {
+          "correct": 144,
+          "total": 144,
+          "wrongExact": 0,
+          "requestMsMedian": 0.35514049999999997
+        },
+        "firstTreeRssKiBMedian": 14938.0
+      },
+      "candidate": {
+        "cold": {
+          "correct": 12,
+          "total": 12,
+          "wrongExact": 0,
+          "requestMsMedian": 7.0515355,
+          "lifecycleMsMedian": 13.6205
+        },
+        "warm": {
+          "correct": 144,
+          "total": 144,
+          "wrongExact": 0,
+          "requestMsMedian": 0.0816055
+        },
+        "firstReferences": {
+          "correct": 12,
+          "total": 12,
+          "wrongExact": 0,
+          "requestMsMedian": 0.068967
+        },
+        "warmReferences": {
+          "correct": 144,
+          "total": 144,
+          "wrongExact": 0,
+          "requestMsMedian": 0.07621249999999999
+        },
+        "edit": {
+          "correct": 12,
+          "total": 12,
+          "wrongExact": 0,
+          "requestMsMedian": 6.3368695,
+          "lifecycleMsMedian": 7.625268999999999
+        },
+        "restart": {
+          "correct": 12,
+          "total": 12,
+          "wrongExact": 0,
+          "requestMsMedian": 7.244626499999999,
+          "lifecycleMsMedian": 10.767109
+        },
+        "globalCold": {
+          "correct": 12,
+          "total": 12,
+          "wrongExact": 0,
+          "requestMsMedian": 142.0486355
+        },
+        "globalWarm": {
+          "correct": 144,
+          "total": 144,
+          "wrongExact": 0,
+          "requestMsMedian": 0.360468
+        },
+        "firstTreeRssKiBMedian": 15146.0
+      }
+    }
+  }
+}

@@ -49,7 +49,9 @@ projects. [Compiler control driver](../evaluation/navigation_role_controls.py)
   accounted capacity. It retains no source or AST. Keys include the buffer
   version, source hash, URI, operation, cursor, declaration flag and engine
   identity. Edits, close/reopen, mode changes and cancellation invalidate
-  entries. An indexed cache hit still passes the usual filesystem and context
+  entries. A definition can also populate the inclusive references key when
+  its traversal proves a single use at the cursor. An indexed cache hit still
+  passes the usual filesystem and context
   checks. [Protocol](protocol.md)
 - **Signatures and arguments.** The handover patch prevented a mixed-case
   signature suffix from being overlooked. SDK and compiler controls also found
@@ -102,18 +104,25 @@ All rows below contain correct answers from every trial.
 
 | Median wall time or sampled RSS | Rebuilt import | Integrated candidate | Operations per engine |
 | --- | ---: | ---: | ---: |
-| Process launch to first local definition | 171.10 ms | 16.98 ms | 6 |
-| Warm local definition | 0.449 ms | 0.091 ms | 72 |
-| First local references after definition | 1.12 ms | 6.80 ms | 6 |
-| Warm local references | 0.459 ms | 0.087 ms | 72 |
-| Unsaved edit to current definition | 15.77 ms | 8.25 ms | 6 |
-| Process restart to current definition | 118.86 ms | 13.88 ms | 6 |
-| Native process-tree RSS after first definition | 19.72 MiB | 14.69 MiB | 6 |
-| Cold project-level definition request | 146.35 ms | 153.93 ms | 6 |
-| Warm project-level definition request | 0.392 ms | 0.413 ms | 72 |
+| Process launch to first local definition | 197.90 ms | 13.95 ms | 6 |
+| Warm local definition | 0.437 ms | 0.084 ms | 72 |
+| First local references after definition | 1.194 ms | 0.063 ms | 6 |
+| Warm local references | 0.453 ms | 0.069 ms | 72 |
+| Unsaved edit to current definition | 17.56 ms | 8.37 ms | 6 |
+| Process restart to current definition | 138.13 ms | 11.71 ms | 6 |
+| Native process-tree RSS after first definition | 20.05 MiB | 14.81 MiB | 6 |
+| Cold project-level definition request | 144.94 ms | 139.56 ms | 6 |
+| Warm project-level definition request | 0.333 ms | 0.359 ms | 72 |
 
-The first reference request uses a different cache key and reparsed the
-buffer. The project-level control queried `referenceTypeName` using a fresh
+In the first integrated version, a reference query after a definition still
+reparsed this document. A separate 12-pair crossover against that version
+measured 6.193 ms before the cache change and 0.069 ms afterward for the first
+inclusive references. Both binaries returned all 492 answers correctly. Each
+single-use entry adds a 28-byte serialized payload and its key within the
+existing cap. Independent hot/cold checks matched FCS on all 86 reference sets,
+including UTF-16 cursor positions, dirty buffers and process-local cache state.
+
+The project-level control queried `referenceTypeName` using a fresh
 database in each trial. Its warm indexed answer skips a repeated attempt at a
 document proof. RSS here is a point-in-time sample of the native process tree.
 The editor has a separate process tree and a different startup measurement.
@@ -121,24 +130,27 @@ The editor has a separate process tree and a different startup measurement.
 
 ## Actual VS Code
 
-The updated Linux x64 VSIX passed all 13 trusted cases and the installed
+The updated Linux x64 VSIX passed all 14 trusted cases and the installed
 Restricted Mode case in each of VS Code 1.108.0 and 1.145.3, in disposable
 profiles. First-demand controls exercised F12, Shift+F12 and Show Hover.
 On actual VS Code 1.108.0 the rebuilt import scored 14/46 on Grace, the
 on-demand candidate scored 17/46, and Ionide 8.1.0 scored 46/46. Each
 configuration returned the same counts after an editor restart. Supplying an
 offline snapshot path alone gave 17/46. Issuing **F# Navigator: Index
-Workspace** before navigation gave 46/46, with 1.11 seconds for the initial
-desktop index/import command and 0.71 seconds on restart.
+Workspace** before navigation gave 46/46, with 2.81 seconds for the initial
+desktop index/import command and 1.07 seconds on restart.
 
 A separate two-line fixture measured desktop launch to first correct result,
 warm queries, unsaved edits and restart. Two fresh and two restarted profiles
 per engine ran in alternating order. For the updated extension the median
-fresh desktop launch to first correct definition was 4.16 s and the sampled
-peak desktop-tree RSS was 1,229 MiB. Ionide measured 8.41 s and 1,611 MiB.
-Warm definition medians on fresh profiles were 14.1 ms and 4.2 ms respectively.
-These twelve launches establish neither broad performance parity nor
-orders-of-magnitude improvements. The [desktop report](editor-host-status.md)
+fresh desktop launch to first correct definition was 3.50 s and the sampled
+peak desktop-tree RSS was 1,267 MiB. Ionide measured 8.54 s and 1,627 MiB.
+Warm definition medians on fresh profiles were 13.4 ms and 5.4 ms respectively.
+The imported Navigator measured 4.43 s and 1,237 MiB on the same fresh-profile
+trial. Both Navigator builds gave current answers immediately in all four
+launches each. Two of four Ionide launches first returned a stale dirty answer
+and recovered within 183 ms. General navigation parity, negligible end-to-end
+startup and orders-of-magnitude improvements remain open goals. The [desktop report](editor-host-status.md)
 gives the matching versions, full lifecycle, sample counts and limitations.
 
 ## Optional offline compiler snapshot
@@ -154,16 +166,16 @@ Producing the model, libraries, environment and 16,530,121-byte snapshot again
 on this host took 167.59 seconds. The semantic export phase took 46.71 seconds
 and peaked at 558.65 MiB of sampled helper-tree RSS. Preparing the environment
 had the highest peak, 587.23 MiB. The explicit native index and import took
-979 ms and sampled 135.46 MiB. Other verification jobs were running during
+1.84 seconds and sampled 131.21 MiB. Other verification jobs were running during
 preparation. The fixed default-navigation and editor lifecycle timings exclude
 this optional work. The [replay instructions](../evaluation/contracts/README.md)
 document both configurations.
 
 ## Reproduction and provenance
 
-The measured native source is `fd1443a2c5b5a9f1281120999008120db1ed833c`,
-with SHA-256 `7068357ab7a77bff7d362009a48ef08d6e6276ae4f74b4251a8b00b40f8393f8`
-for the executable. The [native input manifest](../evaluation/candidates/source-cd7d1a34a4b8.json)
+The measured native source is `1f375b27e2bb22605b4eee187667a7f15f14a0e9`,
+with SHA-256 `b693cc9a1e03bd8d01c3c02aac468be113cfbc2cb2acc807039ce8d7ba46ee5e`
+for the executable. The [native input manifest](../evaluation/candidates/source-80d1c4264cd6.json)
 covers all 69 build inputs, including restored grammar bytes.
 
 Baseline source was main at `e8fb6a93dd68da38b3b952777ae7f1776be437d3`.
@@ -194,7 +206,7 @@ method, property and record uses.
 
 The fresh baseline CLI check passed 232 Rust core tests, three daemon tests,
 19 parser bootstrap checks and 23 adapter/transport checks. The final CLI check
-passed 279 Rust core tests, three daemon tests, 19 bootstrap and 24
+passed 281 Rust core tests, three daemon tests, 19 bootstrap and 24
 adapter/transport checks. All 19 tests against the real native process and an
 editor API double passed. The separate native protocol replay passed with
 inaccessible model and catalog paths, CRLF and UTF-16 positions, an unsaved
@@ -214,7 +226,7 @@ declaration, the method-body use and the named call label. For the caller's
 parameter it includes the declaration and the right-hand operand. Ambiguous
 overloads or additional unresolved callers keep the reference set unavailable.
 
-The [machine-readable result](../evaluation/candidates/candidate-7068357ab7a7.json)
+The [machine-readable result](../evaluation/candidates/candidate-b693cc9a1e03.json)
 identifies the executable, build inputs, fixed contract outputs and matched
-native lifecycle measurements. The Linux x64 VSIX built from `684ec70` has
-SHA-256 `7ba55d3891d20d0542691a1c6ea0e27875f249066885483e8913da35b5fb7448`.
+native lifecycle measurements. The Linux x64 VSIX built from `1f375b2` has
+SHA-256 `a8970dfaed1f327a5e15541aacc139c59ac82fc27c6efed14f9b148f16339c05`.
