@@ -6,8 +6,12 @@ ordered project tree, scope shadowing, dirty overlays, explicit unsupported
 bindings, cached external hover and zero compiler launches in indexed mode.
 It also invokes native Go to Definition and can capture the private display.
 
-The external hover case imports a deterministic catalog fixture. Actual .NET
-assembly/XML extraction is tested independently by `semantic/tests/smoke.py`.
+The trusted host fixture builds an external F# DLL and XML documentation outside the
+workspace, restores the consumer, and runs the explicit `prepare` CLI command
+before launching Code. The prepared project, catalog and environment have to
+match the helper and native process environment. The local lifecycle test records
+verified first, warm, unsaved edit and backend restart answers from the registered
+providers. The edit and restart samples include their triggering action.
 
 Run after building the Rust executable and compiling the TypeScript adapter:
 
@@ -82,17 +86,15 @@ timings are functional-test observations, not controlled editor benchmarks.
 FSHARP_BACKEND_PATH="$PWD/target/release/fsharp-navigator" node --test extension/test/nativeCancellation.test.cjs
 ```
 
-## Current execution-environment limitation
+## Editor runtime
 
 During the 20 November 2026 implementation, both pinned VS Code versions were
 downloaded and checksum-verified, and Xvfb/Openbox dependencies were prepared.
-This cloud execution host denies AF_UNIX sockets (`EPERM`). The standard
-private D-Bus launch therefore fails. A TCP X11 probe reached Electron main
+That execution host denied AF_UNIX sockets (`EPERM`). The standard
+private D-Bus launch therefore failed in that environment. A TCP X11 probe reached Electron main
 initialization, but VS Code still requires a Unix main IPC server, preventing
-the real test host from starting here. No native extension-host/UI test pass is
-claimed for this environment. The failed launch log is retained under
-`test-results/host-environment`. Run the harness on a normal Linux/Nix host or
-CI before treating the extension as validated in VS Code.
+that host from starting. The historical execution evidence is described in `docs/editor-host-status.md`.
+A later Linux host with private Unix sockets ran both pinned desktop versions.
 
 The original example repository's runtime-lock.json was copied here to pin
 VS Code 1.108.0 and 1.145.3. The automatic test-electron downloader is a

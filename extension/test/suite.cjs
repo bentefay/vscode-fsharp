@@ -6,15 +6,18 @@ const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const { performance } = require('node:perf_hooks');
 const vscode = require('vscode');
+const { exerciseLocalNavigation } = require('./localLifecycle.cjs');
 
 exports.run = async function () {
   const results = [];
   const providerSamples = [];
+  const localLifecycle = [];
   const root = process.env.FSHARP_TEST_WORKSPACE;
   const extension = vscode.extensions.getExtension('bentefay.fsharp-navigator');
-  assert.ok(extension, 'Actual extension must be installed or loaded in the development host');
   const untrusted = process.env.FSHARP_TEST_UNTRUSTED === '1';
-  const activation = { alreadyActive: extension.isActive, beforeMemory: process.memoryUsage(), startMs: performance.now() };
+  const packaged = Boolean(process.env.FSHARP_TEST_VSIX);
+  if (!untrusted || !packaged) assert.ok(extension, 'Expected the installed or development extension in the host');
+  const activation = { alreadyActive: extension?.isActive ?? false, beforeMemory: process.memoryUsage(), startMs: performance.now() };
   const api = untrusted ? undefined : await extension.activate();
   activation.elapsedMs = performance.now() - activation.startMs;
   activation.afterMemory = process.memoryUsage();
@@ -54,12 +57,18 @@ exports.run = async function () {
   if (untrusted) {
     await test('untrusted workspace starts no native engine', async () => {
       assert.equal(vscode.workspace.isTrusted, false);
-      assert.equal(extension.packageJSON.capabilities.untrustedWorkspaces.supported, false);
-      assert.equal(extension.isActive, false);
+      if (extension) assert.equal(extension.packageJSON.capabilities.untrustedWorkspaces.supported, false);
       assert.deepEqual(await definitions(document, 3, 'value'), []);
-      assert.equal(extension.isActive, false);
+      if (packaged) assert.ok(!extension?.isActive, 'Installed extension is disabled in Restricted Mode');
+      // Code can activate development extensions in a restricted workspace.
+      if (extension?.isActive) {
+        assert.deepEqual(extension.exports.processIds, []);
+        assert.deepEqual(await extension.exports.stats(), []);
+      }
     });
   } else {
+    await test('local providers preserve exact targets across warm, edit and backend restart', () =>
+      exerciseLocalNavigation(document, api, localLifecycle));
     await test('solution explorer preserves declared compile order', async () => {
       await vscode.commands.executeCommand('workbench.view.extension.fsharpNavigator');
       const roots = await api.tree.getChildren();
@@ -113,7 +122,7 @@ exports.run = async function () {
       const found = await executeProvider('vscode.executeHoverProvider', document.uri, position(document, 11, 'answer'));
       assert.equal(found.length, 1, JSON.stringify(api.lastResult));
       const content = found[0].contents.map(item => typeof item === 'string' ? item : item.value).join('\n');
-      assert.match(content, /val answer\s*:\s*int/);
+      assert.match(content, /val answer\s*:\s*(?:Microsoft\.FSharp\.Core\.)?int\b/);
       assert.match(content, /The answer from a library/);
       const editor = await vscode.window.showTextDocument(document);
       const cursor = position(document, 11, 'answer');
@@ -182,12 +191,13 @@ exports.run = async function () {
         assert.equal(stats.mode, 'indexed', JSON.stringify(stats));
         const helperStarts = stats.helperStarts ?? stats.helper_starts;
         assert.equal(helperStarts, 0, 'Engine must report zero helper starts: ' + JSON.stringify(stats));
+        assert.equal(stats.compilerLaunches, 0);
       }
     });
   }
   await fs.writeFile(path.join(process.env.FSHARP_TEST_RESULTS, 'results.json'), JSON.stringify({
     environment: { kind: 'actual-vscode-extension-host', vscode: vscode.version, node: process.version, extensionHostPid: process.pid, backendPids: api?.processIds ?? [] },
-    measurements: { activation, providerSamples, finalExtensionHostMemory: process.memoryUsage(), limitations: 'Test-run timings, not repeated controlled benchmarks. Memory describes the shared extension-host process, not the entire editor process tree. alreadyActive activation cannot measure a cold activation.' },
+    measurements: { activation, providerSamples, localLifecycle, finalExtensionHostMemory: process.memoryUsage(), limitations: 'Test-run timings, not repeated controlled benchmarks. Memory describes the shared extension-host process, not the entire editor process tree. alreadyActive activation cannot measure a cold activation.' },
     results,
   }, null, 2));
   for (const result of results) console.log(`${result.status}: ${result.name}${result.error ? '\n' + result.error : ''}`);
