@@ -109,6 +109,24 @@ for owner, member in CORE_CALLS.items():
     CASES.append(('prelude' + owner, f'type {owner} = static member {member}(x:int)=x',
                   f'let caller «x» = {owner}.«{member}»(«x»=«x»)', False))
 SIGNATURES = ['fsi', 'FsI', 'FSI']
+# Optional receiver controls keep a separate denominator from the argument-role suite.
+METHOD = 'type C = static member «M»(x:bool) = x'
+MEMBER_RANGES = [
+    ('memberRangeNested', 'module A =\n    ' + METHOD,
+     'let f v = A.C.«M» v\nlet g x = A.C.«M»(x=x)', False),
+    ('memberRangeAlias', METHOD + '\ntype T = C', 'let f v = T.«M» v', False),
+    ('memberRangeSpaced', METHOD, 'let f v = C . «M» v', False),
+    ('memberRangeExpression', 'type C() = member _.«M»(x:bool) = x\ntype Box = { Owner:C }',
+     'let f (p:Box) v = p.Owner.«M»(v)\nlet g (p:Box) v = (p.Owner).«M» v', False),
+    ('memberRangeProperty', 'type C() = member _.«P»=1', 'let run (c:C) = c.«P»', False),
+    ('memberRangeStaticProperty', 'type C = static member «P»=1', 'let run = C.«P»', False),
+    ('memberRangeField', 'type C = { «P»:int }',
+     'let run (c:C) = c.«P»\nlet made = { C.«P»=1 }', False),
+    ('memberRangeUnion', 'type C = «Case» of bool',
+     'let made = C.«Case» true\nlet run v = match v with C.«Case» b -> b', False),
+    ('memberRangeFramework', 'module System =\n    type String = static member «IsNullOrEmpty»(x:string)=false',
+     'let example = System.String.«IsNullOrEmpty» ""', False),
+]
 
 
 def digest(path):
@@ -134,11 +152,12 @@ def make_file(path, marked, name, files):
             'projectFiles': list(map(str, files)), 'queries': queries}
 
 
-def prepare(out):
+def prepare(out, member_ranges=False):
     manifest = []
     required = set()
     valid_files = []
-    cases = [(name, head + '\n' + body, None, positive) for name, head, body, positive in CASES]
+    controls = CASES + (MEMBER_RANGES if member_ranges else [])
+    cases = [(name, head + '\n' + body, None, positive) for name, head, body, positive in controls]
     for suffix in SIGNATURES:
         cases.append(('signature' + suffix, 'let ordinary «x»=«x»+«x»', suffix, False))
     cases.append(('invalidSignature', 'let ordinary («x»:int) = «x»+«x»', 'fsi', False))
@@ -331,7 +350,7 @@ def replay(binary, out, manifest, checked, required, artifacts):
             if path.parent.name == 'named':
                 # Keep this real project's framework/assembly certificate, edit
                 # only the document, and check both the head and argument roles.
-                edits = [i for i in manifest if i['case'].startswith(('twoNamedCalls/', 'prelude'))]
+                edits = [i for i in manifest if i['case'].startswith(('twoNamedCalls/', 'prelude', 'memberRange'))]
                 for version, dirty in enumerate(edits, 2):
                     text = Path(dirty['path']).read_text()
                     session.call('document/change', {'path': str(path), 'version': version, 'text': text})
@@ -377,17 +396,20 @@ def main():
     parser.add_argument('--helper', type=Path, help='Explicit helper for genuine project and metadata preparation')
     parser.add_argument('--require-full-coverage', action='store_true',
                         help='Fail on every unavailable operation in addition to the required positives')
+    parser.add_argument('--member-ranges', action='store_true',
+                        help='Also compare reference spans for methods, properties, record fields and union cases')
     args = parser.parse_args()
     out = args.output_dir.resolve()
     out.mkdir(parents=True, exist_ok=False)
-    manifest, required, build = prepare(out)
+    manifest, required, build = prepare(out, args.member_ranges)
     sdk = subprocess.check_output([args.dotnet.resolve(), '--version'], cwd=out, text=True).strip()
     checked = compiler(out, args.dotnet.resolve(), manifest, build)
     if args.helper:
         # Match the unmodified CLI environment that the helper actually certifies.
         smoke.ENV = {**os.environ, 'FSHARP_NAVIGATOR_DOTNET': str(args.dotnet.resolve())}
     artifacts = prepare_receivers(out, args.helper.resolve(), args.dotnet.resolve(), manifest) if args.helper else {}
-    report = {'helperSha256': digest(args.helper) if args.helper else None,
+    report = {'memberRanges': args.member_ranges,
+              'helperSha256': digest(args.helper) if args.helper else None,
               'preparedInputs': {case: {k: digest(Path(v)) for k, v in paths.items()}
                                  for case, paths in artifacts.items()},
               'sdk': sdk, 'oracleSha256': digest(ORACLE), 'oracle': 'SDK build and full project FCS',
