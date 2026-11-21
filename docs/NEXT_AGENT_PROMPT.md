@@ -1,5 +1,7 @@
 # Prompt for the next agent
 
+This prompt was used for the continuation after the import. See the [current status](current-status.md) for the resulting implementation and measurements.
+
 Continue my Rust-first F# VS Code extension in
 https://github.com/bentefay/vscode-fsharp. Start by fetching `main` and reading
 `AGENTS.md`, `docs/HANDOVER.md`, `docs/current-status.md` and

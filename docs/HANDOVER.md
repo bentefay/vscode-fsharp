@@ -1,5 +1,7 @@
 # F# Navigator handover
 
+This is the import handover at `e8fb6a9`. For the continuation results and remaining gaps, see the [current status](current-status.md).
+
 Updated 21 November 2026. Implementation was paused at the user's request to
 prepare this handover. The next agent should resume the work, using independent
 implementation and review agents, and keep committing validated changes to

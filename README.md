@@ -1,30 +1,21 @@
 # F# Navigator — prototype
 
-A Rust-first VS Code extension for F# navigation and ordered project browsing.
-It explores a small, persistent index instead of keeping a whole F# solution
-resident in a language server. The editor adapter starts a native session when
-needed. `workspace/open` opens the disk index without reading F# sources or
-building their ASTs. The first tree/navigation request discovers the project
-model; source analysis and library import happen when queried. This version
-uses on-demand work and has no background indexer. **This is an experimental implementation, not an
-Ionide-equivalent release.** Accuracy and performance results belong in the
-evaluation report; no orders-of-magnitude improvement is claimed without a
-measured baseline.
+F# Navigator provides definitions, references, external-library hovers and an
+ordered solution explorer through a Rust daemon and a VS Code adapter. It is a
+prototype. The native engine opens its disk index on demand. For supported
+callback and nested-function parameters it can answer directly from an
+acknowledged editor buffer, before opening the project model. Other queries use
+the indexed resolver, which reports incomplete results when it cannot prove the
+binding or the complete reference set.
 
-The source currently comes from recovery checkpoint 11. Its native inputs match
-candidate `710f` / source capture `0c892`; this candidate has known correctness
-defects and is not accepted for release. See
-[`docs/current-status.md`](docs/current-status.md) for the current recovery and
-validation status. Earlier iteration reports and 0.1.0 artifacts describe
-separate historical snapshots.
+The Solution view reads classic Visual Studio solutions and `.slnx` files.
+Logical folders preserve compile order, and linked rows open the physical source.
+Use **F# Navigator: Index Workspace** to prepare a broader source index explicitly.
+Prepared projects can also supply external documentation or an offline semantic
+snapshot. Indexed provider requests never start the compiler.
 
-The recovered candidate's recorded fixed-corpus results are **98/100** synthetic
-queries and **14/46** Grace queries (10 definitions and 4 complete reference
-sets). These are historical results, not tests rerun during the initial GitHub
-import. Mixed-case signature filenames can bypass a reference-completeness
-guard, and named-argument labels can be confused with caller-local uses. Real
-VS Code host execution remains unverified. Full feature equivalence, negligible
-editor startup and an orders-of-magnitude performance improvement remain goals.
+The measured coverage, native lifecycle results, editor checks and remaining
+gaps are recorded in the [current status](docs/current-status.md).
 
 ## Engine modes
 
@@ -246,13 +237,9 @@ described in `semantic/Decompiler/README.md`. SourceLink retrieval is not
 implemented. Signature-only fallback is explicitly labelled and does not count
 as equivalent when Ionide supplies source or implementation.
 
-Native VS Code host/UI execution remains unverified in this cloud environment:
-the host denies the Unix sockets required by D-Bus and VS Code's main IPC.
-The source archive includes the bounded failed-launch evidence and the real
-isolated-profile harness. Run it on a normal Linux/Nix host before relying on
-editor integration. The pinned Nix SDK layer was executed separately; the full extension workflow
-and Nix reusable-model profile remain unverified or unsupported.
-`docs/evaluation.md` and `docs/prototype-review.md` are the frozen 0.1.0
-evaluation/review. Current recovery status is in `docs/recovery-status.md` and
-`docs/iteration-status.md`; unsupported queries and
-missing baseline comparisons are not treated as successful equivalents.
+The Linux desktop harness exercises the packaged extension in disposable VS Code
+profiles. See the [editor results](docs/editor-host-status.md) for versions,
+startup measurements and provider coverage. The full Nix extension workflow and
+cross-platform packaging still need validation. The [current status](docs/current-status.md)
+records the active candidate and the unchanged evaluation corpora. Earlier
+[0.1.0 measurements](docs/evaluation.md) belong to the archived prototype.
