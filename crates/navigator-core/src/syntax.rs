@@ -61,6 +61,16 @@ pub struct Import {
     #[serde(default = "unbounded")]
     pub scope_end: usize,
 }
+impl Import {
+    /// An open captures the namespace or module at the directive. The compact
+    /// token stream may omit the keyword, so use its first retained token.
+    pub(crate) fn environment_token(&self, parsed: &ParsedFile, use_token: usize) -> usize {
+        parsed
+            .tokens
+            .partition_point(|token| token.start < self.offset)
+            .min(use_token)
+    }
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Alias {
     pub name: String,

@@ -1191,7 +1191,8 @@ impl Workspace {
                     if open.name.is_empty() {
                         return Ok(None);
                     }
-                    let choices = self.opened_modules(path, p, token, &open.name)?;
+                    let choices =
+                        self.opened_modules(path, p, open.environment_token(p, token), &open.name)?;
                     let mut known = false;
                     for module in choices {
                         known = true;
@@ -1246,7 +1247,8 @@ impl Workspace {
                 if open.name.is_empty() {
                     return Ok(None);
                 }
-                let opened = self.opened_modules(path, p, token, &open.name)?;
+                let opened =
+                    self.opened_modules(path, p, open.environment_token(p, token), &open.name)?;
                 if opened.is_empty() {
                     // This ordered import has an unknown name environment. Do
                     // not skip it then certify an older same-spelled binding.
@@ -2642,6 +2644,26 @@ mod integration_tests {
         assert_eq!(ws.index.counters.helper_starts, 0);
         drop(ws);
         fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn opened_module_abbreviations_retain_the_environment_at_the_open() {
+        let (root, mut ws) = fixture();
+        let path = root.join("Main.fs");
+        let source = "module Consumer\nmodule A =\n    let probe v = v + 1\nmodule B =\n    let probe v = v + 2\nmodule Chosen = A\nopen Chosen\nmodule Chosen = B\nlet caller v = probe v\nlet direct v = Chosen.probe v\n";
+        fs::write(&path, source).unwrap();
+        for (line, name, expected) in [(8, "probe", 2), (9, "probe", 4)] {
+            let character = source.lines().nth(line).unwrap().find(name).unwrap();
+            let answer = ws
+                .dispatch(
+                    "navigation/definition",
+                    &json!({"path":path,"line":line,"character":character}),
+                )
+                .unwrap();
+            assert_eq!(answer["completeness"], "exact", "{answer}");
+            assert_eq!(answer["locations"][0]["range"]["start"]["line"], expected);
+        }
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
     }
     #[test]
     fn parameter_reference_domains_keep_local_sets_but_refuse_possible_signature_exports() {

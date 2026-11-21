@@ -1406,15 +1406,16 @@ impl Workspace {
                 return Ok(None);
             }
             let first = open.name.split('.').next().unwrap_or(&open.name);
-            let modules = if parsed
-                .aliases
-                .iter()
-                .any(|a| a.name == first && a.offset < offset && offset < a.scope_end)
-            {
-                self.opened_modules(path, parsed, token, &open.name)?
-            } else {
-                Self::module_choices(parsed, token, &open.name, false)
-            };
+            let import_token = open.environment_token(parsed, token);
+            let import_offset = parsed.tokens[import_token].start;
+            let modules =
+                if parsed.aliases.iter().any(|a| {
+                    a.name == first && a.offset < import_offset && import_offset < a.scope_end
+                }) {
+                    self.opened_modules(path, parsed, import_token, &open.name)?
+                } else {
+                    Self::module_choices(parsed, import_token, &open.name, false)
+                };
             if modules.is_empty() {
                 return Ok(None);
             }
@@ -3136,7 +3137,12 @@ impl Workspace {
                 }
                 // Source and external module/namespace environments are merged
                 // in order. Missing detailed rows never certify name absence.
-                for module in Self::module_choices(parsed, token, &open.name, false) {
+                for module in Self::module_choices(
+                    parsed,
+                    open.environment_token(parsed, token),
+                    &open.name,
+                    false,
+                ) {
                     choices.push(format!("{module}.{name}"));
                 }
             }
@@ -3450,8 +3456,14 @@ impl Workspace {
             if import.name.is_empty() {
                 return Ok(None);
             }
-            scopes.extend(Self::module_choices(parsed, token, &import.name, false));
-            scopes.extend(self.opened_modules(path, parsed, token, &import.name)?);
+            let import_token = import.environment_token(parsed, token);
+            scopes.extend(Self::module_choices(
+                parsed,
+                import_token,
+                &import.name,
+                false,
+            ));
+            scopes.extend(self.opened_modules(path, parsed, import_token, &import.name)?);
         }
         Ok((scopes.len() <= 2048).then_some(scopes))
     }
@@ -4198,12 +4210,14 @@ impl Workspace {
             if open.name.is_empty() {
                 return Ok(false);
             }
-            let source_scopes = self.opened_modules(path, parsed, token, &open.name)?;
             let first = open.name.split('.').next().unwrap_or(&open.name);
+            let import_token = open.environment_token(parsed, token);
+            let import_offset = parsed.tokens[import_token].start;
+            let source_scopes = self.opened_modules(path, parsed, import_token, &open.name)?;
             if parsed
                 .aliases
                 .iter()
-                .any(|a| a.name == first && a.offset < offset && offset < a.scope_end)
+                .any(|a| a.name == first && a.offset < import_offset && import_offset < a.scope_end)
             {
                 if source_scopes.is_empty() {
                     return Ok(false);
@@ -4211,7 +4225,7 @@ impl Workspace {
                 active.extend(source_scopes);
                 continue;
             }
-            let choices = Self::module_choices(parsed, token, &open.name, false);
+            let choices = Self::module_choices(parsed, import_token, &open.name, false);
             let simple = open.name.rsplit('.').next().unwrap_or(&open.name);
             let Some(rows) = self
                 .builtin_environment
@@ -4374,7 +4388,12 @@ impl Workspace {
                         if open.name.is_empty() {
                             return Ok(None);
                         }
-                        let opened = self.opened_modules(path, parsed, token, &open.name)?;
+                        let opened = self.opened_modules(
+                            path,
+                            parsed,
+                            open.environment_token(parsed, token),
+                            &open.name,
+                        )?;
                         if opened.is_empty() {
                             return self.imported_source_type(
                                 path,
@@ -4465,7 +4484,12 @@ impl Workspace {
                 if open.name.is_empty() {
                     return Ok(None);
                 }
-                let opened = self.opened_modules(path, parsed, token, &open.name)?;
+                let opened = self.opened_modules(
+                    path,
+                    parsed,
+                    open.environment_token(parsed, token),
+                    &open.name,
+                )?;
                 if opened.is_empty() {
                     return self.imported_source_type(path, parsed, token, &name, &args, depth + 1);
                 }
