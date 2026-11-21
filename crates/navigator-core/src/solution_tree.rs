@@ -49,19 +49,30 @@ fn project_node(project: &Project, id: &str) -> Value {
             "label":"Project References","children":references}),
         );
     }
+    let mut virtual_paths = project
+        .items
+        .iter()
+        .enumerate()
+        .filter_map(|(ordinal, item)| {
+            let index = item["compileIndex"]
+                .as_u64()
+                .and_then(|i| usize::try_from(i).ok())
+                .unwrap_or(ordinal);
+            Some((index, item["virtualPath"].as_str()?.trim_end_matches('/')))
+        })
+        .peekable();
     for (index, file) in project.files.iter().enumerate() {
         let default = Path::new(file)
             .strip_prefix(directory)
             .ok()
             .and_then(Path::to_str)
             .unwrap_or_else(|| basename(file));
-        let path = project
-            .items
-            .get(index)
-            .and_then(|item| item["virtualPath"].as_str())
-            .filter(|s| !s.is_empty())
-            .unwrap_or(default)
-            .replace('\\', "/");
+        let virtual_path = virtual_paths
+            .next_if(|(i, _)| *i == index)
+            .map(|(_, path)| path)
+            .filter(|path| !path.is_empty())
+            .unwrap_or(default);
+        let path = virtual_path.replace('\\', "/");
         let mut parts = path
             .splitn(MAX_DEPTH, '/')
             .filter(|s| !s.is_empty() && *s != ".")

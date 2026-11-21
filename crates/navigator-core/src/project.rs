@@ -245,6 +245,24 @@ pub fn discover(root: &str) -> Result<Model> {
     })
 }
 
+// Native discovery normally needs just the ordered physical paths. Store
+// only literal display overrides, indexed by their position in that sequence.
+fn save_link(items: &mut Vec<Value>, index: usize, link: &str) {
+    if items
+        .last()
+        .is_some_and(|item| item["compileIndex"] == index)
+    {
+        items.pop();
+    }
+    if !link.is_empty()
+        && !["$(", "@(", "%("]
+            .iter()
+            .any(|prefix| link.contains(prefix))
+    {
+        items.push(json!({"compileIndex":index,"virtualPath":link}));
+    }
+}
+
 fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
     let source = crate::foreground::read_text(path, u64::MAX)
         .with_context(|| format!("read {}", path.display()))?;
@@ -306,11 +324,9 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                     compile_item = None;
                     if let Some(path) = include {
                         let i = files.len();
-                        let mut item = json!({"path":path,"compileIndex":i});
                         if let Some(link) = link {
-                            item["virtualPath"] = json!(link);
+                            save_link(&mut items, i, &link);
                         }
-                        items.push(item);
                         files.push(path);
                         if !empty {
                             compile_item = Some(i);
@@ -329,7 +345,7 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
             Event::Text(text) => {
                 if property == "Link" {
                     if let Some(i) = compile_item {
-                        items[i]["virtualPath"] = json!(text.unescape()?.as_ref());
+                        save_link(&mut items, i, text.unescape()?.as_ref());
                     }
                 }
                 if matches!(

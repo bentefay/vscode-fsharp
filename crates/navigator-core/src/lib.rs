@@ -2380,7 +2380,25 @@ mod integration_tests {
         assert!(!ws.model_loaded);
         assert_eq!(ws.index.counters.files_read, 0);
         let tree = ws.dispatch("workspace/tree", &json!({})).unwrap();
-        assert_eq!(tree["completeness"], "exact", "{tree}");
+        assert_eq!(tree["completeness"], "approximate");
+        assert_eq!(tree["nodes"].as_array().unwrap().len(), 2);
+        let unrelated = tree["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|node| node["label"] == "Unrelated")
+            .unwrap();
+        assert_eq!(
+            unrelated["children"].as_array().unwrap().len(),
+            foreground::MAX_READS + 16
+        );
+        assert!(
+            ws.model
+                .projects
+                .iter()
+                .all(|project| project.items.is_empty()),
+            "Plain compile items only need their ordered physical path"
+        );
         let partial = query(&mut ws);
         assert_eq!(partial["completeness"], "unavailable", "{partial}");
         assert!(partial["reason"].as_str().unwrap().contains("foreground"));
