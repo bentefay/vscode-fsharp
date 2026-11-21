@@ -1,8 +1,26 @@
 # Actual editor-host execution status
 
-The desktop test host remains blocked by this execution environment's AF_UNIX
-restriction. Disposable CLI installation and Node API doubles are not editor
-provider passes. No Ionide/Rider latency or memory comparison is established.
+On 21 November 2026 the Linux x64 desktop harness ran with private Xvfb, Openbox,
+D-Bus and disposable VS Code profiles. Both checksum-pinned releases, 1.108.0
+and 1.145.3, executed the original trusted suite against native baseline
+`710f046e290da02e8e85362add92125334f5ec7e1bb498f1201fc25eb6905fed`.
+Each passed 11 of 12 cases. The missing operation was the external F# module
+value hover for `ExternalLibrary.answer`. Both editors passed ordered file
+opening, definition, references, workspace hover suppression and dirty-buffer
+checks. The indexed engine reported zero helper starts.
+
+A subsequent 1.108.0 run installed the baseline VSIX in the disposable profile.
+The expanded suite built a real external DLL and XML file and prepared the
+consumer explicitly. The same module hover remained unavailable. The new local
+definitions and complete references passed before and after an unsaved edit and
+daemon restart (12 of 13 cases). Separate packaged Restricted Mode runs passed
+in both desktop versions. Functional run data do not measure a cold extension
+activation when Code has already activated the extension.
+
+## Earlier host limitation
+
+The 20 November host denied AF_UNIX sockets. Its launch failures describe that
+environment.
 
 A supported remote route was tested using official VS Code Server **1.108.0**,
 commit `94e8ae2b28cb5cc932b86e1070569c4463565c37`. Its published server-web archive
