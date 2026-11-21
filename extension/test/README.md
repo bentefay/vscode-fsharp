@@ -111,3 +111,8 @@ dispatch. The language selector restricts provider callbacks to F# files. The
 adapter creates its navigator, watchers, output channel and status item on first
 F# demand. Set `FSHARP_TEST_PLAINTEXT_FIRST=1` to check a non-F# command starts
 zero native sessions before the F# operations.
+
+The direct F12, Shift+F12 and Show Hover actions have their own workbench command
+IDs and activation events. In a fresh profile set `FSHARP_TEST_FIRST_EDITOR_ACTION`
+to `revealDefinition`, `goToReferences` or `showHover` to exercise one of these
+actions as the first operation after document open.

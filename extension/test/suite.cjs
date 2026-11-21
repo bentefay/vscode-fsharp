@@ -61,6 +61,27 @@ exports.run = async function () {
   activation.demandToDocumentReadyMs = performance.now() - demandStart;
   activation.activeAfterDocumentOpen = extension?.isActive ?? false;
   activation.afterMemory = process.memoryUsage();
+  const firstAction = !untrusted && process.env.FSHARP_TEST_FIRST_EDITOR_ACTION;
+  if (firstAction) {
+    assert.ok(['revealDefinition', 'goToReferences', 'showHover'].includes(firstAction));
+    const hover = firstAction === 'showHover';
+    const line = hover ? 11 : 3;
+    const cursor = new vscode.Position(line, document.lineAt(line).text.lastIndexOf(hover ? 'answer' : 'value') + 1);
+    vscode.window.activeTextEditor.selection = new vscode.Selection(cursor, cursor);
+    await vscode.commands.executeCommand('editor.action.' + firstAction);
+    if (firstAction === 'revealDefinition') {
+      await eventually(() => vscode.window.activeTextEditor?.document.uri.fsPath === uri('Alpha.fs').fsPath);
+      assert.equal(vscode.window.activeTextEditor.selection.active.line, 1);
+    } else {
+      await eventually(() => extension.isActive && extension.exports.lastResult);
+      const result = extension.exports.lastResult;
+      assert.equal(result.completeness, 'exact');
+      if (hover) assert.match(result.hover?.markdown, /The answer from a library/);
+      else assert.ok(result.locations.some(loc => loc.range.start.line === 3 && loc.range.start.character === 13));
+    }
+    activation.firstWorkbenchAction = firstAction;
+    await vscode.window.showTextDocument(document);
+  }
   let api;
   const position = (doc, line, text, offset = 1) => new vscode.Position(line, doc.lineAt(line).text.lastIndexOf(text) + offset);
   const definitions = async (doc, line, text) => {

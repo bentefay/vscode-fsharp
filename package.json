@@ -24,7 +24,10 @@
     "onView:fsharpNavigator.solution",
     "onCommand:_executeDefinitionProvider",
     "onCommand:_executeReferenceProvider",
-    "onCommand:_executeHoverProvider"
+    "onCommand:_executeHoverProvider",
+    "onCommand:editor.action.revealDefinition",
+    "onCommand:editor.action.goToReferences",
+    "onCommand:editor.action.showHover"
   ],
   "capabilities": {
     "virtualWorkspaces": false,
