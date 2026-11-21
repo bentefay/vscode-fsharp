@@ -39,7 +39,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
     collections::{HashMap, HashSet},
-    fs,
     path::{Path, PathBuf},
     sync::mpsc::{self, Receiver},
     time::Instant,
@@ -2334,6 +2333,7 @@ impl Workspace {
 #[cfg(test)]
 mod integration_tests {
     use super::*;
+    use std::fs;
     fn fixture() -> (PathBuf, Workspace) {
         let path = std::env::temp_dir().join(format!(
             "navigator-test-{}-{}",

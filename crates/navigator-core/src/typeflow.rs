@@ -620,9 +620,7 @@ impl Workspace {
         let Some(receiver) = p.qualifier(head) else {
             return Ok(None);
         };
-        // A new term-absence scan must have bounded scope, even for a small
-        // method body in a very large workspace.
-        if receiver.contains('.') || self.model.files.len() > 8 {
+        if receiver.contains('.') {
             return Ok(None);
         }
         if p.modules.len() == 2 && p.owned_types.is_empty() {
