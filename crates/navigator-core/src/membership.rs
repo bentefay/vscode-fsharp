@@ -80,6 +80,7 @@ impl SourceMembership {
             .max_depth(if self.recursive { 256 } else { 1 })
             .into_iter();
         while let Some(entry) = walker.next() {
+            crate::foreground::certificate_visit()?;
             crate::cancellation::check()?;
             let entry =
                 entry.with_context(|| format!("Read source membership under {}", self.root))?;

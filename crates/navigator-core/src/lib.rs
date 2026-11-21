@@ -535,13 +535,12 @@ impl Workspace {
         self.model = if let Some(path) = &self.evaluated_model_path {
             Model::from_evaluated(
                 &self.root,
-                &serde_json::from_str(&fs::read_to_string(path)?)?,
+                &serde_json::from_str(&foreground::read_text(Path::new(path), u64::MAX)?)?,
             )?
         } else {
             project::discover(&self.root)?
         };
         self.index.retain_paths(&self.model.files)?;
-        self.model_loaded = true;
         // Register only known source/configuration directories, not a recursive
         // crawl through .git, toolchains, node_modules or build outputs.
         let (tx, rx) = mpsc::channel();
@@ -592,8 +591,11 @@ impl Workspace {
             }
             // Close the evaluation-to-watcher registration race without reading
             // source contents; filename membership is a separate certificate.
-            if self.model.validate_membership().is_err() {
+            if let Err(error) = self.model.validate_membership() {
                 self.watcher_reliable = false;
+                if error.is::<foreground::Limit>() || error.is::<cancellation::Cancelled>() {
+                    return Err(error);
+                }
             }
             self._watcher = Some(watcher);
         }
@@ -606,6 +608,7 @@ impl Workspace {
         }
         self.refresh_context()?;
         self.refresh_snapshot()?;
+        self.model_loaded = true;
         self.model_load_micros += started.elapsed().as_micros() as u64;
         Ok(())
     }
@@ -2388,6 +2391,51 @@ mod integration_tests {
         assert_eq!(ws.index.counters.helper_starts, 0);
         drop(ws);
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn cold_evaluated_models_obey_size_and_membership_limits_then_explicit_index_recovers() {
+        use sha2::{Digest, Sha256};
+        for large_manifest in [false, true] {
+            let (root, original) = fixture();
+            drop(original);
+            let project = root.join("Test.fsproj");
+            let mut files = vec![root.join("A.fs"), root.join("B.fs"), root.join("Main.fs")];
+            if !large_manifest {
+                for n in 0..foreground::MAX_ENTRIES {
+                    let path = root.join(format!("Extra{n}.fs"));
+                    fs::write(&path, format!("module Extra{n}\n")).unwrap();
+                    files.push(path);
+                }
+            }
+            let mut model = json!({"completeness":"exact","projects":[{
+                "path":project,"name":"Test","files":files,"membershipReusable":true,
+                "environmentCertificate":project::environment::empty_certificate()
+            }],"inputs":[project],"inputHashes":[{"path":project,"sha256":format!("{:x}",Sha256::digest(fs::read(&project).unwrap()))}]});
+            if large_manifest {
+                model["padding"] = json!(" ".repeat(4 * 1024 * 1024));
+            }
+            let manifest = root.join("model.json");
+            fs::write(&manifest, model.to_string()).unwrap();
+            let mut ws =
+                Workspace::open(&json!({"root":root,"evaluatedModelPath":manifest})).unwrap();
+            let cursor = json!({"path":root.join("Main.fs"),"line":3,"character":13});
+            let cold = ws.dispatch("navigation/definition", &cursor).unwrap();
+            assert_eq!(cold["completeness"], "unavailable", "{cold}");
+            assert!(!ws.model_loaded);
+            assert_eq!(ws.index.counters.files_read, 0);
+            let ready = ws.dispatch("workspace/index", &json!({})).unwrap();
+            assert_eq!(ready["sourceFileCount"], files.len());
+            let def = ws.dispatch("navigation/definition", &cursor).unwrap();
+            assert_eq!(def["completeness"], "exact", "{def}");
+            assert!(def["locations"][0]["uri"]
+                .as_str()
+                .unwrap()
+                .ends_with("/B.fs"));
+            assert_eq!(ws.index.counters.helper_starts, 0);
+            drop(ws);
+            fs::remove_dir_all(root).unwrap();
+        }
     }
 
     #[test]

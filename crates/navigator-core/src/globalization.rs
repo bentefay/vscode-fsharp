@@ -28,6 +28,7 @@ fn array<'a>(value: &'a Value, key: &str) -> Result<&'a Vec<Value>> {
         .with_context(|| format!("Globalization certificate lacks {key}"))
 }
 fn identity(path: &Path) -> Result<String> {
+    crate::foreground::certificate_visit()?;
     fn describe(m: &fs::Metadata) -> String {
         #[cfg(unix)]
         {
@@ -77,6 +78,7 @@ fn identity(path: &Path) -> Result<String> {
     Ok(result)
 }
 fn link_state(path: &Path) -> Result<Option<String>> {
+    crate::foreground::certificate_visit()?;
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.file_type().is_symlink() => Ok(Some(
             fs::read_link(path)?
@@ -130,6 +132,7 @@ fn directory_state(path: &Path) -> Result<(bool, String, u64)> {
     };
     let mut rows = Vec::new();
     for entry in fs::read_dir(path)? {
+        crate::foreground::certificate_visit()?;
         crate::cancellation::check()?;
         let entry = entry?;
         let name = entry

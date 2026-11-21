@@ -173,7 +173,7 @@ pub fn discover(root: &str) -> Result<Model> {
         .filter_entry(|e| e.depth() == 0 || !excluded(&e.file_name().to_string_lossy()))
     {
         crate::cancellation::check()?;
-        crate::foreground::entry()?;
+        crate::foreground::entries(1)?;
         let e = entry?;
         if !e.file_type().is_file() {
             continue;
@@ -274,7 +274,7 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                             exact = false;
                             continue;
                         }
-                        crate::foreground::entry()?;
+                        crate::foreground::entries(1)?;
                         let source = parent.join(value.replace('\\', "/"));
                         exact &= explicit_source(&source);
                         files.push(normalize(source));
@@ -283,7 +283,7 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                         exact = false;
                     }
                     if name == "ProjectReference" && key == "Include" {
-                        crate::foreground::entry()?;
+                        crate::foreground::entries(1)?;
                         refs.push(normalize(parent.join(value.replace('\\', "/"))));
                     }
                 }
@@ -381,6 +381,9 @@ impl Model {
     ) -> Result<Self> {
         let mut projects: Vec<Project> =
             serde_json::from_value(value.get("projects").cloned().unwrap_or(json!([])))?;
+        for project in &projects {
+            crate::foreground::entries(1 + project.files.len() + project.references.len())?;
+        }
         let mut files = Vec::new();
         let mut seen = HashSet::new();
         let exact = value.get("completeness").and_then(Value::as_str) == Some("exact");
@@ -395,6 +398,7 @@ impl Model {
                     "Evaluated project includes an unmodeled compiler input: {}; prepare a project with explicit source arguments", project.path
                 );
                 for binding in &project.reference_bindings {
+                    crate::foreground::certificate_visit()?;
                     // Source-project identities do not depend on whether a
                     // workspace DLL has been built yet. External resolution
                     // existence is part of the imported reference selection.

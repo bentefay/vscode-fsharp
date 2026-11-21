@@ -60,6 +60,28 @@ mod tests {
     }
 
     #[test]
+    fn foreground_certificate_refuses_oversized_input_before_hashing() {
+        let tmp = Temp::new();
+        let input = tmp.file("selection.bin", b"");
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&input)
+            .unwrap()
+            .set_len(129 * 1024 * 1024)
+            .unwrap();
+        let scope = crate::foreground::Scope::enter();
+        let mut generation = Generation::default();
+        let error = generation.verify_file(&input, "unused", false).unwrap_err();
+        assert!(error.is::<crate::foreground::Limit>());
+        assert_eq!(generation.metrics().bytes_hashed, 0);
+        drop(scope);
+        fs::write(&input, b"admitted").unwrap();
+        Generation::default()
+            .verify_file(&input, &hash(b"admitted"), false)
+            .unwrap();
+    }
+
+    #[test]
     fn aliases_reuse_actual_digest_but_compare_every_expectation() {
         let tmp = Temp::new();
         let a = tmp.file("a", b"input");
@@ -292,6 +314,7 @@ impl Generation {
     }
 
     fn file_state(&mut self, path: &Path) -> Result<String> {
+        crate::foreground::certificate_visit()?;
         self.metrics.file_states_checked += 1;
         let path_before = match fs::metadata(path) {
             Ok(m) => m,
@@ -353,12 +376,14 @@ impl Generation {
             self.metrics.digest_cache_hits += 1;
             digest
         } else {
+            crate::foreground::certificate_read(path, before.len())?;
             self.metrics.regular_file_reads += 1;
             let mut hash = Sha256::new();
+            let mut input = (&mut file).take(before.len().saturating_add(1));
             let mut buffer = [0u8; 65536];
             loop {
                 crate::cancellation::check()?;
-                let n = file.read(&mut buffer)?;
+                let n = input.read(&mut buffer)?;
                 if n == 0 {
                     break;
                 }

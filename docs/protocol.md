@@ -17,12 +17,16 @@ expensive. A missing exact answer is reported, not fabricated or silently
 upgraded to expensive analysis. Project evaluation/library extraction are
 separate explicit, bounded helper operations.
 
-An indexed provider request can visit 512 entries while discovering files and explicit project includes, read 128 source/project/snapshot files totaling 4 MiB and materialize
+An indexed provider request can visit 512 entries while discovering files, reading project declarations and selecting a prepared graph,
+read 128 source/project/manifest/snapshot files totaling 4 MiB and materialize
 64 cold syntax summaries. Validated postings and existing summaries avoid
 cold reads and parses. Exhaustion returns `unavailable` and discards the
 incomplete proof. The explicit index and explorer operations can establish
-larger source domains. These bounds exclude validation of explicitly configured
-model and library certificates, filesystem metadata checks and cached SQLite rows.
+larger source domains. A cold model has a separate certificate budget of 128 MiB of uncached
+digest reads and 32,768 input/selection-directory visits. Content digest reuse
+within one validation generation avoids charging repeated hashes. The bounds cover
+source and project-model work. Explicit library artifacts have separate ingestion
+and validation paths. SQLite row visits and allocator/RSS usage are distinct.
 
 ## Requests
 
