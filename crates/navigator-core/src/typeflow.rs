@@ -2854,7 +2854,7 @@ impl Workspace {
                 let (scope, name) = candidate.rsplit_once('.').unwrap_or(("", candidate));
                 if !self
                     .visible_exports(scope, name, path, parsed, token, &visible)?
-                    .is_empty()
+                    .is_some_and(|matches| matches.is_empty())
                 {
                     return Ok(false);
                 }

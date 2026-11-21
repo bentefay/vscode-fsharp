@@ -1217,8 +1217,11 @@ impl Workspace {
                     let mut known = false;
                     for module in choices {
                         known = true;
-                        let matches =
-                            self.visible_exports(&module, &t.text, path, p, token, &visible)?;
+                        let Some(matches) =
+                            self.visible_exports(&module, &t.text, path, p, token, &visible)?
+                        else {
+                            return Ok(None);
+                        };
                         if matches.len() == 1 {
                             let (f, i) = &matches[0];
                             let owner = self.parsed(f)?;
@@ -1294,7 +1297,10 @@ impl Workspace {
             if module.is_empty() {
                 return Ok(None);
             }
-            let matches = self.visible_exports(&module, &t.text, path, p, token, &visible)?;
+            let Some(matches) = self.visible_exports(&module, &t.text, path, p, token, &visible)?
+            else {
+                return Ok(None);
+            };
             if matches.len() == 1 {
                 let (f, i) = &matches[0];
                 let owner = self.parsed(f)?;
@@ -1319,7 +1325,7 @@ impl Workspace {
         parsed: &ParsedFile,
         token: usize,
         visible: &[String],
-    ) -> Result<Vec<(String, usize)>> {
+    ) -> Result<Option<Vec<(String, usize)>>> {
         let mut matches = Vec::new();
         let exports = if self.mode == Mode::Indexed {
             let part = module.rsplit('.').next().unwrap_or(module);
@@ -1348,7 +1354,13 @@ impl Workspace {
                     bail!("Export requires an unambiguous referenced-project context: {candidate}");
                 }
             }
-            self.index.exported_in(module, name, &instances)?
+            let exports = self.index.exported_in(module, name, &instances)?;
+            if exports.possible_implicit.iter().any(|(file, start)| {
+                visible.contains(file) && (file != path || *start <= parsed.tokens[token].start)
+            }) {
+                return Ok(None);
+            }
+            exports.declarations
         } else {
             self.index.exported(module, name)?
         };
@@ -1398,7 +1410,7 @@ impl Workspace {
             }
             matches.push((file, index));
         }
-        Ok(matches)
+        Ok(Some(matches))
     }
     fn module_choices(
         p: &ParsedFile,
@@ -2679,6 +2691,41 @@ mod integration_tests {
         assert_eq!(ws.index.counters.helper_starts, 0);
         drop(ws);
         fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn a_later_open_with_an_attributed_child_cannot_certify_an_older_export() {
+        let (root, mut ws) = fixture();
+        let values = root.join("A.fs");
+        let source = "namespace Domains\nmodule Earlier =\n    let probe x = x + 1\nnamespace Domains.Later\n[<AutoOpen>]\nmodule Nested =\n    let probe x = x + 2\n";
+        fs::write(&values, source).unwrap();
+        let main = root.join("Main.fs");
+        fs::write(
+            &main,
+            "module Consumer\nopen Domains.Earlier\nopen Domains.Later\nlet caller v = probe v\n",
+        )
+        .unwrap();
+        let request = json!({"path":main,"line":3,"character":15});
+        for (version, effect) in [(1, true), (2, false), (3, true)] {
+            let text = if effect {
+                source.to_owned()
+            } else {
+                source.replace("[<AutoOpen>]", "")
+            };
+            ws.dispatch(
+                "document/change",
+                &json!({"path":values,"version":version,"text":text}),
+            )
+            .unwrap();
+            let answer = ws.dispatch("navigation/definition", &request).unwrap();
+            if effect {
+                assert_eq!(answer["completeness"], "unavailable", "{answer}");
+            } else {
+                assert_eq!(answer["completeness"], "exact", "{answer}");
+                assert_eq!(answer["locations"][0]["range"]["start"]["line"], 2);
+            }
+        }
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
     }
     #[test]
     fn opened_module_abbreviations_retain_the_environment_at_the_open() {

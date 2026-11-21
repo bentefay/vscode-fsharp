@@ -94,6 +94,12 @@ pub struct Counters {
 struct ContextualExportFacts {
     declarations: Vec<(String, usize, String)>,
     auto_opens: Vec<String>,
+    attributed_modules: Vec<(String, usize, String)>,
+}
+#[derive(Clone, Default)]
+pub struct ContextualExports {
+    pub declarations: Vec<(String, usize)>,
+    pub possible_implicit: Vec<(String, usize)>,
 }
 #[derive(Default)]
 struct RequestCache {
@@ -101,7 +107,7 @@ struct RequestCache {
     exports: HashMap<(String, String), Vec<(String, usize)>>,
     materialized_exports: HashSet<(String, String)>,
     contextual_facts: HashMap<(String, String, String), ContextualExportFacts>,
-    contextual_exports: HashMap<(String, String, String), Vec<(String, usize)>>,
+    contextual_exports: HashMap<(String, String, String), ContextualExports>,
     bytes: usize,
 }
 pub struct Index {
@@ -787,7 +793,7 @@ impl Index {
         module: &str,
         name: &str,
         instances: &[(String, SourceContext)],
-    ) -> Result<Vec<(String, usize)>> {
+    ) -> Result<ContextualExports> {
         self.cancellation.check()?;
         self.counters.export_lookups += 1;
         let mut domain = blake3::Hasher::new();
@@ -858,10 +864,41 @@ impl Index {
                         ));
                     }
                 }
+                // The attribute spelling alone cannot certify AutoOpen. An
+                // attributed nested scope containing the requested spelling
+                // may contribute it when a consumer opens its parent.
+                let mut name_offsets = None;
+                for attr in parsed
+                    .attributes
+                    .iter()
+                    .filter(|a| a.owner_kind == "module")
+                {
+                    let offsets = name_offsets.get_or_insert_with(|| {
+                        parsed
+                            .tokens
+                            .iter()
+                            .filter(|t| t.ident && t.text == name)
+                            .map(|t| t.start)
+                            .collect::<Vec<_>>()
+                    });
+                    let first = offsets.partition_point(|&offset| offset < attr.owner_start);
+                    if offsets
+                        .get(first)
+                        .is_some_and(|&offset| offset < attr.owner_end)
+                    {
+                        facts.attributed_modules.push((
+                            path.clone(),
+                            attr.owner_start,
+                            attr.owner.clone(),
+                        ));
+                    }
+                }
                 facts
                     .auto_opens
                     .extend(parsed.auto_opens.iter().map(|m| m.name.clone()));
             }
+            facts.attributed_modules.sort();
+            facts.attributed_modules.dedup();
             facts.auto_opens.sort();
             facts.auto_opens.dedup();
             // Store compact requested-name facts, not ASTs. This prevents
@@ -876,7 +913,12 @@ impl Index {
                         .iter()
                         .map(|(p, _, m)| p.len() + m.len() + 128)
                         .sum::<usize>()
-                    + facts.auto_opens.iter().map(|m| m.len() + 48).sum::<usize>();
+                    + facts.auto_opens.iter().map(|m| m.len() + 48).sum::<usize>()
+                    + facts
+                        .attributed_modules
+                        .iter()
+                        .map(|(p, _, m)| p.len() + m.len() + 128)
+                        .sum::<usize>();
                 if cache.contextual_facts.len() < 64 && cache.bytes + bytes <= 2 * 1024 * 1024 {
                     cache.bytes += bytes;
                     cache.contextual_facts.insert(fact_key, facts.clone());
@@ -899,18 +941,37 @@ impl Index {
                 }
             }
         }
-        let result: Vec<(String, usize)> = facts
+        let declarations = facts
             .declarations
             .iter()
             .filter(|(_, _, m)| modules.contains(m))
             .map(|(p, t, _)| (p.clone(), *t))
             .collect();
+        let possible_implicit = facts
+            .attributed_modules
+            .iter()
+            .filter(|(_, _, owner)| {
+                owner
+                    .strip_prefix(module)
+                    .is_some_and(|tail| tail.starts_with('.'))
+            })
+            .map(|(path, start, _)| (path.clone(), *start))
+            .collect();
+        let result = ContextualExports {
+            declarations,
+            possible_implicit,
+        };
         if let Some(cache) = &mut self.request_cache {
             let bytes = 512
                 + key.0.len()
                 + key.1.len()
                 + key.2.len()
-                + result.iter().map(|(p, _)| p.len() + 128).sum::<usize>();
+                + result
+                    .declarations
+                    .iter()
+                    .chain(&result.possible_implicit)
+                    .map(|(p, _)| p.len() + 128)
+                    .sum::<usize>();
             if cache.contextual_exports.len() < 64 && cache.bytes + bytes <= 2 * 1024 * 1024 {
                 cache.bytes += bytes;
                 cache.contextual_exports.insert(key, result.clone());
@@ -2149,18 +2210,21 @@ mod tests {
             index
                 .exported_in("Shared", "one", &[(path.clone(), a.clone())])
                 .unwrap()
+                .declarations
                 .len(),
             1
         );
         assert!(index
             .exported_in("Shared", "one", &[(path.clone(), b.clone())])
             .unwrap()
+            .declarations
             .is_empty());
         let hits = index.counters.index_hits;
         assert_eq!(
             index
                 .exported_in("Shared", "one", &[(path.clone(), a.clone())])
                 .unwrap()
+                .declarations
                 .len(),
             1
         );
@@ -2171,11 +2235,13 @@ mod tests {
         assert!(index
             .exported_in("Shared", "one", &[(path.clone(), a.clone())])
             .unwrap()
+            .declarations
             .is_empty());
         assert_eq!(
             index
                 .exported_in("Shared", "changed", &[(path.clone(), a.clone())])
                 .unwrap()
+                .declarations
                 .len(),
             1
         );
