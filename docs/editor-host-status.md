@@ -17,7 +17,51 @@ daemon restart (12 of 13 cases). Separate packaged Restricted Mode runs passed
 in both desktop versions. Functional run data do not measure a cold extension
 activation when Code has already activated the extension.
 
-## Verified Linux x64 package
+## Single-use reference release
+
+The Linux x64 VSIX for production source `1f375b2` was 4,210,887 bytes.
+Its SHA-256 was
+`a8970dfaed1f327a5e15541aacc139c59ac82fc27c6efed14f9b148f16339c05`.
+The packaged native daemon matched
+`b693cc9a1e03bd8d01c3c02aac468be113cfbc2cb2acc807039ce8d7ba46ee5e`.
+Both pinned VS Code versions passed the expanded trusted suite, 14/14, and
+their installed Restricted Mode checks, 1/1. In a separate single-use callback,
+the first inclusive reference request after definition returned both exact
+locations. The native cache hit count rose and the parsed-byte count stayed
+constant.
+
+VS Code 1.108.0 returned 17/46 on demand on each Grace46 pass, including 12
+definitions and five complete reference sets. All 29 gaps were explicit
+unavailable results. Every request reached the daemon and zero exact answers
+were wrong. Importing the precomputed snapshot through **Index Workspace**
+produced 46/46 on the first and restarted runs. The command took 2.813 s and
+1.069 s respectively in these functional checks. The separate export took
+167.6 s. The indexed editor requests reported zero helper or compiler starts.
+
+The final quiet crossover repeated the same two-use fixture and balanced order.
+Each row is the median of two launches. Warm definition uses eight correct
+commands per launch. Times are milliseconds and memory is sampled full desktop
+process-family RSS in MiB. All 12 launches completed.
+
+| Provider | Profile | Launch to first | Demand to first | Warm definition | First complete references | Edit to current definition | Peak RSS (MiB) |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Original Navigator | fresh | 4,432 | 354.7 | 10.6 | 20.6 | 46.9 | 1,237 |
+| Original Navigator | restart | 2,968 | 368.7 | 1.9 | 135.9 | 33.9 | 1,179 |
+| Updated Navigator | fresh | 3,501 | 98.1 | 13.4 | 61.1 | 88.4 | 1,267 |
+| Updated Navigator | restart | 2,698 | 148.8 | 14.9 | 34.6 | 57.0 | 1,188 |
+| Ionide 8.1.0 | fresh | 8,538 | 2,742.3 | 5.4 | 123.2 | 115.4 | 1,627 |
+| Ionide 8.1.0 | restart | 6,956 | 2,537.7 | 6.2 | 103.7 | 125.4 | 1,606 |
+
+Both Navigator builds returned correct immediate ranges on all four launches
+each. Ionide returned stale dirty definitions and references in two of four
+launches. The first correct retries arrived 149.5/152.4 ms after the fresh
+edit and 174.5/182.8 ms after the restarted edit. The new build reduced
+demand-to-first time on this site but had slower warm definitions than both
+comparators. Its whole-editor memory was similar to the original Navigator.
+The separate single-use check above checks cache reuse. The timed fixture
+contains two use sites. [Final release evidence and artifact hashes](../evaluation/editor-lifecycle/2026-11-21-b693cc9a.json)
+
+## Earlier verified Linux x64 package
 
 The package from revision `684ec70` contained the frozen Rust daemon and
 13 approved VSIX entries. Its SHA-256 was
