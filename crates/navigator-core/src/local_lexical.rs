@@ -52,6 +52,9 @@ pub struct Location {
 pub struct LocalAnswer {
     pub locations: Vec<Location>,
     pub declaration: Range,
+    /// A completed definition traversal found exactly one use at the cursor.
+    #[serde(skip)]
+    pub sole_use: Option<Range>,
     pub body_start: usize,
     pub body_end: usize,
     pub document_version: i64,
@@ -730,6 +733,31 @@ fn query_impl(
             {
                 continue;
             }
+            // `ordinary_name` restricts both tokens to single-line ASCII,
+            // so byte deltas within the selected token are UTF-16 deltas.
+            // The cursor itself has already been checked by byte_position.
+            let sole_use = match uses.as_slice() {
+                &[(start, end)]
+                    if operation == Operation::Definition
+                        && start == selected.start_byte()
+                        && end == selected.end_byte()
+                        && start <= offset
+                        && offset <= end =>
+                {
+                    let character = at.character - (offset - start) as u32;
+                    Some(Range {
+                        start: Position {
+                            line: at.line,
+                            character,
+                        },
+                        end: Position {
+                            line: at.line,
+                            character: character + (end - start) as u32,
+                        },
+                    })
+                }
+                _ => None,
+            };
             let mut spans = match operation {
                 Operation::Definition => vec![(parameter.start_byte(), parameter.end_byte())],
                 Operation::References {
@@ -762,6 +790,7 @@ fn query_impl(
                     })
                     .collect(),
                 declaration,
+                sole_use,
                 body_start: candidate.body.start_byte(),
                 body_end: candidate.body.end_byte(),
                 document_version: snapshot.version,

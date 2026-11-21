@@ -12,7 +12,7 @@ use std::{collections::VecDeque, io, mem::size_of};
 const MAX_ENTRIES: usize = 32;
 const MAX_BYTES: usize = 128 * 1024;
 
-#[derive(PartialEq, Eq, Serialize)]
+#[derive(Clone, PartialEq, Eq, Serialize)]
 struct Key {
     uri: Box<str>,
     source_hash: Box<str>,
@@ -43,6 +43,76 @@ impl Key {
 struct Entry {
     key: Key,
     response: Box<[u8]>,
+    compact_references: bool,
+}
+
+// Fixed-width serialized positive reference answer, sharing invariant URI,
+// version, hash and engine fields with its key. Defer provider JSON and proof
+// ID formatting until a references request actually reads this entry.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct SingleUseReferences {
+    declaration: (u32, u32),
+    usage: (u32, u32),
+    identifier_len: u32,
+    body_start: u32,
+    body_end: u32,
+}
+
+impl SingleUseReferences {
+    fn result(&self, key: &Key) -> Result<Value> {
+        let range = |(line, character)| local_lexical::Range {
+            start: Position { line, character },
+            end: Position {
+                line,
+                character: character + self.identifier_len,
+            },
+        };
+        // A lexical formal precedes its uses inside its body.
+        let declaration = range(self.declaration);
+        response(
+            key,
+            declaration,
+            self.body_start as usize,
+            self.body_end as usize,
+            &[
+                local_lexical::Location {
+                    uri: key.uri.to_string(),
+                    range: declaration,
+                },
+                local_lexical::Location {
+                    uri: key.uri.to_string(),
+                    range: range(self.usage),
+                },
+            ],
+        )
+    }
+}
+
+fn response(
+    key: &Key,
+    declaration: local_lexical::Range,
+    body_start: usize,
+    body_end: usize,
+    locations: &[local_lexical::Location],
+) -> Result<Value> {
+    Ok(json!({
+        "completeness": "exact",
+        "source": "local-lexical",
+        "proofScope": "document",
+        "documentVersion": key.version,
+        "version": key.version,
+        "sourceHash": key.source_hash,
+        "documentProofId": key.proof_id()?,
+        "proof": {
+            "algorithm": local_lexical::PROOF_VERSION,
+            "parser": local_lexical::PARSER_FINGERPRINT,
+            "engine": key.engine,
+            "declaration": declaration,
+            "bodyStartByte": body_start,
+            "bodyEndByte": body_end,
+        },
+        "locations": locations,
+    }))
 }
 
 #[derive(Default)]
@@ -88,24 +158,28 @@ impl AnswerCache {
             return Ok(None);
         };
         let entry = self.entries.remove(index).unwrap();
-        let answer = serde_json::from_slice(&entry.response)?;
+        let answer = if entry.compact_references {
+            bincode::deserialize::<SingleUseReferences>(&entry.response)?.result(key)?
+        } else {
+            serde_json::from_slice(&entry.response)?
+        };
         self.entries.push_back(entry);
         Ok(Some(answer))
     }
 
-    fn insert(&mut self, key: Key, value: &Value) {
+    fn insert(&mut self, key: Key, value: &Value) -> bool {
         if self.entries.capacity() == 0 {
             self.entries.reserve_exact(MAX_ENTRIES);
         }
         let Some(limit) = MAX_BYTES.checked_sub(self.overhead() + key.heap_bytes()) else {
-            return;
+            return false;
         };
         let mut bytes = LimitedBytes {
             buffer: Vec::new(),
             limit,
         };
         if serde_json::to_writer(&mut bytes, value).is_err() {
-            return;
+            return false;
         }
         let cost = key.heap_bytes() + bytes.buffer.len();
         while self.entries.len() == MAX_ENTRIES || self.bytes() + cost > MAX_BYTES {
@@ -114,6 +188,48 @@ impl AnswerCache {
         self.entries.push_back(Entry {
             key,
             response: bytes.buffer.into_boxed_slice(),
+            compact_references: false,
+        });
+        true
+    }
+
+    fn insert_single_use(&mut self, answer: &local_lexical::LocalAnswer) {
+        let Some(usage) = answer.sole_use else { return };
+        // Opportunistic entries use spare space only and are first to evict.
+        // Bound spare key allocation independently of the requested response.
+        let Some(primary) = self.entries.back() else {
+            return;
+        };
+        let definition = &primary.key;
+        if definition.uri.len() > 512 || self.entries.len() >= MAX_ENTRIES {
+            return;
+        }
+        let declaration = answer.declaration;
+        let packed = SingleUseReferences {
+            declaration: (declaration.start.line, declaration.start.character),
+            usage: (usage.start.line, usage.start.character),
+            identifier_len: declaration.end.character - declaration.start.character,
+            body_start: answer.body_start as u32,
+            body_end: answer.body_end as u32,
+        };
+        let Ok(bytes) = bincode::serialize(&packed) else {
+            return;
+        };
+        if self.bytes() + definition.heap_bytes() + bytes.len() > MAX_BYTES {
+            return;
+        }
+        let key = Key {
+            references: true,
+            include_declaration: true,
+            ..definition.clone()
+        };
+        if self.entries.iter().any(|entry| entry.key == key) {
+            return;
+        }
+        self.entries.push_front(Entry {
+            key,
+            response: bytes.into_boxed_slice(),
+            compact_references: true,
         });
     }
 }
@@ -190,27 +306,16 @@ impl DocumentNavigation {
             return Ok(None);
         };
         let has_locations = !answer.locations.is_empty();
-        let result = json!({
-            "completeness": "exact",
-            "source": "local-lexical",
-            "proofScope": "document",
-            "documentVersion": answer.document_version,
-            "version": answer.document_version,
-            "sourceHash": answer.source_hash,
-            "documentProofId": key.proof_id()?,
-            "proof": {
-                "algorithm": answer.proof_version,
-                "parser": answer.parser_fingerprint,
-                "engine": key.engine,
-                "declaration": answer.declaration,
-                "bodyStartByte": answer.body_start,
-                "bodyEndByte": answer.body_end,
-            },
-            "locations": answer.locations,
-        });
+        let result = response(
+            &key,
+            answer.declaration,
+            answer.body_start,
+            answer.body_end,
+            &answer.locations,
+        )?;
         token.check()?;
-        if has_locations {
-            self.cache.insert(key, &result);
+        if has_locations && self.cache.insert(key, &result) && answer.sole_use.is_some() {
+            self.cache.insert_single_use(&answer);
         }
         token.check()?;
         self.hits += 1;
@@ -269,6 +374,89 @@ mod tests {
         cache.insert(key(35), &json!("x".repeat(MAX_BYTES)));
         assert!(cache.get(&key(35)).unwrap().is_none());
         assert_eq!(cache.get(&key(34)).unwrap(), Some(large));
+    }
+
+    fn overlay(text: String) -> Overlay {
+        Overlay {
+            path: "/Main.fs".into(),
+            source_hash: blake3::hash(text.as_bytes()).to_hex().to_string(),
+            version: 1,
+            text,
+        }
+    }
+
+    #[test]
+    fn first_references_after_definition_reuse_only_the_proved_single_use() {
+        let source =
+            overlay("module M\r\nlet pair=(\"😀\", List.map (fun param -> param) [1])\r\n".into());
+        let line = source.text.lines().nth(1).unwrap();
+        let start = line[..line.rfind("param").unwrap()].encode_utf16().count() as u32;
+        let token = CancellationToken::new();
+        for offset in [0, 2, 5] {
+            let at = Position {
+                line: 1,
+                character: start + offset,
+            };
+            let mut nav = DocumentNavigation::default();
+            let expected = DocumentNavigation::default()
+                .query(&source, at, true, true, &token)
+                .unwrap()
+                .unwrap();
+            let definition = nav
+                .query(&source, at, false, false, &token)
+                .unwrap()
+                .unwrap();
+            assert_eq!(nav.cache.entries.len(), 2);
+            assert!(nav.cache.bytes() <= MAX_BYTES);
+            assert_eq!(nav.cache.entries.front().unwrap().response.len(), 28);
+            let parsed = nav.parsed_bytes;
+            let result = nav.query(&source, at, true, true, &token).unwrap().unwrap();
+            assert_eq!(result, expected);
+            assert_ne!(definition["documentProofId"], result["documentProofId"]);
+            assert_eq!(nav.parsed_bytes, parsed);
+            assert_eq!(nav.cache_hits, 1);
+            let use_only = nav
+                .query(&source, at, true, false, &token)
+                .unwrap()
+                .unwrap();
+            assert_eq!(use_only["locations"].as_array().unwrap().len(), 1);
+            assert_eq!(use_only["locations"][0], expected["locations"][1]);
+            assert_ne!(use_only["documentProofId"], result["documentProofId"]);
+            assert_eq!(nav.parsed_bytes, parsed * 2);
+            nav.invalidate(&source.path);
+            assert!(nav.cache.entries.is_empty());
+        }
+    }
+
+    #[test]
+    fn unused_formals_multiple_uses_and_long_uris_never_seed_reference_entries() {
+        let token = CancellationToken::new();
+        for (body, position, long_uri) in [
+            ("param", "fun ", false),
+            ("param", "-> ", true),
+            ("0", "fun ", false),
+            ("param+param", "-> ", false),
+        ] {
+            let mut source = overlay(format!(
+                "module M\nlet value = List.map (fun param -> {body}) [1]\n"
+            ));
+            let line = source.text.lines().nth(1).unwrap();
+            let at = Position {
+                line: 1,
+                character: (line.find(position).unwrap() + position.len()) as u32,
+            };
+            if long_uri {
+                source.path = format!("/{}.fs", "x".repeat(520));
+            }
+            let mut nav = DocumentNavigation::default();
+            let result = nav
+                .query(&source, at, false, true, &token)
+                .unwrap()
+                .unwrap();
+            assert_eq!(result["completeness"], "exact");
+            assert_eq!(nav.cache.entries.len(), 1);
+            assert!(!nav.cache.entries.front().unwrap().compact_references);
+        }
     }
 
     #[test]
