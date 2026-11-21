@@ -1148,7 +1148,7 @@ impl Workspace {
     }
     fn resolve(&mut self, path: &str, p: &ParsedFile, token: usize) -> Result<Option<Symbol>> {
         if p.possible_named_argument(token) {
-            return Ok(None);
+            return self.named_argument_binding(path, p, token);
         }
         if Self::has_member_syntax(p, token) {
             if let Some(member) = self.member_binding(path, p, token)? {
@@ -1900,13 +1900,23 @@ impl Workspace {
                         }
                     }
                     if parsed.possible_named_argument(token) {
-                        complete = false;
-                        if trace {
-                            gap(
-                                json!({"path":path,"kind":"unproven-call-argument-name","range":parsed.tokens[token].range()}),
-                            );
+                        if let Some(parameter) =
+                            self.named_argument_binding(&path, &parsed, token)?
+                        {
+                            // The positively proved source method formal is a
+                            // different identity from this caller-side value.
+                            if parameter != *symbol {
+                                continue;
+                            }
+                        } else {
+                            complete = false;
+                            if trace {
+                                gap(
+                                    json!({"path":path,"kind":"unproven-call-argument-name","range":parsed.tokens[token].range()}),
+                                );
+                            }
+                            continue;
                         }
-                        continue;
                     }
                     if is_record_field && Self::record_field_role_disjoint(&parsed, token)
                         || is_type && Self::type_reference_role_disjoint(&parsed, token)
@@ -2009,7 +2019,9 @@ impl Workspace {
         json!({"hover":{"markdown":markdown,"range":range,"isExternal":true},"contents":markdown,"ownership":"external","completeness":"exact","source":"metadata-catalog","symbol":symbol})
     }
     fn hover_native(&mut self, path: &str, p: &ParsedFile, token: usize) -> Result<Value> {
-        if p.possible_named_argument(token) {
+        if p.possible_named_argument(token)
+            && self.named_argument_binding(path, p, token)?.is_none()
+        {
             return Ok(self.empty(true, "Call argument label identity is unproven"));
         }
         if p.explicit_constructor_heads.contains(&token) {

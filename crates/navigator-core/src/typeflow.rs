@@ -584,6 +584,99 @@ impl Workspace {
             _ => None,
         })
     }
+    /// Resolve only a direct, single-formal forwarder to a unique intrinsic
+    /// static method on a freshly declared class. The receiver must pass
+    /// ordinary term/module competition against certified assembly facts.
+    pub(crate) fn named_argument_binding(
+        &mut self,
+        path: &str,
+        p: &ParsedFile,
+        token: usize,
+    ) -> Result<Option<Symbol>> {
+        let Ok(i) = p
+            .call_argument_name_candidates
+            .binary_search_by_key(&token, |c| c.token)
+        else {
+            return Ok(None);
+        };
+        let candidate = &p.call_argument_name_candidates[i];
+        let Some(head) = candidate.callee.filter(|_| candidate.forwarded) else {
+            return Ok(None);
+        };
+        if self.builtin_path.is_none()
+            || self.possible_signature_context(path)
+            || !p.opens.is_empty()
+            || !p.attributes.is_empty()
+            || !p.aliases.is_empty()
+            || !p.uncertain.is_empty()
+            || !p.potential_bindings.is_empty()
+            || p.modules.len() != 1
+            || p.owned_types.len() != 1
+            || p.record_types.len() != 1
+        {
+            return Ok(None);
+        }
+        let Some(receiver) = p.qualifier(head) else {
+            return Ok(None);
+        };
+        // A new term-absence scan must have bounded scope, even for a small
+        // method body in a very large workspace.
+        if receiver.contains('.') || self.model.files.len() > 8 {
+            return Ok(None);
+        }
+        let record = &p.record_types[0];
+        let expected = format!("{}.{}", p.modules[0].name, receiver);
+        if record.kind != "class"
+            || record.name != expected
+            || record.token >= head
+            || record.base_type.is_some()
+            || !record.type_parameters.is_empty()
+        {
+            return Ok(None);
+        }
+        let mut methods = p
+            .method_declarations
+            .iter()
+            .filter(|m| m.type_token == record.token && m.name == p.tokens[head].text);
+        let Some(m) = methods.next() else {
+            return Ok(None);
+        };
+        if methods.next().is_some() || !m.supported || !m.is_static || m.parameters.len() != 1 {
+            return Ok(None);
+        }
+        let Some(parameter) = m.parameters[0].binding else {
+            return Ok(None);
+        };
+        let Some(d) = p.declaration_at(parameter) else {
+            return Ok(None);
+        };
+        if d.kind != "parameter" || d.name != p.tokens[token].text {
+            return Ok(None);
+        }
+        let receiver_token = head - 2;
+        let Lookup::Resolved(TypeExpr::Source {
+            path: owner,
+            token: ty,
+            ..
+        }) = self.qualified_nominal_receiver(path, p, receiver_token, &receiver, 0)?
+        else {
+            return Ok(None);
+        };
+        if owner != path || ty != record.token {
+            return Ok(None);
+        }
+        let method = self.method_binding(path, p, head, 0)?;
+        if method
+            .as_ref()
+            .is_none_or(|mtd| mtd.path != path || mtd.token != m.token)
+        {
+            return Ok(None);
+        }
+        Ok(Some(
+            self.source_symbol(path, p, parameter, &d.name, true, false),
+        ))
+    }
+
     fn method_binding(
         &mut self,
         path: &str,
@@ -1473,7 +1566,7 @@ impl Workspace {
         token: usize,
     ) -> Result<Option<Symbol>> {
         if parsed.possible_named_argument(token) {
-            return Ok(None);
+            return self.named_argument_binding(path, parsed, token);
         }
         if parsed.explicit_constructor_heads.contains(&token) {
             // Explicit new enters the type namespace even when a local value
@@ -4679,6 +4772,31 @@ mod tests {
         fs::write(&environment,crate::certified_metadata_fixture(json!({"schemaVersion":1,"factsVersion":2,"kind":"builtin-environment","completeness":"exact","typeNameInventory":"all-external-type-declarations","scopeNameInventory":"all-external-namespace-and-module-declarations","termNameInventory":"all-external-expression-bindings","scopeNames":{},"termNames":{},"assemblyAutoOpens":[],"certificateScope":"selected-reference-declaration-inventory","inputHashes":[{"path":assembly,"sha256":format!("{:x}",Sha256::digest(fs::read(&assembly).unwrap()))}],"referenceBindings":[{"path":assembly,"identity":"Certificate"}],"workspaceAssemblies":[],"types":{},"patterns":{},"typeNames":names})).to_string()).unwrap();
         ws.builtin_path = Some(environment.to_string_lossy().into_owned());
     }
+    #[test]
+    fn prepared_single_argument_forwarder_identifies_the_static_parameter() {
+        let (path, mut ws) = workspace(
+            "module Example\ntype C = static member M(x:bool)=x\nlet caller x = C.M(x=x)\n",
+        );
+        certify_type_names(&path, &mut ws, json!({}));
+        let lhs = query(&mut ws, &path, "navigation/definition", 2, 19);
+        assert_eq!(lhs["completeness"], "exact", "{lhs}");
+        assert_eq!(
+            lhs["locations"][0]["range"]["start"],
+            json!({"line":1,"character":25})
+        );
+        let caller = query(&mut ws, &path, "navigation/references", 2, 21);
+        assert_eq!(caller["completeness"], "exact", "{caller}");
+        assert_eq!(caller["locations"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            caller["locations"][0]["range"]["start"],
+            json!({"line":2,"character":21})
+        );
+        let callee = query(&mut ws, &path, "navigation/references", 2, 19);
+        assert_eq!(callee["completeness"], "unavailable", "{callee}");
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        fs::remove_dir_all(path).unwrap();
+    }
+
     #[test]
     fn annotated_receiver_fields_have_distinct_identities_and_dirty_refs() {
         let source="module Main\ntype Person = { Name: string }\ntype Company = { Name: string }\nlet read (x: Person) = x.Name\nlet other (x: Company) = x.Name\n";

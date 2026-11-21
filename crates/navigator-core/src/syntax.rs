@@ -200,6 +200,8 @@ pub enum ArgumentSource {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DeclaredParameterType {
+    #[serde(default)]
+    pub binding: Option<usize>,
     pub type_name: String,
     pub token: usize,
 }
@@ -376,6 +378,8 @@ pub struct RecordExpression {
 /// callee is retained only for syntactically simple function applications.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CallArgumentNameCandidate {
+    #[serde(default)]
+    pub forwarded: bool,
     pub token: usize,
     pub callee: Option<usize>,
 }
@@ -858,6 +862,7 @@ pub fn parse(src: &str) -> ParsedFile {
                 .then_some(CallArgumentNameCandidate {
                     token: i + 1,
                     callee: None,
+                    forwarded: false,
                 })
         })
         .collect();

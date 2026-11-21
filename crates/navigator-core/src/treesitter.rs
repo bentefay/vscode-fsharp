@@ -508,6 +508,7 @@ fn parse_impl_with_projection(source: &str, signature: bool, allow_projection: b
             if current.callee != previous.callee {
                 previous.callee = None;
             }
+            previous.forwarded &= current.forwarded;
             true
         });
     x.parsed.qualifier_roots.sort_unstable();
@@ -1449,6 +1450,7 @@ impl Extractor<'_> {
                         .push(CallArgumentNameCandidate {
                             token,
                             callee: candidate.callee.and_then(map_token),
+                            forwarded: false, // Fragment prefixes do not witness a module-level function.
                         });
                 }
             }
@@ -2203,6 +2205,7 @@ impl Extractor<'_> {
         }
         let mut ancestor = separator.parent();
         while let Some(group) = ancestor {
+            let mut call = group;
             let head = match group.kind() {
                 "application_expression" | "generic_new_expression" => {
                     let mut cursor = group.walk();
@@ -2216,7 +2219,8 @@ impl Extractor<'_> {
                     method_children(group).first().copied()
                 }
                 "paren_expression" | "list_expression" => {
-                    let Some(call) = group.parent() else { return };
+                    let Some(parent) = group.parent() else { return };
+                    call = parent;
                     let parts = method_children(call);
                     if call.kind() == "class_inherits_decl" {
                         None
@@ -2258,9 +2262,87 @@ impl Extractor<'_> {
             };
             self.parsed
                 .call_argument_name_candidates
-                .push(CallArgumentNameCandidate { token, callee });
+                .push(CallArgumentNameCandidate {
+                    token,
+                    callee,
+                    forwarded: !optional && self.forwards_single_argument(call, node, cs[2]),
+                });
             return;
         }
+    }
+
+    // let f arg = Owner.Method(label=arg). The caller formal has no other
+    // constraint or use. Compound arguments can have different precedence
+    // in FCS and the CST and cannot certify a parameter label here.
+    fn forwards_single_argument(
+        &self,
+        call: Node<'_>,
+        assignment: Node<'_>,
+        rhs: Node<'_>,
+    ) -> bool {
+        let Some(function) = call.parent() else {
+            return false;
+        };
+        if function.kind() != "function_or_value_defn"
+            || !ordinary_source_function(function, self.source)
+        {
+            return false;
+        }
+        let mut cursor = function.walk();
+        let pieces: Vec<_> = function
+            .children(&mut cursor)
+            .filter(|n| !n.is_extra())
+            .collect();
+        if pieces.len() != 4
+            || pieces[0].kind() != "let"
+            || pieces[1].kind() != "function_declaration_left"
+            || pieces[2].kind() != "="
+            || pieces[3].id() != call.id()
+        {
+            return false;
+        }
+        let Some(container) = function.parent() else {
+            return false;
+        };
+        let container = if container.kind() == "declaration_expression" {
+            if method_children(container).len() != 1 {
+                return false;
+            }
+            container.parent()
+        } else {
+            Some(container)
+        };
+        if !container.is_some_and(|n| n.kind() == "named_module") {
+            return false;
+        }
+        let left = method_children(pieces[1]);
+        if left.len() != 2
+            || left[0].kind() != "identifier"
+            || left[1].kind() != "argument_patterns"
+        {
+            return false;
+        }
+        let formals = method_children(left[1]);
+        let Some(formal) = formals.first().copied().filter(|_| formals.len() == 1) else {
+            return false;
+        };
+        if formal.kind() != "long_identifier"
+            || method_children(formal).len() != 1
+            || rhs.kind() != "long_identifier_or_op"
+            || raw(rhs, self.source) != raw(formal, self.source)
+        {
+            return false;
+        }
+        let cs = method_children(call);
+        if cs.len() != 2 || cs[0].kind() != "long_identifier_or_op" {
+            return false;
+        }
+        let arg = if cs[1].kind() == "paren_expression" {
+            method_children(cs[1]).first().copied()
+        } else {
+            Some(cs[1])
+        };
+        arg.is_some_and(|n| n.id() == assignment.id())
     }
 
     fn expression_name(&self, node: Node<'_>) -> Option<(Vec<usize>, Option<u32>)> {
@@ -3145,7 +3227,12 @@ impl Extractor<'_> {
                                     continue;
                                 }
                                 if let Some((type_name, token)) = self.named_type(parts[1]) {
-                                    parameters.push(DeclaredParameterType { type_name, token });
+                                    parameters.push(DeclaredParameterType {
+                                        type_name,
+                                        token,
+                                        binding: simple_pattern_name(parts[0])
+                                            .and_then(|n| self.token(n)),
+                                    });
                                 } else {
                                     supported = false;
                                 }
@@ -3317,7 +3404,11 @@ impl Extractor<'_> {
                     continue;
                 }
                 if let Some((type_name, token)) = self.named_type(types[0]) {
-                    fields.push(DeclaredParameterType { type_name, token });
+                    fields.push(DeclaredParameterType {
+                        type_name,
+                        token,
+                        binding: None,
+                    });
                 } else {
                     supported = false;
                 }
