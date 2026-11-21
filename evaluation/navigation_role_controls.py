@@ -87,6 +87,8 @@ CASES = [
     ('autoQualifier', 'module A =\n    let g a=a', 'let caller «x» = A.g(«x»=«x»)', False),
     ('openedQualifier', 'open ImportedFromControl\nmodule A =\n    let g a=a',
      'let caller «x» = A.g(«x»=«x»)', False),
+    ('ctorFromOpen', 'let «g» b=b\nopen OpenedConstructor',
+     'let caller «x» = «g»(«x»=«x»)', False),
     ('shadowCtor', 'let g b=b\nmodule B =\n    type g(x:int) = member _.P=x\nopen B',
      'let caller «x» = g(«x»=«x»)', False),
     ('nested', STATIC, 'let caller = let inner «x» = C.M(«x»=«x») in inner true', False),
@@ -147,6 +149,11 @@ def prepare(out):
         # let one real SDK project validate the positive fixture batch in compile order.
         implementation = root / ('Implementation' + name + '.fs')
         files = [implementation]
+        if name == 'ctorFromOpen':
+            prior = root / 'OpenedConstructor.fs'
+            files.insert(0, prior)
+            manifest.append(make_file(prior, 'module OpenedConstructor\ntype «g»(x:int)=member _.P=x',
+                                      name, files))
         if name == 'openedQualifier':
             prior = root / 'ImportedFromControl.fs'
             prior.write_text('module ImportedFromControl\ntype Proxy() = member _.g(x:int)=x\nlet A=Proxy()\n')
