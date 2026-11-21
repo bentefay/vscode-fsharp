@@ -608,7 +608,7 @@ impl Workspace {
             return Ok(None);
         };
         if self.builtin_path.is_none()
-            || self.possible_signature_context(path)
+            || self.possible_signature_context(path, false)
             || !p.opens.is_empty()
             || !p.attributes.is_empty()
             || !p.aliases.is_empty()
