@@ -1,0 +1,9 @@
+# Closed literal factory syntax certificate
+
+`RecordExpression.method_result_literal_group` defaults to false. It is an additional requirement for inferred static record factory results, not an alternate path around existing eligibility, identity, source-order, signature or environment checks.
+
+The entire error-free type checking group must have one ordinary static member/property and one ordinary non-generic record or class owner, without constructors, static lets, sibling members, recursive groups, attributes, inherited/interface context, or unknown headers. Parameter and record-field type syntax is limited to simple nominal names; normalized references to the owner type in those positions are refused. The header traversal is explicit and bounded.
+
+The whole member RHS must be a direct record tree whose values contain only parentheses, tuples, lists, arrays and admitted intrinsic constants. Admitted constants are opaque non-interpolated ordinary/verbatim/triple strings, booleans, unit and digit/underscore decimal integer tokens. Every other expression kind is refused. In particular identifiers, applications, projections, `nameof`, quotations, lambdas, control flow, bindings, casts, updates, anonymous records, ranges/comprehensions, custom numeric suffixes and interpolated string wrappers do not receive the certificate. Literal-projected source regions also refuse it.
+
+Both traversals have fixed 2,048-node budgets and cancellation checks. The certificate intentionally loses earlier factory coverage; it does not guess that arbitrary expressions are free of type constraints. The nineteen actual FCS controls are embedded in parser tests so isolated native source captures remain self-contained. Parser tests verify syntax facts, not compiler validity or final navigation correctness; independent native replay remains required.

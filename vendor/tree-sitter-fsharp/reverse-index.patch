@@ -1,0 +1,32 @@
+--- a/fsharp/grammar.js
++++ b/fsharp/grammar.js
+@@ -111,6 +111,9 @@
+   conflicts: ($) => [
+     [$.long_identifier, $._identifier_or_op],
+     [$.simple_type, $.type_argument],
++    // Keep prefix index-from-end and SRTP heads alive until the colon/trait body.
++    [$._srtp_type_argument, $.long_identifier, $._identifier_or_op],
++    [$._srtp_type_argument, $.prefixed_expression, $.infix_op],
+     [$._module_expression, $._expression],
+     [$.declaration_expression, $._comp_or_range_expression],
+     [$.rules],
+@@ -118,6 +121,7 @@
+     // _newline before the next '|' case vs. reduce), like [$.rules] above.
+     [$.union_type_cases],
+     [$.prefixed_expression, $._low_prec_app, $.infix_expression],
++    [$.prefixed_expression, $._high_prec_app, $._low_prec_app],
+     [$._type, $._argument_type],
+     // `a * b` in a member signature: an argument group if `->` follows, the
+     // returned tuple otherwise.
+@@ -815,6 +819,11 @@
+ 
+     prefixed_expression: ($) =>
+       choice(
++        // F# minusExpr constructs IndexFromEnd. Keep its operand tighter
++        // than infix arithmetic: ^offset + 1 is not ^(offset + 1).
++        // If a left expression exists, prefer the ordinary infix caret to
++        // interpreting its RHS as a prefix-caret application argument.
++        prec.dynamic(-1, prec.right(PREC.SPECIAL_PREFIX, seq("^", $._expression))),
+         seq(
+           choice(
+             "return",

@@ -1,0 +1,166 @@
+{
+  "upstream": {
+    "crate": "tree-sitter-fsharp",
+    "version": "0.3.13",
+    "commit": "12ed86cfef3ed8c7106a6e599dafe5de911d01b3",
+    "crate_sha256": "248fccdffd6f029b4932cf2c619b0a40ccaeab3c32764c237316a717c0c72aa2",
+    "repository": "https://github.com/ionide/tree-sitter-fsharp",
+    "license": "MIT"
+  },
+  "generator": {
+    "crate": "tree-sitter-cli",
+    "version": "0.27.2",
+    "crate_sha256": "d81cd9b073d90002025fe3d36b21cf5fd4240b333d18455db916af7bee5687a0",
+    "install": "cargo install tree-sitter-cli --version 0.27.2 --locked",
+    "command": "tree-sitter generate --abi 15 --js-runtime native",
+    "abi": 15,
+    "runtime": "bundled QuickJS; no npm acquisition"
+  },
+  "local_change": "Prefix-caret IndexFromEnd alternative with compiler-matching operand precedence; runtime preference for ordinary infix caret; explicit SRTP/application conflicts. No scanner/error-suppression change.",
+  "files": {
+    "Cargo.toml": {
+      "sha256": "38da9c810202f758436a163f03f3bf0229bb041c58d7d239ac1e2a16afaea5b2",
+      "bytes": 1356
+    },
+    "Cargo.toml.orig": {
+      "sha256": "be6306b15e9079c5d1d459745b767832cd363b811a9d05c6d6c937a76719650f",
+      "bytes": 703
+    },
+    "LICENSE": {
+      "sha256": "f9352b63e87252b282b252bf27530027c8ca69829e0023f8b8b682a736f271fd",
+      "bytes": 1074
+    },
+    "README.navigator.md": {
+      "sha256": "4f0bbd705ff5eeadfe5a92c38ebb852e4d9389fd25e9742c8f042b471f8587f0",
+      "bytes": 2078
+    },
+    "bindings/rust/README.md": {
+      "sha256": "b931edc47cad39566963650e26e27a618c7deb088a697ef6a7f8882cac1a186e",
+      "bytes": 2352
+    },
+    "bindings/rust/build.rs": {
+      "sha256": "547812e1b76802bee3e78153e7022f0ec7be7889080fbd30ac1dbb61ea5e5502",
+      "bytes": 887
+    },
+    "bindings/rust/lib.rs": {
+      "sha256": "116961c3403a72a2579896db5dfbb8483a2df27b683806651c484db59aecd476",
+      "bytes": 3095
+    },
+    "common/scanner.h": {
+      "sha256": "aa01f3680c006adc2df08fe16c5c015f746204595daea3e5bf8b0fb070054e4c",
+      "bytes": 121193
+    },
+    "fsharp/grammar.js": {
+      "sha256": "714b41f0f6ea4ae6b9c399ce8fc8a71c7f75085b163c9ee8a69fdba01aad5476",
+      "bytes": 87457
+    },
+    "fsharp/src/grammar.json": {
+      "sha256": "ba01f38438da192686d53ee40c535034d10dc0dcd55a5be4f6274a6bddbc05b6",
+      "bytes": 283400
+    },
+    "fsharp/src/node-types.json": {
+      "sha256": "a5bc39c3984824f630684f6870c2de2dde644b715c9c55af2db7d17aeddda285",
+      "bytes": 97277
+    },
+    "fsharp/src/parser.c": {
+      "sha256": "00943a441bd59446ed9d321f3e0e09402ec3069c623890fc0b1893717d001302",
+      "bytes": 59270973
+    },
+    "fsharp/src/scanner.c": {
+      "sha256": "4e53e98f5f32715abf2ecee72f4ad9cee23fe040e0930215b196aed1a5956646",
+      "bytes": 998
+    },
+    "fsharp/src/tree_sitter/alloc.h": {
+      "sha256": "b29c1c9fb7cc82f58c84b376df1297d6e2737a1d655fd356db0859e3c29c2fea",
+      "bytes": 985
+    },
+    "fsharp/src/tree_sitter/array.h": {
+      "sha256": "20e6ba85abb9d5b7e2e6dedf675c9424a057a06feee03aa3e2dd48a1cb4bf8a2",
+      "bytes": 13453
+    },
+    "fsharp/src/tree_sitter/parser.h": {
+      "sha256": "180b893c8734778fd32f372dfbc27bd6ad1cd2221f26150b31256ff6716320d2",
+      "bytes": 7624
+    },
+    "fsharp_signature/grammar.js": {
+      "sha256": "acda34ab27a636e5b079330d2bff0a7e8b33816d95a5bcd3358afdd465595640",
+      "bytes": 5851
+    },
+    "fsharp_signature/queries/highlights.scm": {
+      "sha256": "ebf11de587aa5843057bc2e0cf8e511d27c247557b4e5373af47b37b1f42ceef",
+      "bytes": 4947
+    },
+    "fsharp_signature/queries/locals.scm": {
+      "sha256": "89015e7a7a78eca5ce71a2e80ed50dbfb9d5a381e27e266f2f6f0952cec206e1",
+      "bytes": 591
+    },
+    "fsharp_signature/queries/tags.scm": {
+      "sha256": "2bbd6b1c4e8a273d1c86533803771aae770812c6225e42855bb7243d8b619623",
+      "bytes": 1350
+    },
+    "fsharp_signature/src/grammar.json": {
+      "sha256": "371eabc59f2913dc108d655e0cfdd6b6d8f6a0a7a683d50359aa69a41f99287f",
+      "bytes": 278361
+    },
+    "fsharp_signature/src/node-types.json": {
+      "sha256": "62d18aed72c66a2b492747d41260e1a2d2e7ebca9bef988c10470997692d99b7",
+      "bytes": 114568
+    },
+    "fsharp_signature/src/parser.c": {
+      "sha256": "2d2f79ee290da7bc9765638212a096aeab2a1b2ce785ab0aaba6cddd333f8dc3",
+      "bytes": 16921517
+    },
+    "fsharp_signature/src/scanner.c": {
+      "sha256": "e7e0ef52a2880bb906ff3055cbcd4a2914fe327ff3762fff68b6a4599c91d113",
+      "bytes": 918
+    },
+    "fsharp_signature/src/tree_sitter/alloc.h": {
+      "sha256": "b29c1c9fb7cc82f58c84b376df1297d6e2737a1d655fd356db0859e3c29c2fea",
+      "bytes": 985
+    },
+    "fsharp_signature/src/tree_sitter/array.h": {
+      "sha256": "20e6ba85abb9d5b7e2e6dedf675c9424a057a06feee03aa3e2dd48a1cb4bf8a2",
+      "bytes": 13453
+    },
+    "fsharp_signature/src/tree_sitter/parser.h": {
+      "sha256": "180b893c8734778fd32f372dfbc27bd6ad1cd2221f26150b31256ff6716320d2",
+      "bytes": 7624
+    },
+    "queries/folds.scm": {
+      "sha256": "ded9a8df5b2db9d011ef19ec3024f6e347cf7ca194f5e8372e1b6d48bf0690b3",
+      "bytes": 795
+    },
+    "queries/highlights.scm": {
+      "sha256": "82560cc6a106e0d5323b4515bac7d070a3fa719a94f8678828f2e04e149adb34",
+      "bytes": 16955
+    },
+    "queries/indents.scm": {
+      "sha256": "4c8d2bb7d41da7962d358a30ec15c937f843d5bf243c8d766947f241bc7ecc96",
+      "bytes": 748
+    },
+    "queries/injections.scm": {
+      "sha256": "12fd940546eab37406ca1a479db48dd0ce6115bd34e37759017181cfe96f5c69",
+      "bytes": 946
+    },
+    "queries/locals.scm": {
+      "sha256": "46f8d43ed4dc4f0cf681663ace2565472424258be9cfbe284a4810a3caba05ce",
+      "bytes": 2119
+    },
+    "queries/tags.scm": {
+      "sha256": "f4d35a82e634f82279be24f149d2b39b61390aa77cae26bd022efa9782897228",
+      "bytes": 2815
+    },
+    "queries/textobjects.scm": {
+      "sha256": "a46c9f2cba83f02e443ae738d410b7b908ee98696f94f447491a302a4cabf4d1",
+      "bytes": 3535
+    },
+    "reverse-index.patch": {
+      "sha256": "c16a41f2f606377d0b488a12e01dec74ac6b108889cdfc5611cc6a6c9dfd5391",
+      "bytes": 1425
+    },
+    "tree-sitter.json": {
+      "sha256": "51b095ad47ec6c052c00b28b3ee2e8cc9efd268c7106d8404d7c29dc09162271",
+      "bytes": 491
+    }
+  }
+}

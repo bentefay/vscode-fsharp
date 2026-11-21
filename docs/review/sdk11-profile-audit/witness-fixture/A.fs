@@ -1,0 +1,2 @@
+module A
+let value = 1

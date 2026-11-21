@@ -1,0 +1,189 @@
+{
+  "name": "fsharp-navigator",
+  "displayName": "F# Navigator (Prototype)",
+  "description": "Rust-first F# navigation and ordered project browsing with explicit experimental semantic mode.",
+  "version": "0.1.0",
+  "publisher": "bentefay",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.108.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "main": "./extension/dist/extension.js",
+  "activationEvents": [
+    "onLanguage:fsharp",
+    "workspaceContains:**/*.fsproj",
+    "onView:fsharpNavigator.solution"
+  ],
+  "capabilities": {
+    "virtualWorkspaces": false,
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Navigation processes require a trusted workspace."
+    }
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "fsharp",
+        "aliases": [
+          "F#",
+          "fsharp"
+        ],
+        "extensions": [
+          ".fs",
+          ".fsi",
+          ".fsx"
+        ],
+        "configuration": "./extension/language-configuration.json"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "fsharpNavigator",
+          "title": "F# Navigator",
+          "icon": "extension/resources/fsharp.svg"
+        }
+      ]
+    },
+    "views": {
+      "fsharpNavigator": [
+        {
+          "id": "fsharpNavigator.solution",
+          "name": "Solution"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "fsharpNavigator.refresh",
+        "title": "F# Navigator: Refresh Solution"
+      },
+      {
+        "command": "fsharpNavigator.restart",
+        "title": "F# Navigator: Restart Engine"
+      },
+      {
+        "command": "fsharpNavigator.selectMode",
+        "title": "F# Navigator: Select Engine Mode"
+      }
+    ],
+    "configuration": {
+      "title": "F# Navigator",
+      "properties": {
+        "fsharpNavigator.mode": {
+          "type": "string",
+          "enum": [
+            "indexed",
+            "lexical",
+            "semantic"
+          ],
+          "default": "indexed",
+          "description": "Indexed and lexical modes never start FCS. Semantic is an explicit experimental compiler-backed mode."
+        },
+        "fsharpNavigator.backendPath": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "description": "Override the bundled Rust executable."
+        },
+        "fsharpNavigator.helperPath": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "description": "Experimental semantic helper executable. Used only for explicitly requested semantic operations."
+        },
+        "fsharpNavigator.indexCacheMb": {
+          "type": "number",
+          "default": 8,
+          "minimum": 1,
+          "description": "SQLite page-cache budget in MiB. This is not a native process RSS limit."
+        },
+        "fsharpNavigator.overlayBudgetMb": {
+          "type": "number",
+          "default": 32,
+          "minimum": 1,
+          "description": "Maximum accepted dirty-document text budget in MiB."
+        },
+        "fsharpNavigator.helperMemoryLimitMb": {
+          "type": "number",
+          "default": 256,
+          "minimum": 32,
+          "description": "Sampled memory guard for explicitly requested semantic helpers only. Indexed mode does not launch FCS."
+        },
+        "fsharpNavigator.libraryCatalogPath": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "description": "Optional library documentation catalog used by native indexed mode."
+        },
+        "fsharpNavigator.helperArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "scope": "application",
+          "description": "Arguments for the explicitly selected semantic helper executable, for example an absolute helper DLL path when helperPath is dotnet."
+        },
+        "fsharpNavigator.evaluatedModelPath": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Explicit prepared project manifest from the prepare CLI. Recreate after project or build configuration changes."
+        },
+        "fsharpNavigator.semanticSnapshotPath": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Optional explicitly exported semantic snapshot. Validated on import and invalidated on edits; never triggers compiler fallback."
+        },
+        "fsharpNavigator.builtinEnvironmentPath": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Optional complete selected-reference name certificate produced by prepare. Loaded lazily for builtin and library type proofs; no compiler is started by indexed queries."
+        },
+        "fsharpNavigator.decompilerPath": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "description": "Optional explicitly configured one-shot external declaration helper executable, usually dotnet. Used only for external definition materialization, without FCS."
+        },
+        "fsharpNavigator.decompilerArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "scope": "application",
+          "description": "Arguments for the optional decompiler executable, for example its published DLL path and --once."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p extension/tsconfig.json",
+    "vscode:prepublish": "npm run compile",
+    "check": "node cli/bin/run.mjs check",
+    "verify": "node cli/bin/run.mjs verify",
+    "package": "node cli/bin/run.mjs package"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.0",
+    "@types/vscode": "1.108.0",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "4.1.0",
+    "clipanion": "4.0.0-rc.4",
+    "typescript": "5.9.3"
+  },
+  "overrides": {
+    "minimatch@>=7": "11.0.1"
+  }
+}

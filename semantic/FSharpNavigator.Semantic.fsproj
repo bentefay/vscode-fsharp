@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <NuGetAudit>false</NuGetAudit>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The repository pins its SDK. Reuse that exact compiler service rather
+         than downloading a second independently versioned compiler. -->
+    <Reference Include="FSharp.Core"><HintPath>$(MSBuildToolsPath)/FSharp/FSharp.Core.dll</HintPath></Reference>
+    <Reference Include="FSharp.Compiler.Service"><HintPath>$(MSBuildToolsPath)/FSharp/FSharp.Compiler.Service.dll</HintPath></Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="EvaluationLogger/FSharpNavigator.EvaluationLogger.csproj" ReferenceOutputAssembly="false" />
+    <None Include="EvaluationLogger/bin/$(Configuration)/net10.0/FSharpNavigator.EvaluationLogger.dll" Link="FSharpNavigator.EvaluationLogger.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Common.fs" />
+    <Compile Include="ProjectMembership.fs" />
+    <Compile Include="GlobalizationProfile.fs" />
+    <Compile Include="EvaluationEnvironment.fs" />
+    <Compile Include="Evaluation.fs" />
+    <Compile Include="MetadataBindings.fs" />
+    <Compile Include="MetadataDependencies.fs" />
+    <Compile Include="MetadataContract.fs" />
+    <Compile Include="MetadataXml.fs" />
+    <Compile Include="MetadataContext.fs" />
+    <Compile Include="MetadataTypes.fs" />
+    <Compile Include="MetadataEnvironment.fs" />
+    <Compile Include="XmlDocumentation.fs" />
+    <Compile Include="Semantic.fs" />
+    <Compile Include="MetadataPreparation.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+</Project>

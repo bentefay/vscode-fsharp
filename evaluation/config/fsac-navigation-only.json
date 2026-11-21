@@ -1,0 +1,28 @@
+{
+  "enableAnalyzers": false,
+  "linter": false,
+  "simplifyNameAnalyzer": false,
+  "unnecessaryParenthesesAnalyzer": false,
+  "unusedDeclarationsAnalyzer": false,
+  "unusedOpensAnalyzer": false,
+  "enableReferenceCodeLens": false,
+  "codeLenses": {
+    "references": {
+      "enabled": false
+    },
+    "signature": {
+      "enabled": false
+    }
+  },
+  "inlayHints": {
+    "enabled": false,
+    "parameterNames": false,
+    "typeAnnotations": false
+  },
+  "lineLens": {
+    "enabled": "never"
+  },
+  "pipelineHints": {
+    "enabled": false
+  }
+}

@@ -1,0 +1,90 @@
+[
+  {
+    "case": "Callable.fs",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/local-lexical-proof/callable-parameter-controls/fixture/Callable.fs",
+    "source": "module Callable\ntype C(seed:int) =\n    member _.Value = seed\n    member _.M(amount:int) = amount + amount\n    static member S(delta:int) = delta + delta\n",
+    "projectFiles": [
+      "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/local-lexical-proof/callable-parameter-controls/fixture/Callable.fs",
+      "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/local-lexical-proof/callable-parameter-controls/fixture/Use.fs"
+    ],
+    "queries": [
+      {
+        "line": 1,
+        "character": 7,
+        "token": "seed",
+        "label": "Callable.fs:1:7:seed"
+      },
+      {
+        "line": 2,
+        "character": 21,
+        "token": "seed",
+        "label": "Callable.fs:2:21:seed"
+      },
+      {
+        "line": 3,
+        "character": 15,
+        "token": "amount",
+        "label": "Callable.fs:3:15:amount"
+      },
+      {
+        "line": 3,
+        "character": 29,
+        "token": "amount",
+        "label": "Callable.fs:3:29:amount"
+      },
+      {
+        "line": 3,
+        "character": 38,
+        "token": "amount",
+        "label": "Callable.fs:3:38:amount"
+      },
+      {
+        "line": 4,
+        "character": 20,
+        "token": "delta",
+        "label": "Callable.fs:4:20:delta"
+      },
+      {
+        "line": 4,
+        "character": 33,
+        "token": "delta",
+        "label": "Callable.fs:4:33:delta"
+      },
+      {
+        "line": 4,
+        "character": 41,
+        "token": "delta",
+        "label": "Callable.fs:4:41:delta"
+      }
+    ]
+  },
+  {
+    "case": "Use.fs",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/local-lexical-proof/callable-parameter-controls/fixture/Use.fs",
+    "source": "module Use\nopen Callable\nlet instance = C(seed=1)\nlet methodResult = instance.M(amount=2)\nlet staticResult = C.S(delta=3)\n",
+    "projectFiles": [
+      "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/local-lexical-proof/callable-parameter-controls/fixture/Callable.fs",
+      "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/local-lexical-proof/callable-parameter-controls/fixture/Use.fs"
+    ],
+    "queries": [
+      {
+        "line": 2,
+        "character": 17,
+        "token": "seed",
+        "label": "Use.fs:2:17:seed"
+      },
+      {
+        "line": 3,
+        "character": 30,
+        "token": "amount",
+        "label": "Use.fs:3:30:amount"
+      },
+      {
+        "line": 4,
+        "character": 23,
+        "token": "delta",
+        "label": "Use.fs:4:23:delta"
+      }
+    ]
+  }
+]

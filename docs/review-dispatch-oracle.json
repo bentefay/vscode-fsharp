@@ -1,0 +1,327 @@
+{
+  "source": "module Main\ntype IFoo =\n    abstract member Name: string\n[<AbstractClass>]\ntype Base() =\n    abstract member Name: string\n    default _.Name = \"base\"\ntype Derived() =\n    inherit Base()\n    override _.Name = \"derived\"\n    interface IFoo with\n        member _.Name = \"ifoo\"\ntype Inherited() =\n    inherit Base()\nlet fromInterface (x: IFoo) = x.Name\nlet fromBase (x: Base) = x.Name\nlet fromDerived (x: Derived) = x.Name\nlet fromInherited (x: Inherited) = x.Name\nlet fromCast (x: Derived) = (x :> IFoo).Name\n",
+  "helper_sha256": "efdc639a600dac8fb3bb5e3c275112cece572264555c21169c10d0f7ea116487",
+  "results": [
+    {
+      "method": "definition",
+      "query_line": 14,
+      "query": "let fromInterface (x: IFoo) = x.Name",
+      "result": {
+        "completeness": "exact",
+        "locations": [
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 20
+              },
+              "end": {
+                "line": 2,
+                "character": 24
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "method": "definition",
+      "query_line": 15,
+      "query": "let fromBase (x: Base) = x.Name",
+      "result": {
+        "completeness": "exact",
+        "locations": [
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 6,
+                "character": 14
+              },
+              "end": {
+                "line": 6,
+                "character": 18
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "method": "definition",
+      "query_line": 16,
+      "query": "let fromDerived (x: Derived) = x.Name",
+      "result": {
+        "completeness": "exact",
+        "locations": [
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 9,
+                "character": 15
+              },
+              "end": {
+                "line": 9,
+                "character": 19
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "method": "definition",
+      "query_line": 17,
+      "query": "let fromInherited (x: Inherited) = x.Name",
+      "result": {
+        "completeness": "exact",
+        "locations": [
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 6,
+                "character": 14
+              },
+              "end": {
+                "line": 6,
+                "character": 18
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "method": "definition",
+      "query_line": 18,
+      "query": "let fromCast (x: Derived) = (x :> IFoo).Name",
+      "result": {
+        "completeness": "exact",
+        "locations": [
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 20
+              },
+              "end": {
+                "line": 2,
+                "character": 24
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "method": "references",
+      "query_line": 2,
+      "query": "    abstract member Name: string",
+      "result": {
+        "completeness": "exact",
+        "locations": [
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 14,
+                "character": 30
+              },
+              "end": {
+                "line": 14,
+                "character": 36
+              }
+            }
+          },
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 18,
+                "character": 28
+              },
+              "end": {
+                "line": 18,
+                "character": 44
+              }
+            }
+          },
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 11,
+                "character": 17
+              },
+              "end": {
+                "line": 11,
+                "character": 21
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "method": "references",
+      "query_line": 5,
+      "query": "    abstract member Name: string",
+      "result": {
+        "completeness": "exact",
+        "locations": [
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 6,
+                "character": 14
+              },
+              "end": {
+                "line": 6,
+                "character": 18
+              }
+            }
+          },
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 9,
+                "character": 15
+              },
+              "end": {
+                "line": 9,
+                "character": 19
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "method": "references",
+      "query_line": 6,
+      "query": "    default _.Name = \"base\"",
+      "result": {
+        "completeness": "exact",
+        "locations": [
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 6,
+                "character": 14
+              },
+              "end": {
+                "line": 6,
+                "character": 18
+              }
+            }
+          },
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 9,
+                "character": 15
+              },
+              "end": {
+                "line": 9,
+                "character": 19
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "method": "references",
+      "query_line": 9,
+      "query": "    override _.Name = \"derived\"",
+      "result": {
+        "completeness": "exact",
+        "locations": [
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 6,
+                "character": 14
+              },
+              "end": {
+                "line": 6,
+                "character": 18
+              }
+            }
+          },
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 9,
+                "character": 15
+              },
+              "end": {
+                "line": 9,
+                "character": 19
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "method": "references",
+      "query_line": 11,
+      "query": "        member _.Name = \"ifoo\"",
+      "result": {
+        "completeness": "exact",
+        "locations": [
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 14,
+                "character": 30
+              },
+              "end": {
+                "line": 14,
+                "character": 36
+              }
+            }
+          },
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 18,
+                "character": 28
+              },
+              "end": {
+                "line": 18,
+                "character": 44
+              }
+            }
+          },
+          {
+            "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/dispatch-contract-4cz6jzsc/Main.fs",
+            "range": {
+              "start": {
+                "line": 11,
+                "character": 17
+              },
+              "end": {
+                "line": 11,
+                "character": 21
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

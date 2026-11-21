@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "queries": [
+    {
+      "name": "map_int_string",
+      "method": "hover",
+      "at": "map_int_string",
+      "expectHover": true,
+      "contains": "map",
+      "expectGenericArguments": {
+        "'T": "int",
+        "'U": "string"
+      }
+    },
+    {
+      "name": "map_bool_int",
+      "method": "hover",
+      "at": "map_bool_int",
+      "expectHover": true,
+      "contains": "map",
+      "expectGenericArguments": {
+        "'T": "bool",
+        "'U": "int"
+      }
+    },
+    {
+      "name": "choose_int_string",
+      "method": "hover",
+      "at": "choose_int_string",
+      "expectHover": true,
+      "contains": "choose",
+      "expectGenericArguments": {
+        "'T": "int",
+        "'U": "string"
+      }
+    },
+    {
+      "name": "choose_string_int",
+      "method": "hover",
+      "at": "choose_string_int",
+      "expectHover": true,
+      "contains": "choose",
+      "expectGenericArguments": {
+        "'T": "string",
+        "'U": "int"
+      }
+    },
+    {
+      "name": "tuple_person",
+      "method": "hover",
+      "at": "tuple_person",
+      "expectHover": true,
+      "contains": "Item1",
+      "expectPropertyResult": {
+        "name": "Item1",
+        "type": "Person"
+      }
+    },
+    {
+      "name": "tuple_int",
+      "method": "hover",
+      "at": "tuple_int",
+      "expectHover": true,
+      "contains": "Item1",
+      "expectPropertyResult": {
+        "name": "Item1",
+        "type": "int"
+      }
+    }
+  ],
+  "edits": [],
+  "notes": [
+    "Actual FSAC tooltip contract capture. Identity/contextual-instantiation interpretation is assessed from preserved raw markdown, not only these presence checks.",
+    "Six external library symbol sites with two distinct inferred type instantiations each; source Person is only a type argument.",
+    "Fresh actualFSAC raw proof fsac-library-hover-contract.json: generic declaration plus use-site Generic Parameters section for map/choose; property signature instantiated for Tuple<T>.Item1. Presence-only historical result is insufficient for equivalence."
+  ]
+}

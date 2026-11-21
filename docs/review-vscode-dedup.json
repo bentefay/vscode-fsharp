@@ -1,0 +1,14 @@
+{
+  "vscode_version": "1.108.0",
+  "commit": "94e8ae2b28cb5cc932b86e1070569c4463565c37",
+  "official_bundle_file": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tools/vscode/1.108.0/VSCode-linux-x64/resources/app/out/vs/workbench/workbench.desktop.main.js",
+  "sha256": "8a6a501cf89406f4066f3a600c0e1d427fba662eafd665e75fb66ab3e1fb68b5",
+  "source_url": "https://github.com/microsoft/vscode/blob/94e8ae2b28cb5cc932b86e1070569c4463565c37/src/vs/editor/contrib/gotoSymbol/browser/referencesModel.ts",
+  "license": "Microsoft VSCode MIT, official built distribution inspected locally",
+  "references_model_constructor_excerpt": "E0=class $Fe{constructor(e,t){this.groups=[],this.references=[],this._onDidChangeReferenceRange=new D,this.onDidChangeReferenceRange=this._onDidChangeReferenceRange.event,this.c=e,this.d=t;const[s]=e;e.sort($Fe.e);let n;for(const o of e)if((!n||!Dn.isEqual(n.uri,o.uri,!0))&&(n=new j9(this,o.uri),this.groups.push(n)),n.children.length===0||$Fe.e(o,n.children[n.children.length-1])!==0){const r=new jA(s===o,n,o,a=>this._onDidChangeReferenceRange.fire(a));this.references.push(r),n.children.push(r)}}dispose(){Be(this.groups),this._onDidChangeReferenceRange.dispose(),th",
+  "reference_comparator_excerpt": "rn this.references[0]}static e(e,t){return Dn.compare(e.uri,t.uri)||V.compareRangesUsingStarts(e.range,t.range)}},uS=class extends T",
+  "range_comparator_excerpt": "static compareRangesUsingStarts(e,t){if(e&&t){const o=e.startLineNumber|0,r=t.startLineNumber|0;if(o===r){const a=e.startColumn|0,l=t.startColumn|0;if(a===l){const c=e.endLineNumber|0,h=t.endLineNumber|0;if(c===h){const u=e.endColumn|0,f=t.endColumn|0;return u-f}return c-h}return a-l}return o-r}return(e?1:0)-(t?1:0)}",
+  "provider_aggregation_excerpt": "async function SD(i){const e=await i(),t=new E0(e,\"\"),s=t.references.map(n=>n.link);return t.dispose(),s}qb(\"_executeDefinitionProvider\",(i,e,t)=",
+  "provider_registration_excerpt": "qb(\"_executeReferenceProvider\",(i,e,t)=>{const s=i.get(ri),n=JQ(s.referenceProvider,e,t,!1,!1,me.None);return SD(()=>n)}),",
+  "verdict": "Normalize identical URI plus all four range coordinates symmetrically for semantic set correctness; retain raw duplicates as diagnostic. Missing or extra distinct locations remain failure. Source inspection, not an executed host test."
+}

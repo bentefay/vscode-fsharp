@@ -1,0 +1,418 @@
+[
+  {
+    "case": "plain_unique_record",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/plain_unique_record.fsx",
+    "source": "type R = { OnlyLabel:int }\nlet value = { OnlyLabel=1 }\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_1_0",
+        "token": "OnlyLabel",
+        "line": 1,
+        "character": 14
+      }
+    ]
+  },
+  {
+    "case": "unique_record_annotated",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/unique_record_annotated.fsx",
+    "source": "type R = { OnlyLabel:int }\nlet value:R = { OnlyLabel=1 }\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_1_0",
+        "token": "OnlyLabel",
+        "line": 1,
+        "character": 16
+      }
+    ]
+  },
+  {
+    "case": "unannotated_member_receiver",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/unannotated_member_receiver.fsx",
+    "source": "type R = { OnlyLabel:int }\nlet read value = value.OnlyLabel\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_1_0",
+        "token": "OnlyLabel",
+        "line": 1,
+        "character": 23
+      }
+    ]
+  },
+  {
+    "case": "incompatible_expected_record",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/incompatible_expected_record.fsx",
+    "source": "type R = { OnlyLabel:int }\ntype S = { Other:int }\nlet value:S = { OnlyLabel=1; Other=2 }\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_2_0",
+        "token": "OnlyLabel",
+        "line": 2,
+        "character": 16
+      }
+    ]
+  },
+  {
+    "case": "incompatible_expected_record_single_label",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/incompatible_expected_record_single_label.fsx",
+    "source": "type R = { OnlyLabel:int }\ntype S = { Other:int }\nlet value:S = { OnlyLabel=1 }\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_2_0",
+        "token": "OnlyLabel",
+        "line": 2,
+        "character": 16
+      }
+    ]
+  },
+  {
+    "case": "incompatible_expected_class",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/incompatible_expected_class.fsx",
+    "source": "type R = { OnlyLabel:int }\ntype C() = member _.OnlyLabel = 2\nlet value:C = { OnlyLabel=1 }\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_1_0",
+        "token": "OnlyLabel",
+        "line": 1,
+        "character": 20
+      },
+      {
+        "label": "OnlyLabel_2_0",
+        "token": "OnlyLabel",
+        "line": 2,
+        "character": 16
+      }
+    ]
+  },
+  {
+    "case": "missing_record_field",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/missing_record_field.fsx",
+    "source": "type R = { OnlyLabel:int; Other:int }\nlet value = { OnlyLabel=1 }\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_1_0",
+        "token": "OnlyLabel",
+        "line": 1,
+        "character": 14
+      }
+    ]
+  },
+  {
+    "case": "wrong_value_type",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/wrong_value_type.fsx",
+    "source": "type R = { OnlyLabel:int }\nlet value = { OnlyLabel=\"bad\" }\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_1_0",
+        "token": "OnlyLabel",
+        "line": 1,
+        "character": 14
+      }
+    ]
+  },
+  {
+    "case": "unopened_module_label",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/unopened_module_label.fsx",
+    "source": "module Hidden =\n    type R = { OnlyLabel:int }\nlet value = { OnlyLabel=1 }\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_1_0",
+        "token": "OnlyLabel",
+        "line": 1,
+        "character": 15
+      },
+      {
+        "label": "OnlyLabel_2_0",
+        "token": "OnlyLabel",
+        "line": 2,
+        "character": 14
+      }
+    ]
+  },
+  {
+    "case": "private_representation",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/private_representation.fsx",
+    "source": "module Hidden =\n    type R = private { OnlyLabel:int }\nopen Hidden\nlet value = { OnlyLabel=1 }\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_1_0",
+        "token": "OnlyLabel",
+        "line": 1,
+        "character": 23
+      },
+      {
+        "label": "OnlyLabel_3_0",
+        "token": "OnlyLabel",
+        "line": 3,
+        "character": 14
+      }
+    ]
+  },
+  {
+    "case": "qualified_access_required",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/qualified_access_required.fsx",
+    "source": "[<RequireQualifiedAccess>]\ntype R = { OnlyLabel:int }\nlet value = { OnlyLabel=1 }\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_1_0",
+        "token": "OnlyLabel",
+        "line": 1,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_2_0",
+        "token": "OnlyLabel",
+        "line": 2,
+        "character": 14
+      }
+    ]
+  },
+  {
+    "case": "class_member_collision",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/class_member_collision.fsx",
+    "source": "type R = { OnlyLabel:int }\ntype C() = member _.OnlyLabel = 2\nlet read (value:C) = value.OnlyLabel\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_1_0",
+        "token": "OnlyLabel",
+        "line": 1,
+        "character": 20
+      },
+      {
+        "label": "OnlyLabel_2_0",
+        "token": "OnlyLabel",
+        "line": 2,
+        "character": 27
+      }
+    ]
+  },
+  {
+    "case": "extension_member_collision",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/extension_member_collision.fsx",
+    "source": "type R = { OnlyLabel:int }\ntype C() = class end\ntype C with\n    member _.OnlyLabel = 2\nlet read (value:C) = value.OnlyLabel\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_3_0",
+        "token": "OnlyLabel",
+        "line": 3,
+        "character": 13
+      },
+      {
+        "label": "OnlyLabel_4_0",
+        "token": "OnlyLabel",
+        "line": 4,
+        "character": 27
+      }
+    ]
+  },
+  {
+    "case": "anonymous_record_collision",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/anonymous_record_collision.fsx",
+    "source": "type R = { OnlyLabel:int }\nlet value = {| OnlyLabel=2 |}\nlet read = value.OnlyLabel\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_1_0",
+        "token": "OnlyLabel",
+        "line": 1,
+        "character": 15
+      },
+      {
+        "label": "OnlyLabel_2_0",
+        "token": "OnlyLabel",
+        "line": 2,
+        "character": 17
+      }
+    ]
+  },
+  {
+    "case": "record_alias_same_identity",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/record_alias_same_identity.fsx",
+    "source": "type R = { OnlyLabel:int }\ntype Alias = R\nlet value:Alias = { OnlyLabel=1 }\nlet read = value.OnlyLabel\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_2_0",
+        "token": "OnlyLabel",
+        "line": 2,
+        "character": 20
+      },
+      {
+        "label": "OnlyLabel_3_0",
+        "token": "OnlyLabel",
+        "line": 3,
+        "character": 17
+      }
+    ]
+  },
+  {
+    "case": "copy_update_wrong_receiver",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/copy_update_wrong_receiver.fsx",
+    "source": "type R = { OnlyLabel:int }\ntype S = { Other:int }\nlet other = { Other=2 }\nlet value = { other with OnlyLabel=1 }\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_3_0",
+        "token": "OnlyLabel",
+        "line": 3,
+        "character": 25
+      }
+    ]
+  },
+  {
+    "case": "srtp_member_constraint",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/srtp_member_constraint.fsx",
+    "source": "type R = { OnlyLabel:int }\nlet inline read (value:^T) = ((^T) : (member OnlyLabel:int) value)\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_1_0",
+        "token": "OnlyLabel",
+        "line": 1,
+        "character": 45
+      }
+    ]
+  },
+  {
+    "case": "unknown_label_value",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/unknown_label_value.fsx",
+    "source": "type R = { OnlyLabel:int }\nlet value = { OnlyLabel=missing }\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_1_0",
+        "token": "OnlyLabel",
+        "line": 1,
+        "character": 14
+      }
+    ]
+  },
+  {
+    "case": "error_expected_anonymous",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/error_expected_anonymous.fsx",
+    "source": "type R = { OnlyLabel:int }\nlet value:{| OnlyLabel:int |} = { OnlyLabel=1 }\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_1_0",
+        "token": "OnlyLabel",
+        "line": 1,
+        "character": 13
+      },
+      {
+        "label": "OnlyLabel_1_1",
+        "token": "OnlyLabel",
+        "line": 1,
+        "character": 34
+      }
+    ]
+  },
+  {
+    "case": "hidden_srtp_expected_other_record",
+    "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/evaluation/experiments/unique-field/hidden_srtp_expected_other_record.fsx",
+    "source": "type R = { OnlyLabel:int }\ntype S = { Other:int }\nlet inline constrain< ^T when ^T : (static member Create: unit -> S)> () = ()\ntype Factory =\n    static member Create() = { OnlyLabel=1 }\n    static member Force() = constrain<Factory>()\n",
+    "queries": [
+      {
+        "label": "OnlyLabel_0_0",
+        "token": "OnlyLabel",
+        "line": 0,
+        "character": 11
+      },
+      {
+        "label": "OnlyLabel_4_0",
+        "token": "OnlyLabel",
+        "line": 4,
+        "character": 31
+      }
+    ]
+  }
+]

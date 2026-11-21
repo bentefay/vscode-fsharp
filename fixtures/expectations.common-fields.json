@@ -1,0 +1,1304 @@
+{
+  "schemaVersion": 1,
+  "queries": [
+    {
+      "name": "field_explicit_customer",
+      "method": "definition",
+      "at": "customer_r01",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_construction_label",
+      "method": "definition",
+      "at": "customer_r02",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_annotated_local",
+      "method": "definition",
+      "at": "customer_r03",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_qualified_label",
+      "method": "definition",
+      "at": "customer_r04",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_qualified_construction",
+      "method": "definition",
+      "at": "customer_r05",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_inferred_label",
+      "method": "definition",
+      "at": "customer_r06",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_inferred_construction",
+      "method": "definition",
+      "at": "customer_r07",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_return_record_label",
+      "method": "definition",
+      "at": "customer_r08",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_annotated_return_label",
+      "method": "definition",
+      "at": "customer_r09",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_inferred_return",
+      "method": "definition",
+      "at": "customer_r10",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_annotated_return",
+      "method": "definition",
+      "at": "customer_r11",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_direct_return_expression",
+      "method": "definition",
+      "at": "customer_r12",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_update_label",
+      "method": "definition",
+      "at": "customer_r13",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_updated_receiver",
+      "method": "definition",
+      "at": "customer_r14",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_alias_chain",
+      "method": "definition",
+      "at": "customer_r15",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_type_alias",
+      "method": "definition",
+      "at": "customer_r16",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_generic_receiver",
+      "method": "definition",
+      "at": "customer_r17",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_tuple_customer",
+      "method": "definition",
+      "at": "customer_r18",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_option_binder",
+      "method": "definition",
+      "at": "customer_r19",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_lambda_annotation",
+      "method": "definition",
+      "at": "customer_r20",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_record_pattern_label",
+      "method": "definition",
+      "at": "customer_r21",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_dirty_receiver_initial",
+      "method": "definition",
+      "at": "customer_r22",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_dirty_alias_initial",
+      "method": "definition",
+      "at": "customer_r23",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_shadowed_alias_outer",
+      "method": "definition",
+      "at": "customer_r24",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_cross_project_annotation",
+      "method": "definition",
+      "at": "customer_r25",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_cross_project_inferred_return",
+      "method": "definition",
+      "at": "customer_r26",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_cross_project_generic",
+      "method": "definition",
+      "at": "customer_r27",
+      "expected": [
+        "customer_name_def"
+      ],
+      "feature": "record_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_explicit_supplier",
+      "method": "definition",
+      "at": "supplier_r01",
+      "expected": [
+        "supplier_name_def"
+      ],
+      "feature": "shared_field_name",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_tuple_supplier",
+      "method": "definition",
+      "at": "supplier_r02",
+      "expected": [
+        "supplier_name_def"
+      ],
+      "feature": "shared_field_name",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_shadowed_alias_inner",
+      "method": "definition",
+      "at": "supplier_r03",
+      "expected": [
+        "supplier_name_def"
+      ],
+      "feature": "shared_field_name",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_cross_project_supplier",
+      "method": "definition",
+      "at": "supplier_r04",
+      "expected": [
+        "supplier_name_def"
+      ],
+      "feature": "shared_field_name",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_home_6",
+      "method": "definition",
+      "at": "home_r06",
+      "expected": [
+        "customer_home_def"
+      ],
+      "feature": "nested_record",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_home_7",
+      "method": "definition",
+      "at": "home_r07",
+      "expected": [
+        "customer_home_def"
+      ],
+      "feature": "nested_record",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_nested_city",
+      "method": "definition",
+      "at": "city_r06",
+      "expected": [
+        "address_city_def"
+      ],
+      "feature": "nested_record",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_generic_city",
+      "method": "definition",
+      "at": "city_r07",
+      "expected": [
+        "address_city_def"
+      ],
+      "feature": "nested_record",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_cross_project_nested_city",
+      "method": "definition",
+      "at": "city_r08",
+      "expected": [
+        "address_city_def"
+      ],
+      "feature": "nested_record",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_generic_value_1",
+      "method": "definition",
+      "at": "box_r01",
+      "expected": [
+        "box_value_def"
+      ],
+      "feature": "generic_record",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_generic_value_2",
+      "method": "definition",
+      "at": "box_r02",
+      "expected": [
+        "box_value_def"
+      ],
+      "feature": "generic_record",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_generic_value_3",
+      "method": "definition",
+      "at": "box_r03",
+      "expected": [
+        "box_value_def"
+      ],
+      "feature": "generic_record",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_mutable_count_1",
+      "method": "definition",
+      "at": "counter_r01",
+      "expected": [
+        "counter_count_def"
+      ],
+      "feature": "mutable_record",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_mutable_count_2",
+      "method": "definition",
+      "at": "counter_r02",
+      "expected": [
+        "counter_count_def"
+      ],
+      "feature": "mutable_record",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_mutable_count_3",
+      "method": "definition",
+      "at": "counter_r03",
+      "expected": [
+        "counter_count_def"
+      ],
+      "feature": "mutable_record",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_shadowed_inner_type",
+      "method": "definition",
+      "at": "inner_item_r01",
+      "expected": [
+        "inner_item_name_def"
+      ],
+      "feature": "type_shadowing",
+      "suite": "common_fields"
+    },
+    {
+      "name": "field_shadowed_outer_type",
+      "method": "definition",
+      "at": "outer_item_r01",
+      "expected": [
+        "outer_item_name_def"
+      ],
+      "feature": "type_shadowing",
+      "suite": "common_fields"
+    },
+    {
+      "name": "property_self_binder",
+      "method": "definition",
+      "at": "product_r01",
+      "expected": [
+        "product_code_def"
+      ],
+      "feature": "property_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "property_explicit_receiver",
+      "method": "definition",
+      "at": "product_r02",
+      "expected": [
+        "product_code_def"
+      ],
+      "feature": "property_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "property_constructed_receiver",
+      "method": "definition",
+      "at": "product_r03",
+      "expected": [
+        "product_code_def"
+      ],
+      "feature": "property_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "property_direct_constructor",
+      "method": "definition",
+      "at": "product_r04",
+      "expected": [
+        "product_code_def"
+      ],
+      "feature": "property_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "property_alias_receiver",
+      "method": "definition",
+      "at": "product_r05",
+      "expected": [
+        "product_code_def"
+      ],
+      "feature": "property_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "property_cross_project_receiver",
+      "method": "definition",
+      "at": "product_r06",
+      "expected": [
+        "product_code_def"
+      ],
+      "feature": "property_flow",
+      "suite": "common_fields"
+    },
+    {
+      "name": "property_same_name_alternate",
+      "method": "definition",
+      "at": "alternate_r01",
+      "expected": [
+        "alternate_code_def"
+      ],
+      "feature": "shared_property_name",
+      "suite": "common_fields"
+    },
+    {
+      "name": "property_static",
+      "method": "definition",
+      "at": "static_r01",
+      "expected": [
+        "static_code_def"
+      ],
+      "feature": "static_property",
+      "suite": "common_fields"
+    },
+    {
+      "name": "property_auto_get",
+      "method": "definition",
+      "at": "automatic_r01",
+      "expected": [
+        "automatic_name_def"
+      ],
+      "feature": "automatic_property",
+      "suite": "common_fields"
+    },
+    {
+      "name": "property_auto_set",
+      "method": "definition",
+      "at": "automatic_r02",
+      "expected": [
+        "automatic_name_def"
+      ],
+      "feature": "automatic_property",
+      "suite": "common_fields"
+    },
+    {
+      "name": "property_auto_cross_project",
+      "method": "definition",
+      "at": "automatic_r03",
+      "expected": [
+        "automatic_name_def"
+      ],
+      "feature": "automatic_property",
+      "suite": "common_fields"
+    },
+    {
+      "name": "property_inherited",
+      "method": "definition",
+      "at": "base_r01",
+      "expected": [
+        "base_title_def"
+      ],
+      "feature": "inherited_property",
+      "suite": "common_fields"
+    },
+    {
+      "name": "property_base",
+      "method": "definition",
+      "at": "base_r02",
+      "expected": [
+        "base_title_def"
+      ],
+      "feature": "inherited_property",
+      "suite": "common_fields"
+    },
+    {
+      "name": "property_cross_project_inherited",
+      "method": "definition",
+      "at": "base_r03",
+      "expected": [
+        "base_title_def"
+      ],
+      "feature": "inherited_property",
+      "suite": "common_fields"
+    },
+    {
+      "name": "customer_all_references",
+      "method": "references",
+      "at": "customer_name_def",
+      "expected": [
+        {
+          "at": "customer_r01",
+          "qualifiedFrom": [
+            "customer_q01"
+          ]
+        },
+        "customer_r02",
+        {
+          "at": "customer_r03",
+          "qualifiedFrom": [
+            "customer_q03"
+          ]
+        },
+        {
+          "at": "customer_r04",
+          "qualifiedFrom": [
+            "customer_q04"
+          ]
+        },
+        {
+          "at": "customer_r05",
+          "qualifiedFrom": [
+            "customer_q05"
+          ]
+        },
+        "customer_r06",
+        {
+          "at": "customer_r07",
+          "qualifiedFrom": [
+            "customer_q07"
+          ]
+        },
+        "customer_r08",
+        "customer_r09",
+        {
+          "at": "customer_r10",
+          "qualifiedFrom": [
+            "customer_q10"
+          ]
+        },
+        {
+          "at": "customer_r11",
+          "qualifiedFrom": [
+            "customer_q11"
+          ]
+        },
+        {
+          "at": "customer_r12",
+          "qualifiedFrom": [
+            "customer_q12"
+          ]
+        },
+        "customer_r13",
+        {
+          "at": "customer_r14",
+          "qualifiedFrom": [
+            "customer_q14"
+          ]
+        },
+        {
+          "at": "customer_r15",
+          "qualifiedFrom": [
+            "customer_q15"
+          ]
+        },
+        {
+          "at": "customer_r16",
+          "qualifiedFrom": [
+            "customer_q16"
+          ]
+        },
+        {
+          "at": "customer_r17",
+          "qualifiedFrom": [
+            "customer_q17"
+          ]
+        },
+        {
+          "at": "customer_r18",
+          "qualifiedFrom": [
+            "customer_q18"
+          ]
+        },
+        {
+          "at": "customer_r19",
+          "qualifiedFrom": [
+            "customer_q19"
+          ]
+        },
+        {
+          "at": "customer_r20",
+          "qualifiedFrom": [
+            "customer_q20"
+          ]
+        },
+        "customer_r21",
+        {
+          "at": "customer_r22",
+          "qualifiedFrom": [
+            "customer_q22"
+          ]
+        },
+        {
+          "at": "customer_r23",
+          "qualifiedFrom": [
+            "customer_q23"
+          ]
+        },
+        {
+          "at": "customer_r24",
+          "qualifiedFrom": [
+            "customer_q24"
+          ]
+        },
+        {
+          "at": "customer_r25",
+          "qualifiedFrom": [
+            "customer_q25"
+          ]
+        },
+        {
+          "at": "customer_r26",
+          "qualifiedFrom": [
+            "customer_q26"
+          ]
+        },
+        {
+          "at": "customer_r27",
+          "qualifiedFrom": [
+            "customer_q27"
+          ]
+        }
+      ],
+      "feature": "complete_field_references",
+      "suite": "common_fields"
+    },
+    {
+      "name": "supplier_all_references",
+      "method": "references",
+      "at": "supplier_name_def",
+      "expected": [
+        {
+          "at": "supplier_r01",
+          "qualifiedFrom": [
+            "supplier_q01"
+          ]
+        },
+        {
+          "at": "supplier_r02",
+          "qualifiedFrom": [
+            "supplier_q02"
+          ]
+        },
+        {
+          "at": "supplier_r03",
+          "qualifiedFrom": [
+            "supplier_q03"
+          ]
+        },
+        {
+          "at": "supplier_r04",
+          "qualifiedFrom": [
+            "supplier_q04"
+          ]
+        }
+      ],
+      "feature": "complete_field_references",
+      "suite": "common_fields"
+    },
+    {
+      "name": "home_all_references",
+      "method": "references",
+      "at": "customer_home_def",
+      "expected": [
+        "home_r01",
+        "home_r02",
+        "home_r03",
+        "home_r04",
+        "home_r05",
+        {
+          "at": "home_r06",
+          "qualifiedFrom": [
+            "home_q06"
+          ]
+        },
+        {
+          "at": "home_r07",
+          "qualifiedFrom": [
+            "home_q07"
+          ]
+        }
+      ],
+      "feature": "complete_field_references",
+      "suite": "common_fields"
+    },
+    {
+      "name": "city_all_references",
+      "method": "references",
+      "at": "address_city_def",
+      "expected": [
+        "city_r01",
+        "city_r02",
+        "city_r03",
+        "city_r04",
+        "city_r05",
+        {
+          "at": "city_r06",
+          "qualifiedFrom": [
+            "city_q06"
+          ]
+        },
+        {
+          "at": "city_r07",
+          "qualifiedFrom": [
+            "city_q07"
+          ]
+        },
+        {
+          "at": "city_r08",
+          "qualifiedFrom": [
+            "city_q08"
+          ]
+        }
+      ],
+      "feature": "complete_field_references",
+      "suite": "common_fields"
+    },
+    {
+      "name": "box_all_references",
+      "method": "references",
+      "at": "box_value_def",
+      "expected": [
+        {
+          "at": "box_r01",
+          "qualifiedFrom": [
+            "box_q01"
+          ]
+        },
+        {
+          "at": "box_r02",
+          "qualifiedFrom": [
+            "box_q02"
+          ]
+        },
+        {
+          "at": "box_r03",
+          "qualifiedFrom": [
+            "box_q03"
+          ]
+        }
+      ],
+      "feature": "complete_field_references",
+      "suite": "common_fields"
+    },
+    {
+      "name": "counter_all_references",
+      "method": "references",
+      "at": "counter_count_def",
+      "expected": [
+        {
+          "at": "counter_r01",
+          "qualifiedFrom": [
+            "counter_q01"
+          ]
+        },
+        {
+          "at": "counter_r02",
+          "qualifiedFrom": [
+            "counter_q02"
+          ]
+        },
+        {
+          "at": "counter_r03",
+          "qualifiedFrom": [
+            "counter_q03"
+          ]
+        }
+      ],
+      "feature": "complete_field_references",
+      "suite": "common_fields"
+    },
+    {
+      "name": "product_all_references",
+      "method": "references",
+      "at": "product_code_def",
+      "expected": [
+        {
+          "at": "product_r01",
+          "qualifiedFrom": [
+            "product_q01"
+          ]
+        },
+        {
+          "at": "product_r02",
+          "qualifiedFrom": [
+            "product_q02"
+          ]
+        },
+        {
+          "at": "product_r03",
+          "qualifiedFrom": [
+            "product_q03"
+          ]
+        },
+        {
+          "at": "product_r04",
+          "qualifiedFrom": [
+            "product_q04"
+          ]
+        },
+        {
+          "at": "product_r05",
+          "qualifiedFrom": [
+            "product_q05"
+          ]
+        },
+        {
+          "at": "product_r06",
+          "qualifiedFrom": [
+            "product_q06"
+          ]
+        }
+      ],
+      "feature": "complete_field_references",
+      "suite": "common_fields"
+    },
+    {
+      "name": "alternate_all_references",
+      "method": "references",
+      "at": "alternate_code_def",
+      "expected": [
+        {
+          "at": "alternate_r01",
+          "qualifiedFrom": [
+            "alternate_q01"
+          ]
+        }
+      ],
+      "feature": "complete_field_references",
+      "suite": "common_fields"
+    },
+    {
+      "name": "static_all_references",
+      "method": "references",
+      "at": "static_code_def",
+      "expected": [
+        {
+          "at": "static_r01",
+          "qualifiedFrom": [
+            "static_q01"
+          ]
+        }
+      ],
+      "feature": "complete_field_references",
+      "suite": "common_fields"
+    },
+    {
+      "name": "automatic_all_references",
+      "method": "references",
+      "at": "automatic_name_def",
+      "expected": [
+        {
+          "at": "automatic_r01",
+          "qualifiedFrom": [
+            "automatic_q01"
+          ]
+        },
+        {
+          "at": "automatic_r02",
+          "qualifiedFrom": [
+            "automatic_q02"
+          ]
+        },
+        {
+          "at": "automatic_r03",
+          "qualifiedFrom": [
+            "automatic_q03"
+          ]
+        }
+      ],
+      "feature": "complete_field_references",
+      "suite": "common_fields"
+    },
+    {
+      "name": "base_all_references",
+      "method": "references",
+      "at": "base_title_def",
+      "expected": [
+        {
+          "at": "base_r01",
+          "qualifiedFrom": [
+            "base_q01"
+          ]
+        },
+        {
+          "at": "base_r02",
+          "qualifiedFrom": [
+            "base_q02"
+          ]
+        },
+        {
+          "at": "base_r03",
+          "qualifiedFrom": [
+            "base_q03"
+          ]
+        }
+      ],
+      "feature": "complete_field_references",
+      "suite": "common_fields"
+    },
+    {
+      "name": "inner_item_all_references",
+      "method": "references",
+      "at": "inner_item_name_def",
+      "expected": [
+        {
+          "at": "inner_item_r01",
+          "qualifiedFrom": [
+            "inner_item_q01"
+          ]
+        }
+      ],
+      "feature": "complete_field_references",
+      "suite": "common_fields"
+    },
+    {
+      "name": "outer_item_all_references",
+      "method": "references",
+      "at": "outer_item_name_def",
+      "expected": [
+        {
+          "at": "outer_item_r01",
+          "qualifiedFrom": [
+            "outer_item_q01"
+          ]
+        }
+      ],
+      "feature": "complete_field_references",
+      "suite": "common_fields"
+    }
+  ],
+  "edits": [
+    {
+      "name": "receiver_type_edit",
+      "changes": [
+        {
+          "file": "Library/RecordFlows.fs",
+          "markedReplacements": [
+            {
+              "old": "let dirtyReceiver (receiver: Customer)",
+              "new": "let dirtyReceiver (receiver: Supplier)"
+            }
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "query": "field_dirty_receiver_initial",
+          "expected": [
+            "supplier_name_def"
+          ]
+        },
+        {
+          "query": "customer_all_references",
+          "removeExpected": [
+            "customer_r22"
+          ]
+        },
+        {
+          "query": "supplier_all_references",
+          "addExpected": [
+            {
+              "at": "customer_r22",
+              "qualifiedFrom": [
+                "customer_q22"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "receiver_alias_edit",
+      "changes": [
+        {
+          "file": "Library/RecordFlows.fs",
+          "markedReplacements": [
+            {
+              "old": "let selected = left",
+              "new": "let selected = right"
+            }
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "query": "field_dirty_alias_initial",
+          "expected": [
+            "supplier_name_def"
+          ]
+        },
+        {
+          "query": "customer_all_references",
+          "removeExpected": [
+            "customer_r23"
+          ]
+        },
+        {
+          "query": "supplier_all_references",
+          "addExpected": [
+            {
+              "at": "customer_r23",
+              "qualifiedFrom": [
+                "customer_q23"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "record_field_rename",
+      "changes": [
+        {
+          "file": "Library/RecordFlows.fs",
+          "markedReplacements": [
+            {
+              "old": "(*@counter_count_def*)Count",
+              "new": "(*@counter_count_def*)Total"
+            },
+            {
+              "old": "(*@counter_r01*)Count",
+              "new": "(*@counter_r01*)Total"
+            },
+            {
+              "old": "(*@counter_r02*)Count",
+              "new": "(*@counter_r02*)Total"
+            },
+            {
+              "old": "(*@counter_r03*)Count",
+              "new": "(*@counter_r03*)Total"
+            }
+          ],
+          "appendMarkedText": "\n    let renamedCounterUse (counter: Counter) = (*@counter_q04*)counter.(*@counter_r04*)Total\n"
+        }
+      ],
+      "checks": [
+        {
+          "query": "field_mutable_count_1"
+        },
+        {
+          "query": "counter_all_references",
+          "addExpected": [
+            {
+              "at": "counter_r04",
+              "qualifiedFrom": [
+                "counter_q04"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cross_project_field_rename",
+      "changes": [
+        {
+          "file": "Library/RecordFlows.fs",
+          "markedReplacements": [
+            {
+              "old": "(*@customer_name_def*)Name",
+              "new": "(*@customer_name_def*)Label"
+            },
+            {
+              "old": "(*@customer_r01*)Name",
+              "new": "(*@customer_r01*)Label"
+            },
+            {
+              "old": "(*@customer_r02*)Name",
+              "new": "(*@customer_r02*)Label"
+            },
+            {
+              "old": "(*@customer_r03*)Name",
+              "new": "(*@customer_r03*)Label"
+            },
+            {
+              "old": "(*@customer_r04*)Name",
+              "new": "(*@customer_r04*)Label"
+            },
+            {
+              "old": "(*@customer_r05*)Name",
+              "new": "(*@customer_r05*)Label"
+            },
+            {
+              "old": "(*@customer_r06*)Name",
+              "new": "(*@customer_r06*)Label"
+            },
+            {
+              "old": "(*@customer_r07*)Name",
+              "new": "(*@customer_r07*)Label"
+            },
+            {
+              "old": "(*@customer_r08*)Name",
+              "new": "(*@customer_r08*)Label"
+            },
+            {
+              "old": "(*@customer_r09*)Name",
+              "new": "(*@customer_r09*)Label"
+            },
+            {
+              "old": "(*@customer_r10*)Name",
+              "new": "(*@customer_r10*)Label"
+            },
+            {
+              "old": "(*@customer_r11*)Name",
+              "new": "(*@customer_r11*)Label"
+            },
+            {
+              "old": "(*@customer_r12*)Name",
+              "new": "(*@customer_r12*)Label"
+            },
+            {
+              "old": "(*@customer_r13*)Name",
+              "new": "(*@customer_r13*)Label"
+            },
+            {
+              "old": "(*@customer_r14*)Name",
+              "new": "(*@customer_r14*)Label"
+            },
+            {
+              "old": "(*@customer_r15*)Name",
+              "new": "(*@customer_r15*)Label"
+            },
+            {
+              "old": "(*@customer_r16*)Name",
+              "new": "(*@customer_r16*)Label"
+            },
+            {
+              "old": "(*@customer_r17*)Name",
+              "new": "(*@customer_r17*)Label"
+            },
+            {
+              "old": "(*@customer_r18*)Name",
+              "new": "(*@customer_r18*)Label"
+            },
+            {
+              "old": "(*@customer_r19*)Name",
+              "new": "(*@customer_r19*)Label"
+            },
+            {
+              "old": "(*@customer_r20*)Name",
+              "new": "(*@customer_r20*)Label"
+            },
+            {
+              "old": "(*@customer_r21*)Name",
+              "new": "(*@customer_r21*)Label"
+            },
+            {
+              "old": "(*@customer_r22*)Name",
+              "new": "(*@customer_r22*)Label"
+            },
+            {
+              "old": "(*@customer_r23*)Name",
+              "new": "(*@customer_r23*)Label"
+            },
+            {
+              "old": "(*@customer_r24*)Name",
+              "new": "(*@customer_r24*)Label"
+            }
+          ]
+        },
+        {
+          "file": "App/RecordConsumer.fs",
+          "markedReplacements": [
+            {
+              "old": "(*@customer_r25*)Name",
+              "new": "(*@customer_r25*)Label"
+            },
+            {
+              "old": "(*@customer_r26*)Name",
+              "new": "(*@customer_r26*)Label"
+            },
+            {
+              "old": "(*@customer_r27*)Name",
+              "new": "(*@customer_r27*)Label"
+            }
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "query": "field_explicit_customer"
+        },
+        {
+          "query": "field_cross_project_annotation"
+        },
+        {
+          "query": "customer_all_references"
+        },
+        {
+          "query": "supplier_all_references"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Markers are removed before the engine sees source; positions use UTF-16 code units.",
+    "Find references excludes declarations. Expected sets must match exactly, not merely contain expected locations.",
+    "Two reference tests explicitly accept either the final identifier range or the full qualified-expression range observed from FCS; occurrence-set equality remains exact.",
+    "FCS may return either .fsi or .fs for an exported definition; both are explicitly accepted for this exploratory fixture.",
+    "The API edit deliberately makes consumers ill-typed; stale exact results are unacceptable. Baseline behavior must be compared before claiming feature parity.",
+    "Linked-file cases require per-project defines. A path-only source index cannot truthfully mark both answers exact.",
+    "The first29 queries are preserved unchanged in expectations.original29.json. New property/record cases are independent F# programs checked by the real FCS oracle.",
+    "Per-occurrence qualifiedFrom alternatives permit explicitly marked full-receiver ranges as well as the member token, without accepting extra, missing or arbitrary spans."
+  ]
+}

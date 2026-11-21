@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+"""Independent exact-reference role replay against retained genuine context."""
+import argparse, hashlib, importlib.util, json, os
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[2]
+
+def main():
+ ap=argparse.ArgumentParser();ap.add_argument('--binary',type=Path,required=True);ap.add_argument('--prepared',type=Path,default=ROOT/'docs/review/name-boundary-prepared.json');ap.add_argument('--output',type=Path,required=True);a=ap.parse_args()
+ spec=importlib.util.spec_from_file_location('prep',ROOT/'docs/review/prepared-replay.py');prep=importlib.util.module_from_spec(spec);spec.loader.exec_module(prep);native=prep.load('native',ROOT/'docs/review/native-smoke-replay.py');context=json.loads(a.prepared.read_text());root=Path(context['fixtureRoot'])/'project';evidence=json.loads((ROOT/'docs/review/record-field-role-oracle.json').read_text());oracle_by_name={r['case']:r for r in evidence['fcs']};os.environ.update(prep.ENV)
+ d=native.Daemon(a.binary.resolve(),root);d.call('workspace/open',dict(root=str(root),mode='indexed',cacheDir=str(Path(context['fixtureRoot'])/('field-role-cache-'+hashlib.sha256(a.binary.read_bytes()).hexdigest()[:12])),evaluatedModelPath=context['modelPath'],builtinEnvironmentPath=context['environmentPath']));rows=[]
+ for version,case in enumerate(evidence['cases'],1):
+  source='module RoleCase\n'+case['source'];oracle=oracle_by_name[case['case']];d.call('document/open' if version==1 else 'document/change',dict(path=str(root/'Main.fs'),text=source,version=version));field=oracle['results'][0];assert field['symbol']['kind']=='FSharpField';query=case['queries'][0];response=d.call('navigation/references',dict(path=str(root/'Main.fs'),line=query['line']+1,character=query['character'],version=version,includeDeclaration=True));value=response.get('result',{});expected=[]
+  for r in field['references']:
+   span=r['range'];assert span['startLine']==span['endLine'];line=case['source'].splitlines()[span['startLine']];content=line[span['startCharacter']:span['endCharacter']];offset=content.rfind('Artifact');assert offset>=0;(expected.append(native.location(root/'Main.fs',span['startLine']+1,span['startCharacter']+offset,8)))
+  exact=value.get('completeness')=='exact';same=native.normalized(value.get('locations',[]))==native.normalized(expected) and value.get('version')==version and value.get('documentVersion')==version;rows.append(dict(case=case['case'],validSource=oracle['valid'],diagnostics=oracle['diagnostics'],requestedVersion=version,status='pass' if exact and same else ('wrong-exact' if exact else 'unavailable'),expectedLocations=expected,response=response))
+ assert len(rows)==len(evidence['cases'])
+ stats=d.call('workspace/stats')['result'];assert stats['compilerLaunches']==stats['helperStarts']==0;d.close();out=dict(provenance='Versioned overlays in retained genuine SDK/f215 context. Direct FCS field occurrence set from15role controls; semantic-invalid cases are error-recovery safety checks, separate from valid-code coverage. No performance claim.',binarySha256=hashlib.sha256(a.binary.read_bytes()).hexdigest(),preparedReport=str(a.prepared),oracleReport='docs/review/record-field-role-oracle.json',referenceRangePolicy='Pinned FSAC0.86.0 Commands.tryAdjustRanges -> Tokenizer.tryFixupRange; one-line ASCII Artifact, last exact spelling within original FCS span; no occurrence discarded',rangeSourceHashes={name:hashlib.sha256((ROOT/'evaluation/.runtime/fsac-0.86-source'/name).read_bytes()).hexdigest() for name in ['Commands.fs','FileSystem.fs']},cases=rows,transcript=d.transcript,stats=stats,summary={s:sum(r['status']==s for r in rows) for s in ['pass','wrong-exact','unavailable']},validSourceSummary={s:sum(r['status']==s and r['validSource'] for r in rows) for s in ['pass','wrong-exact','unavailable']});a.output.write_text(json.dumps(out,indent=2)+'\n');print(out['summary'],out['validSourceSummary'])
+ for row in rows:
+  if row['status']=='wrong-exact':print(row)
+if __name__=='__main__':main()

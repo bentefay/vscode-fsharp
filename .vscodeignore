@@ -1,0 +1,9 @@
+**
+!package.json
+!README.md
+!LICENSE
+!THIRD_PARTY_NOTICES.md
+!bin/linux-x64/fsharp-navigator
+!extension/language-configuration.json
+!extension/resources/fsharp.svg
+!extension/dist/*.js

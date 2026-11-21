@@ -1,0 +1,28 @@
+[package]
+name = "navigator-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+blake3.workspace = true
+bincode.workspace = true
+unicode-ident.workspace = true
+sha2.workspace = true
+rusqlite.workspace = true
+walkdir.workspace = true
+quick-xml.workspace = true
+notify.workspace = true
+url.workspace = true
+tree-sitter = "=0.27.2"
+tree-sitter-fsharp = "=0.3.13"
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+
+[build-dependencies]
+blake3.workspace = true

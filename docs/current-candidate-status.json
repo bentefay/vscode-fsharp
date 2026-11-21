@@ -1,0 +1,118 @@
+{
+  "kind": "current-candidate-acceptance-ledger",
+  "status": "blocked",
+  "releaseAccepted": false,
+  "currentMeasuredCandidate": "858f9d9a16d39338b63406916bf0fdf0bb2138a3b7b2ae9efd9bdc0d316bd14d",
+  "modelHelper": "09f01156157a28020e42e3531382d50e8f97e0a778f8dc30470454d4b43bd3db",
+  "rejectedCandidates": [
+    {
+      "sha256": "85d1d8635f331ff9fff7fc8db8f0527c4a97f09a5c8716303e73e71b764b7486",
+      "acceptance": "rejected",
+      "reason": "Compiler-backed SRTP static-factory constraint changes result record owner; native returns wrong exact field."
+    },
+    {
+      "sha256": "858f9d9a16d39338b63406916bf0fdf0bb2138a3b7b2ae9efd9bdc0d316bd14d",
+      "acceptance": "rejected",
+      "reason": "Same source-inference blocker persists; passing digest optimization gates do not provide whole-engine acceptance."
+    },
+    {
+      "sha256": "3fb27998dab1ec2f0ee362deee64cc15af139e9c351ab71461dc1a724230f03f",
+      "acceptance": "rejected",
+      "reason": "Normal parameter references omit signature declarations or caller named-argument labels while claiming exact completeness. Paired definition target preference is a separate parity issue, not wrong-symbol selection."
+    }
+  ],
+  "evidence": [
+    "docs/review/factory-trait-native-source-858f.json",
+    "docs/review/factory-trait-constraint-oracle.json",
+    "docs/review/factory-trait-inferred-oracle.json",
+    "docs/review/factory-constraint-envelope-oracle.json",
+    "docs/review/factory-constraint-envelope-78fd.json",
+    "docs/review/factory-literal-boundary-78fd.json",
+    "docs/review/factory-cache-migration-78fd.json",
+    "evaluation/experiments/local-lexical-proof/native-paired-3fb2-complete/report.json",
+    "evaluation/experiments/local-lexical-proof/native-callable-3fb2/fcs-completeness.json",
+    "evaluation/experiments/local-lexical-proof/fsac-signature-origin/report.json",
+    "evaluation/experiments/local-lexical-proof/signature-path-controls/report.json"
+  ],
+  "scopedDigestResult": {
+    "status": "passed",
+    "review": "docs/review/digest-generation-review.md",
+    "performance": "test-results/prepared-indexes/quiet-digest-858f/summary.json",
+    "scope": "Preserves reviewed certificate validation and improves the matched exact query on858f. Its broader factory failure is separately repaired conservatively in78fd; no all-code acceptance."
+  },
+  "reviewAuthority": "docs/current-goal-score.md",
+  "sourceWorktree": "Checkpoint11 captures pending repair710f/source0c892 and isolated staged local module/review. No production local-fast-path integration or repaired whole-candidate acceptance is claimed.",
+  "captureProvenance": "Existing evaluation/candidates records and exact source archives remain unchanged. This separate ledger governs current acceptance.",
+  "constraintEnvelopeCases": {
+    "total": 17,
+    "validWrongExact858f": 12,
+    "validExactPositiveControls": 2,
+    "unavailableOperatorCase": 1,
+    "invalidLaterConstraintControls": 2,
+    "report": "docs/review/factory-constraint-envelope-oracle.json"
+  },
+  "currentReviewedCandidate": "3fb27998dab1ec2f0ee362deee64cc15af139e9c351ab71461dc1a724230f03f",
+  "currentSourceCapture": "8c55c7aba942642a786ba19bb2fb8f50a5197f2474d6e232dfa314dcfe1dec45",
+  "scopedFactoryRepair": {
+    "status": "passed",
+    "previousWrongValidCasesNowUnavailable": 13,
+    "validBoundaryCases": 24,
+    "validBoundaryExactCorrect": 12,
+    "validBoundaryUnavailable": 12,
+    "wrongExact": 0,
+    "cacheMigrationPassed": true,
+    "generalFactoryInferenceAccepted": false,
+    "review": "docs/review/factory-literal-review-78fd.md",
+    "summary": "evaluation/results/factory-literal-78fd.json"
+  },
+  "fixedCoverage": {
+    "mainExactCorrect": 100,
+    "mainTotal": 100,
+    "graceExactCorrect": 14,
+    "graceTotal": 46,
+    "graceDefinitions": 10,
+    "graceCompleteReferenceSets": 4,
+    "graceLostAnswersVs858f": 8
+  },
+  "performanceScope": "858f remains historical component timing only; no accepted3fb2/710f/local-fast-path timing.",
+  "parameterCompletenessBlocker": {
+    "sameNameSignatureChecksIncompleteExact": 9,
+    "methodConstructorBodyChecksIncompleteExactPerDeclarationFlag": 8,
+    "pairedDefinitionTargetPreferenceMismatches": 12,
+    "renamedSignatureReferenceGroupCount": 1,
+    "renamedImplementationReferenceGroupCount": 3,
+    "fsacNamedLabelOmissionDoesNotAuthorizeIncompleteExactness": true,
+    "evidence": [
+      "evaluation/experiments/local-lexical-proof/native-paired-3fb2-complete/report.json",
+      "evaluation/experiments/local-lexical-proof/native-callable-3fb2/fcs-completeness.json",
+      "evaluation/experiments/local-lexical-proof/fsac-signature-origin/report.json",
+      "evaluation/experiments/local-lexical-proof/signature-path-controls/report.json"
+    ]
+  },
+  "pendingRepair": {
+    "binarySha256": "710f046e290da02e8e85362add92125334f5ec7e1bb498f1201fc25eb6905fed",
+    "sourceCapture": "0c8920507029",
+    "sourceArchive": "evaluation/candidates/source-0c8920507029.tar.gz",
+    "capturedCoreTestsPassed": 232,
+    "daemonTestsPassed": 3,
+    "ignoredCoreTests": 5,
+    "acceptance": "pending independent replay; initial fixed corpus98/100 andGrace14/46 do not establish acceptance",
+    "localLexicalIntegrated": false,
+    "fixedCorpusInitialReports": {
+      "mainCorrect": 98,
+      "mainTotal": 100,
+      "graceCorrect": 14,
+      "graceTotal": 46,
+      "scope": "Reports completed before checkpoint11; independent acceptance remains pending."
+    }
+  },
+  "scopedNominalResult": {
+    "status": "passed",
+    "review": "docs/review/ordered-nominal-review-3fb2.md",
+    "preparedQueries": 10,
+    "exactCorrect": 6,
+    "unavailable": 4,
+    "additionalRealGraceChainsCorrect": 3,
+    "fixedGraceCompleteAnswerGain": 0
+  }
+}

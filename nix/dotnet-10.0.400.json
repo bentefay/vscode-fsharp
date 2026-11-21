@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "sourceUrl": "https://github.com/NixOS/nixpkgs/blob/4862a919017b040f59d1adb4c67840efee8092cf/pkgs/development/compilers/dotnet/10.0/releases.nix",
+  "sourceCommit": "4862a919017b040f59d1adb4c67840efee8092cf",
+  "file": "dotnet-10.0.400.nix",
+  "sha256": "23f1e5f426f6187f27bb75a9cb080e3e05ad03208aee44343854c758150e7dff",
+  "modifications": [],
+  "selectedAttribute": "sdk_10_0_4xx",
+  "sdk": "10.0.400",
+  "runtime": "10.0.11",
+  "aspnetcoreRuntime": "10.0.11",
+  "builderNixpkgs": "f4a03c008967841f2a0b3cb7c436fc6fc31671f6",
+  "archiveVerification": "../docs/review/nix-portability-audit/sdk400-manifest-verification.json",
+  "supportBoundary": "Coherent development toolchain only. Nix loader/locale preparation profile is not yet validated. Does not override opened projects SDK selection.",
+  "sourceLicense": "MIT",
+  "sourceLicenseFile": "nixpkgs-COPYING",
+  "sourceLicenseUrl": "https://raw.githubusercontent.com/NixOS/nixpkgs/4862a919017b040f59d1adb4c67840efee8092cf/COPYING",
+  "sourceLicenseSha256": "c9cf0650a6820b589f96a92060e0eb937102b808f48cd5e3f35dcba449ea0a41"
+}

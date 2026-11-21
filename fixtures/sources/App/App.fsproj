@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><DefineConstants>FIRST</DefineConstants></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Library/Library.fsproj" /></ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/Linked.fs"><Link>Shared/Linked.fs</Link></Compile>
+    <Compile Include="Consumer.fs" />
+    <Compile Include="LinkedUse.fs" />
+    <Compile Include="RecordConsumer.fs" />
+  </ItemGroup>
+</Project>

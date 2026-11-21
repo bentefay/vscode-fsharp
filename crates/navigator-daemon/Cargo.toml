@@ -1,0 +1,15 @@
+[package]
+name = "navigator-daemon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "fsharp-navigator"
+path = "src/main.rs"
+
+[dependencies]
+navigator-core = { path = "../navigator-core" }
+serde_json.workspace = true
+anyhow.workspace = true
+

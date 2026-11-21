@@ -1,0 +1,15 @@
+# Record-field syntax-role exclusion
+
+The narrow proposed exclusion is supported by fifteen actual FCS controls in `record-field-role-oracle.json`. It is a namespace/grammar fact, unlike the rejected missing-label inference described in `record-negative-review.md`.
+
+Ordinary `open` paths, `open type` paths, nominal type heads and qualifiers, generic type arguments and alias right-hand sides resolve to type/module entities or remain unresolved. The tested semantic-error variants do not recover them as the same-spelled record field. In particular, an invalid type annotation `R.Artifact`, unresolved generic `list<Artifact>` and invalid `new R.Artifact()` produce no record-field symbol at that token.
+
+The positive occurrence controls remain essential: `r.Artifact`, `nameof r.Artifact`, parenthesized `nameof (r.Artifact)`, record literal labels and record pattern labels all resolve to the field. **Even semantically invalid `nameof R.Artifact` retains the field symbol** under FCS error recovery. Its qualified expression spelling must not be reclassified as a nominal type path merely because the root names a type.
+
+Source review of the pending implementation finds separate `import_name_tokens` and `type_name_tokens` populated from ordinary import declarations and direct nominal type-head nodes. Type-head extraction checks the complete owning type spine for parser errors; nested generic arguments are visited in their own type roles. Open-type handling remains conservatively uncertain. The record-label/pattern/declaration protections precede these exclusions. This is an appropriate narrow boundary; it does not justify using generic `non_value_tokens` or arbitrary qualified expressions as field-negative evidence.
+
+Retain parser-error/unsupported-source completeness guards, operand and label priority, current source/context identity, and all distinct occurrence locations. The compiler controls establish the intended role distinction; frozen native replay on the actual Grace gaps and these controls remains required. No general type or record-owner inference is approved by this note.
+
+The retained genuine-context baseline on b6bc gives8 exact-correct results,7 unavailable and0 wrong across fifteen complete-reference queries (`record-field-role-b6bc.json`). Valid-source coverage is3/7; the remaining eight cases are semantic-error safety controls and are not promoted to valid-code coverage. Versioned overlays are checked against returned document versions. The pending role additions need a fresh immutable replay against this same fixture.
+
+Reference ranges use the exact applicable pinned FSAC0.86 `Commands.tryAdjustRanges`/`Tokenizer.tryFixupRange` rule: for these simple one-line ASCII `Artifact` tokens, keep the final spelling within the raw FCS span. Every occurrence is retained; raw compiler responses and source hashes remain available. Initial raw-range and intermediate reviewer-harness diagnostics are explicitly excluded. They were comparison defects, not engine wrong-target findings.

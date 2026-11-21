@@ -1,0 +1,51 @@
+# Explicit preparation cost: source audit and next experiment
+
+Status: proposal only, 2026-11-21. No implementation changes, new timing runs, SDK-profile changes, or task-host launches were made for this audit. Preparation remains separate from native editor startup, but it is a real user cost and must remain in end-to-end results.
+
+## What the existing measurements establish
+
+The controlled `test-results/inventory-memory/explicit-preparation-f215-quiet/setup.json` records **one helper process receiving sequential requests**, not the shipping CLI's process lifecycle. It exports rendered catalogs for **FSharp.Core.dll and System.Runtime.dll only**, plus the complete selected-reference declaration inventory. The catalogs contain 13,081 and 2,547 symbols. It is not a measurement of exporting every library catalog.
+
+| Controlled f215 phase | Wall time | Peak sampled helper-tree RSS |
+|---|---:|---:|
+| Evaluated project model | 3.409 s | 173.58 MiB |
+| First catalog | 4.784 s | 259.04 MiB |
+| Second catalog | 2.581 s | 304.54 MiB |
+| Complete declaration inventory | 3.578 s | 470.96 MiB |
+| Entire preparation harness | **14.967 s** | **470.96 MiB** |
+
+By contrast, `cli/commands/prepare.mjs:39` launches a fresh `--once` helper for every operation, and its default catalog selection is **all external references**, one assembly per process. The separate, two-catalog CLI report `test-results/recovery/prepare-f215-cli.json` records phase wall times totaling **18.633 s** and a largest sampled phase peak of **347.51 MiB**. That is a different run, sampled every 20 ms rather than 10 ms; it does not prove a process-reuse speedup or memory regression. Neither report includes restore, build, semantic snapshot generation, Node/editor memory, or filesystem-cache memory. Sampled summed VmRSS is not PSS, a hard memory bound, or proof that brief peaks were captured.
+
+## Where work repeats
+
+* **Reference import is recreated per request, even inside one process.** `semantic/Semantic.fs:135` and `semantic/MetadataEnvironment.fs:66` each create a new `FSharpChecker`, discover script defaults, replace defaults with explicit references, hash inputs, check a trivial script, and obtain compiler-selected assemblies. Every one-assembly catalog batch receives the full available reference context (`prepare.mjs:64`). Reducing the exported assembly set does not by itself eliminate importing that context. The observed 14.967 s therefore already rules out describing “one process” alone as the proposed algorithmic improvement.
+* **Catalog and inventory do different full walks.** Catalog export renders signatures, callable/type facts and documentation for every public symbol in each selected target assembly. Inventory export walks all external entities and records complete type/scope/term name domains, including internal declarations needed for conservative ambiguity checks (`MetadataEnvironment.fs:155`). Its complete-domain contract must survive optimization.
+* **Documentation has an additional whole-file cost.** `XmlDocumentation.fs:84` parses an entire XML document and renders a map of every member. `Semantic.fs:88` retains these maps in a static dictionary. A long-lived shared preparation process would accumulate rendered documentation unless lifetime or eviction changes explicitly accompany it.
+* **Inventory output duplicates representation.** Its dictionaries become a JSON tree, then a full serialized response string (`MetadataEnvironment.fs:221`, `Program.fs:38`), which the CLI parses and writes before optional native index preparation. Catalog files already stream through `CatalogSink`; inventory does not. Removing copies can reduce peak allocations, but does not remove the FCS metadata graph or the complete inventory itself.
+* **Project evaluation has four MSBuild invocations per project.** `Evaluation.fs:60` performs preliminary tracing and JSON evaluation, then selected-framework tracing and final `Compile`/`FscCommandLineArgs` evaluation. Separate trace calls preserve observed property/import evidence because JSON query mode suppresses the logger lifecycle. Deleting those calls without replacing their evidence would make reuse certificates unsound.
+
+## Ranked changes
+
+| Priority | Concrete change | Work actually removed; correctness and remaining cost |
+|---|---|---|
+| 1: controlled first slice | One explicit binary-only extraction job shares **one imported FCS reference context** between the inventory and selected catalog exports; streams each artifact and exits. | Removes duplicate option discovery/import and permits request-local PE/hash reuse. It does not eliminate first import or full inventory traversal. Peak may rise if imported metadata or XML maps accumulate; adopt only after equal-coverage measurements. |
+| 2: repeated-use payoff | Cache certified per-assembly declaration facts and documentation shards by content and producer contract; compose a small current-project reference/ownership manifest. | A valid hit avoids extraction on subsequent preparations and across workspaces. Initial extraction and validation remain. Keys must include actual F# signature dependency/forwarder bindings and XML candidate selection, including absence witnesses; assembly basename/version or target DLL hash alone is insufficient. Current workspace ownership cannot be baked permanently into globally reusable rows. |
+| 3: stop producing unused output | Keep a complete cheap name inventory, but render rich hover facts/docs only for demanded assemblies or exact symbol identities; publish shards atomically. | Avoids formatting and writing never-used catalog records. It moves uncached demand latency onto first use unless explicitly prepared earlier. A missing inventory shard means unknown coverage, never proven absence. Qualified text alone cannot select an overload or infer a receiver. No invisible whole-solution checker fallback. |
+| 4: largest memory hypothesis | Extract ordinary CLR name/scope inventory with a thin PE metadata reader; retain FCS for F# signatures, aliases, measures, modules and active patterns. | Can avoid materializing ordinary CLR member/type graphs merely to collect names. This is the clearest route to eliminating, rather than relocating, significant FCS memory. It is a new reader requiring differential tests for nested names/arity, forwarding, accessibility, attribute identity and enum/literal bindings. CLR signatures cannot reproduce erased F# semantics. |
+| 5: bounded secondary savings | Capture model and environment/import events from the same MSBuild evaluation; stream inventory directly into its persisted representation. | Removes duplicated evaluations and JSON/object copies. The entire model phase is 3.409 s in this fixture, so even eliminating it cannot explain an orders-of-magnitude overall improvement. Same-evaluation logging must preserve missing/present properties, early resolver inputs, imports and generated source ordering. |
+
+Parallel exporters are not the recommended first change: they multiply resident compiler contexts. Increasing batch size trades repeated setup for retention; it is not a memory guarantee. Prebuilding SQLite indexes improves first native query latency by moving conversion into preparation; it does not erase preparation.
+
+## First implementation slice and its invariants
+
+Add an explicit experimental `metadata/prepare` job after project evaluation; retain the current separate operations as the control. Inputs are the exact ordered selected-reference context, workspace-owned outputs, requested catalog targets, output staging directory and budgets. Import once, expose an immutable session to both exporters, and retain separate per-artifact dependency certificates. Do not retain workspace source checks, project options across unrelated jobs, or a daemon after completion.
+
+Capture selected binary bytes/identities, effective reference bindings, producer contract, and XML-selection candidates before extraction; verify the relevant inputs again before publishing one coherent generation. A changed DLL, erased F# dependency, forwarder, XML file or previously absent higher-priority XML candidate aborts publication. Reuse a hash within that immutable job only; ownership/exclusions remain attached to its project context. Keep per-assembly XML maps scoped or bounded rather than growing the current static cache. Stream inventory records without constructing the final monolithic response tree; return paths, counts and certificates only.
+
+A shared compiler context can still exceed a target budget. Run it in an owned process tree with deadline and RSS monitoring, terminate on limit and leave no accepted partial generation. Call the RSS limit sampled enforcement unless an actual OS limit exists. Preserve the slower one-shot-per-batch path as an explicit alternative, not a silent fallback. Always release the job process; normal startup remains independent of preparation.
+
+## Bounded acceptance measurement
+
+Freeze producer/native binaries, SDK, project/reference/XML inputs and canonical output digests. Under a quiet window run the current CLI, same-process/current-per-request-checker harness, and shared-context candidate **with identical selected catalogs and complete inventory**; retain three sequential repetitions and per-phase costs. First use the existing two-assembly fixture, then the supported Grace reference context with an explicit catalog list. A full-catalog run is a separate workload, never extrapolated from the two-assembly result.
+
+Record import count and time, references/bytes hashed, entities visited, symbols/docs rendered, output bytes, wall/CPU time, sampled whole-owned-tree RSS, exit/timeout and residual processes. Report native startup, first useful exact hover, reopened hover, preparation, and any build/restore separately plus end-to-end elapsed time. Do not label a warm filesystem run “cold machine.” Require canonical full-domain output equality, unchanged hover correctness, dependency/forwarder/measure/XML-negative mutation controls, and atomic rejection during input changes. If context sharing reduces time but increases memory beyond budget, reject it as the default and advance the thin inventory/demand-shard work instead. No measured orders-of-magnitude preparation improvement is established yet.

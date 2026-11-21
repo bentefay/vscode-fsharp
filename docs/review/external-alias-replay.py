@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+"""A newly selected external type alias must invalidate a subset-name proof."""
+import argparse,hashlib,importlib.util,json,tempfile
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[2]
+def main():
+ p=argparse.ArgumentParser();p.add_argument('binary',type=Path);p.add_argument('--output',type=Path,required=True);a=p.parse_args()
+ s=importlib.util.spec_from_file_location('prep',ROOT/'docs/review/prepared-replay.py');prep=importlib.util.module_from_spec(s);s.loader.exec_module(prep);n=prep.load('native',ROOT/'docs/review/native-smoke-replay.py')
+ base=Path(tempfile.mkdtemp(prefix='external-alias-review-',dir=ROOT/'.tmp'));external=n.fixture(base,'external',{'Library.fs':'namespace External\ntype DateOnly = System.DateTime\n'});project=external/'Test.fsproj';project.rename(external/'External.fsproj')
+ report={'binarySha256':hashlib.sha256(a.binary.read_bytes()).hexdigest(),'helperSha256':hashlib.sha256(prep.HELPER.read_bytes()).hexdigest(),'fixtureRoot':str(base),'preparation':[],'cases':[],'sessions':[],'provenance':'Real external assembly and consumer builds. The old name inventory belongs to this same consumer workspace; only later selected-reference coverage changes.'}
+ report['preparation'].append({'phase':'external_build',**prep.build(external/'External.fsproj')});dll=external/'bin/Debug/net10.0/External.dll'
+ before='module Main\nopen System\nlet day (x:DateOnly) = x.Day\nlet proof = day (System.DateOnly(2026,11,20))\n';after='module Main\nopen System\nopen External\nlet day (x:DateOnly) = x.Day\nlet proof = day (System.DateTime(2026,11,20))\n'
+ consumer=n.fixture(base,'consumer',{'Main.fs':before});report['sources']={'before':before,'after':after,'external':(external/'Library.fs').read_text()};report['preparation'].append({'phase':'consumer_before_build',**prep.build(consumer/'Test.fsproj')})
+ def export(label):
+  model=prep.helper('workspace/evaluate',{'root':str(consumer)});modelpath=base/(label+'-model.json');modelpath.write_text(json.dumps(model));refs=sorted({r['path'] for p in model['projects'] for r in p['referenceBindings'] if not r['isWorkspace']});owned=sorted({p for x in model['projects'] for p in x['workspaceAssemblyReferences']});environment=prep.helper('metadata/environment',{'referencePaths':refs,'workspaceAssemblyPaths':owned});envpath=base/(label+'-environment.json');envpath.write_text(json.dumps(environment));report['preparation'].append({'phase':label+'-certificates','modelPath':str(modelpath),'environmentPath':str(envpath),'modelSha256':hashlib.sha256(modelpath.read_bytes()).hexdigest(),'environmentSha256':hashlib.sha256(envpath.read_bytes()).hexdigest()});return modelpath,envpath,refs
+ oldmodel,oldenv,refs=export('before');catalog=prep.PREP/'catalog.json'
+ def query(name,model,environment,catalog,line,expected):
+  d=n.Daemon(a.binary.resolve(),consumer);d.call('workspace/open',{'root':str(consumer),'mode':'indexed','cacheDir':str(base/'cache'),'evaluatedModelPath':str(model),'metadataPath':str(catalog),'builtinEnvironmentPath':str(environment)});source=(consumer/'Main.fs').read_text();r=d.call('navigation/hover',{'path':str(consumer/'Main.fs'),'line':line,'character':source.splitlines()[line].rindex('Day')});d.close();report['sessions'].append(d.transcript);value=r.get('result',{});exact=value.get('completeness')=='exact';text=json.dumps(value);okay=expected in text and ('P:System.DateTime.Day' if expected.endswith('DateOnly.Day') else 'P:System.DateOnly.Day') not in text;state='pass' if exact and okay else ('wrong-exact' if exact else 'safe-rejection' if 'old-inventory' in name or 'missing-binding' in name else 'unavailable-or-error');report['cases'].append({'id':name,'status':state,'expectedXmlDocId':expected,'response':r})
+ query('before-positive',oldmodel,oldenv,catalog,2,'P:System.DateOnly.Day')
+ project=consumer/'Test.fsproj';project.write_text(project.read_text().replace('</ItemGroup>','<Reference Include="External"><HintPath>'+str(dll)+'</HintPath></Reference></ItemGroup>'));(consumer/'Main.fs').write_text(after);report['preparation'].append({'phase':'consumer_after_build',**prep.build(project)});model,env,refs=export('after')
+ query('new-reference-old-inventory',model,oldenv,catalog,3,'P:System.DateTime.Day')
+ query('complete-inventory-subset-catalog',model,env,catalog,3,'P:System.DateTime.Day')
+ external_catalog=base/'external-catalog.json';summary=prep.helper('metadata/export',{'assemblyPaths':[str(dll)],'referencePaths':refs,'outputPath':str(external_catalog)});report['preparation'].append({'phase':'external_catalog','symbolCount':summary.get('symbolCount'),'sha256':hashlib.sha256(external_catalog.read_bytes()).hexdigest()})
+ manifest=json.loads(catalog.read_text());manifest['catalogs']=[str((catalog.parent/p).resolve()) for p in manifest['catalogs']]+[str(external_catalog)];combined=base/'combined-catalog.json';combined.write_text(json.dumps(manifest))
+ query('complete-inventory-complete-catalog',model,env,combined,3,'P:System.DateTime.Day')
+ broken=json.loads(env.read_text());broken['referenceBindings']=[b for b in broken['referenceBindings'] if b['path']!=str(dll)];missing=base/'missing-binding-environment.json';missing.write_text(json.dumps(broken));query('missing-binding-complete-catalog',model,missing,combined,3,'P:System.DateTime.Day')
+ report['summary']={s:sum(c['status']==s for c in report['cases']) for s in ['pass','safe-rejection','unavailable-or-error','wrong-exact']};a.output.write_text(json.dumps(report,indent=2)+'\n');print(json.dumps({'summary':report['summary'],'cases':report['cases']},indent=2))
+if __name__=='__main__':main()

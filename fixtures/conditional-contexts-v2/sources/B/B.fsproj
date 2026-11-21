@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework><DefineConstants>B</DefineConstants><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup><ItemGroup><Compile Include="../Shared/Shared.fs"><Link>Shared.fs</Link></Compile><Compile Include="Consumer.fs" /></ItemGroup></Project>

@@ -1,0 +1,17 @@
+{
+  "sdk": "10.0.400",
+  "runtime": "10.0.11",
+  "rid": "linux-x64",
+  "packages": [
+    {
+      "id": "microsoft.netcore.app.crossgen2.linux-x64",
+      "version": "10.0.11",
+      "sha512": "kb4KNaI16vCAPnlAttZkf8oIBRHoUgj2wUBhc9BciDI6Ue/WNv/EGIISiUIpelKgF/flafOvexv/Gpt61Io/+Q=="
+    },
+    {
+      "id": "microsoft.netcore.app.runtime.linux-x64",
+      "version": "10.0.11",
+      "sha512": "ef6XpQH4KI7lukxMuXnh0iDM7a60cR0tFiynPPmRK7TnOHZXKpwIlPd341kInZJvMw+u2B3qaHb3rVEMIxLWlQ=="
+    }
+  ]
+}

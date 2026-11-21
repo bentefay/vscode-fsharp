@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "queries": [
+    {"name":"local_parameter_definition","method":"definition","at":"increment_value_use","expected":["increment_value_def"],"feature":"lexical"},
+    {"name":"local_parameter_references","method":"references","at":"increment_value_def","expected":["increment_value_use"],"feature":"lexical"},
+    {"name":"outer_shadow_definition","method":"definition","at":"outer_value_use","expected":["outer_value_def"],"feature":"shadowing"},
+    {"name":"inner_shadow_definition","method":"definition","at":"inner_value_use","expected":["inner_value_def"],"feature":"shadowing"},
+    {"name":"outer_shadow_references","method":"references","at":"outer_value_def","expected":["outer_value_use"],"feature":"shadowing"},
+    {"name":"inner_shadow_references","method":"references","at":"inner_value_def","expected":["inner_value_use"],"feature":"shadowing"},
+    {"name":"cross_project_definition","method":"definition","at":"increment_app","expected":["increment_def"],"feature":"project"},
+    {"name":"all_increment_references","method":"references","at":"increment_def","expectedAny":[["increment_use1","increment_use2","increment_app","increment_alias"],["increment_use1","increment_use2",{"start":"increment_app_qualified","end":"increment_app"},{"start":"increment_alias_qualified","end":"increment_alias"}]],"feature":"project"},
+    {"name":"module_alias_definition","method":"definition","at":"increment_alias","expected":["increment_def"],"feature":"alias"},
+    {"name":"record_person_field","method":"definition","at":"person_name_use","expected":["person_name_def"],"feature":"record"},
+    {"name":"record_widget_field","method":"definition","at":"widget_name_use","expected":["widget_name_def"],"feature":"record"},
+    {"name":"record_person_references","method":"references","at":"person_name_def","expectedAny":[["person_name_use"],[{"start":"person_name_qualified","end":"person_name_use"}]],"feature":"record"},
+    {"name":"overload_integer","method":"definition","at":"pick_int_use","expected":["pick_int_def"],"feature":"overload"},
+    {"name":"overload_string","method":"definition","at":"pick_string_use","expected":["pick_string_def"],"feature":"overload"},
+    {"name":"ordered_file_definition","method":"definition","at":"ordered_use","expected":["ordered_def"],"feature":"project_order"},
+    {"name":"signature_definition","method":"definition","at":"exposed_use","expectedAny":[["exposed_sig"],["exposed_impl"]],"feature":"signature"},
+    {"name":"signature_hidden_definition","method":"definition","at":"hidden_use","expected":["hidden_def"],"feature":"signature"},
+    {"name":"linked_first_context","method":"definition","at":"linked_first_use","expected":["linked_first_def"],"feature":"linked_context"},
+    {"name":"linked_second_context","method":"definition","at":"linked_second_use","expected":["linked_second_def"],"feature":"linked_context"},
+    {"name":"utf16_definition","method":"definition","at":"unicode_use","expected":["unicode_def"],"feature":"utf16"},
+    {"name":"escaped_definition","method":"definition","at":"escaped_use","expected":["escaped_def"],"feature":"escaped_identifier"},
+    {"name":"external_library_hover","method":"hover","at":"external_hover","expectHover":true,"contains":"IsNullOrEmpty","feature":"external_hover"},
+    {"name":"workspace_hover_suppressed","method":"hover","at":"increment_app","expectHover":false,"feature":"hover_ownership"},
+    {"name":"pattern_branch_scope","method":"definition","at":"branch_global_use","expected":["branch_global_def"],"feature":"branch_scope"},
+    {"name":"open_shadow_definition","method":"definition","at":"open_shadow_use","expected":["open_provider_def"],"feature":"open_shadowing"},
+    {"name":"workspace_system_hover_suppressed","method":"hover","at":"workspace_system_hover","expectHover":false,"feature":"hover_ownership_shadow"},
+    {"name":"autoopen_shadow_definition","method":"definition","at":"autoopen_use","expected":["autoopen_def"],"feature":"autoopen_shadowing"},
+    {"name":"private_shadow_definition","method":"definition","at":"private_shadow_use","expected":["public_value_def"],"feature":"private_accessibility"},
+    {"name":"signature_hiding_definition","method":"definition","at":"signature_boundary_use","expected":["signature_visible_def"],"feature":"signature_visibility"}
+  ],
+  "edits": [
+    {"name":"body_edit","file":"Library/Arithmetic.fs","old":"value + 1","new":"value + 2","query":"all_increment_references"},
+    {"name":"api_edit","file":"Library/Arithmetic.fs","old":"let increment value = value + 1","new":"let increment (value: int64) = value + 1L","query":"all_increment_references"},
+    {"name":"renamed_symbol_edit","file":"Library/Scopes.fs","old":"let unicode =","new":"let renamedUnicode =","query":"utf16_definition","expectNotExact":true}
+  ],
+  "notes": [
+    "Markers are removed before the engine sees source; positions use UTF-16 code units.",
+    "Find references excludes declarations. Expected sets must match exactly, not merely contain expected locations.",
+    "Two reference tests explicitly accept either the final identifier range or the full qualified-expression range observed from FCS; occurrence-set equality remains exact.",
+    "FCS may return either .fsi or .fs for an exported definition; both are explicitly accepted for this exploratory fixture.",
+    "The API edit deliberately makes consumers ill-typed; stale exact results are unacceptable. Baseline behavior must be compared before claiming feature parity.",
+    "Linked-file cases require per-project defines. A path-only source index cannot truthfully mark both answers exact."
+  ]
+}

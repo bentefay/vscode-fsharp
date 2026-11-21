@@ -1,0 +1,26 @@
+{
+  "grammars": [
+    {
+      "name": "fsharp",
+      "scope": "source.fsharp",
+      "path": "fsharp",
+      "file-types": [
+        "fs",
+        "fsx"
+      ]
+    },
+    {
+      "name": "fsharp_signature",
+      "scope": "source.fsharp.signature",
+      "path": "fsharp_signature",
+      "file-types": [
+        "fsi"
+      ]
+    }
+  ],
+  "metadata": {
+    "version": "0.3.13",
+    "license": "MIT",
+    "description": "Pinned F# grammar with local reverse-index syntax correction"
+  }
+}

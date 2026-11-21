@@ -1,0 +1,37 @@
+[
+  {
+    "originalPath": "/workspace/scratch/dd9aeba5da3c/FSharp_Extension_Plan.md",
+    "preservedPath": "docs/research-history/FSharp_Extension_Plan.md",
+    "sha256": "fa4f0e7b1367329783e469249f06d433df99460d1bab24d48926a0d8832dfbb9"
+  },
+  {
+    "originalPath": "/workspace/scratch/dd9aeba5da3c/FSharp_Plan_Review.md",
+    "preservedPath": "docs/research-history/FSharp_Plan_Review.md",
+    "sha256": "216b0b90e5975fbb7d2f4d7d62f9d23c6fb514ccb5d7aa3c9369b5b7d6833029"
+  },
+  {
+    "originalPath": "/workspace/scratch/dd9aeba5da3c/research/hover-project-findings.md",
+    "preservedPath": "docs/research-history/hover-project-findings.md",
+    "sha256": "3901c86dd551145cf451a13a599a86e366719d5a34680cbdb85bd1af3d48b6c0"
+  },
+  {
+    "originalPath": "/workspace/scratch/dd9aeba5da3c/research/test-harness-findings.md",
+    "preservedPath": "docs/research-history/test-harness-findings.md",
+    "sha256": "7dfecd6f36369d06414512c6e97a737edc1d69844dd187443899a167c989a1ea"
+  },
+  {
+    "originalPath": "/workspace/scratch/dd9aeba5da3c/research/corpus-findings.md",
+    "preservedPath": "docs/research-history/corpus-findings.md",
+    "sha256": "98db7c60c782ff6041ee7d4c4c9fab23b05a0729be83ad6fa8e26c36c843fc3e"
+  },
+  {
+    "originalPath": "/workspace/scratch/dd9aeba5da3c/research/plan-score-initial.md",
+    "preservedPath": "docs/research-history/plan-score-initial.md",
+    "sha256": "d2e24ab64973ea9ecbda2ae33281e590b89f668626d3d4847f92d7c7a7a3080e"
+  },
+  {
+    "originalPath": "/workspace/scratch/dd9aeba5da3c/research/rust-architecture-findings.md",
+    "preservedPath": "docs/research-history/rust-architecture-findings.md",
+    "sha256": "63950e24bbaa8414a7786b72d157b9ead4c106ba7457a9a965afba665bb71b7b"
+  }
+]

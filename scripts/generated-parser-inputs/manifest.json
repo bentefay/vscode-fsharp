@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "compression": "gzip; level9; mtime0; no filename",
+  "parsers": [
+    {
+      "source": "vendor/tree-sitter-fsharp/fsharp/src/parser.c",
+      "archive": "scripts/generated-parser-inputs/fsharp-parser.c.gz",
+      "sourceBytes": 59270973,
+      "sourceSha256": "00943a441bd59446ed9d321f3e0e09402ec3069c623890fc0b1893717d001302",
+      "archiveBytes": 3324052,
+      "archiveSha256": "5a3c6ea6015c6b2e071716b9f6ba86a81808e553df6e15a233d34aced586a10f",
+      "parts": [
+        {
+          "path": "scripts/generated-parser-inputs/fsharp-parser.c.gz.part-001",
+          "bytes": 512000,
+          "sha256": "a77a80e54194842ea5c0978e022c92601eb35e85c854617b4521ae17516ba9d0"
+        },
+        {
+          "path": "scripts/generated-parser-inputs/fsharp-parser.c.gz.part-002",
+          "bytes": 512000,
+          "sha256": "e51cd8568bd4dc3354fa68185cb3dedbd6a7787262edb22d471d0b6137f1c3db"
+        },
+        {
+          "path": "scripts/generated-parser-inputs/fsharp-parser.c.gz.part-003",
+          "bytes": 512000,
+          "sha256": "a43bd33d4fbb9a185e139929a86866fb361d68e46649f35678a317fe2e2a1a86"
+        },
+        {
+          "path": "scripts/generated-parser-inputs/fsharp-parser.c.gz.part-004",
+          "bytes": 512000,
+          "sha256": "3921dafcb11af898c7a08587e805ee61a925e8042aa21b48b572847bbe6a95b8"
+        },
+        {
+          "path": "scripts/generated-parser-inputs/fsharp-parser.c.gz.part-005",
+          "bytes": 512000,
+          "sha256": "813d2c5cbaaea6874ab681f67c78c39ee58e057bb849d4a98df00dd9229fd54a"
+        },
+        {
+          "path": "scripts/generated-parser-inputs/fsharp-parser.c.gz.part-006",
+          "bytes": 512000,
+          "sha256": "dddc64ac6c7e24f754ea2fcd596d2ad0aa00d3431cf1a39ff307f7f5b01ad9ec"
+        },
+        {
+          "path": "scripts/generated-parser-inputs/fsharp-parser.c.gz.part-007",
+          "bytes": 252052,
+          "sha256": "75e907ecdd85180a85d386c90e6ab822e2634817a00531ef0c4cd05354c9fb1a"
+        }
+      ]
+    },
+    {
+      "source": "vendor/tree-sitter-fsharp/fsharp_signature/src/parser.c",
+      "archive": "scripts/generated-parser-inputs/signature-parser.c.gz",
+      "sourceBytes": 16921517,
+      "sourceSha256": "2d2f79ee290da7bc9765638212a096aeab2a1b2ce785ab0aaba6cddd333f8dc3",
+      "archiveBytes": 695855,
+      "archiveSha256": "995f02000d4eab86c4c53b441aa85a933009f720149276cbc774cfbb8e438540"
+    }
+  ]
+}

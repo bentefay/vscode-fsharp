@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 1,
+  "queries": [
+    {
+      "name": "a_common_definition",
+      "method": "definition",
+      "at": "a_common_use",
+      "expected": [
+        "common_def"
+      ],
+      "projectPath": "A/A.fsproj"
+    },
+    {
+      "name": "a_common_references",
+      "method": "references",
+      "at": "a_common_use",
+      "expected": [
+        "a_common_use",
+        "b_common_use"
+      ],
+      "projectPath": "A/A.fsproj",
+      "declaration": "common_def"
+    },
+    {
+      "name": "a_name_definition",
+      "method": "definition",
+      "at": "a_name_use",
+      "expected": [
+        "a_name_def"
+      ],
+      "projectPath": "A/A.fsproj"
+    },
+    {
+      "name": "a_name_references",
+      "method": "references",
+      "at": "a_name_use",
+      "expected": [
+        "a_name_create",
+        {
+          "at": "a_name_use",
+          "qualifiedFrom": [
+            "a_receiver"
+          ]
+        },
+        {
+          "at": "a_unicode_name_use",
+          "qualifiedFrom": [
+            "a_unicode_receiver"
+          ]
+        }
+      ],
+      "projectPath": "A/A.fsproj",
+      "declaration": "a_name_def"
+    },
+    {
+      "name": "a_branch_definition",
+      "method": "definition",
+      "at": "a_selected_use",
+      "expected": [
+        "a_selected_def"
+      ],
+      "projectPath": "A/A.fsproj"
+    },
+    {
+      "name": "a_nested_definition",
+      "method": "definition",
+      "at": "a_nested_use",
+      "expected": [
+        "a_nested_def"
+      ],
+      "projectPath": "A/A.fsproj"
+    },
+    {
+      "name": "a_unicode_definition",
+      "method": "definition",
+      "at": "a_unicode_name_use",
+      "expected": [
+        "a_name_def"
+      ],
+      "projectPath": "A/A.fsproj"
+    },
+    {
+      "name": "a_make_definition",
+      "method": "definition",
+      "at": "a_make_use",
+      "expected": [
+        "a_make_def"
+      ],
+      "projectPath": "A/A.fsproj"
+    },
+    {
+      "name": "b_common_definition",
+      "method": "definition",
+      "at": "b_common_use",
+      "expected": [
+        "common_def"
+      ],
+      "projectPath": "B/B.fsproj"
+    },
+    {
+      "name": "b_common_references",
+      "method": "references",
+      "at": "b_common_use",
+      "expected": [
+        "a_common_use",
+        "b_common_use"
+      ],
+      "projectPath": "B/B.fsproj",
+      "declaration": "common_def"
+    },
+    {
+      "name": "b_name_definition",
+      "method": "definition",
+      "at": "b_name_use",
+      "expected": [
+        "b_name_def"
+      ],
+      "projectPath": "B/B.fsproj"
+    },
+    {
+      "name": "b_name_references",
+      "method": "references",
+      "at": "b_name_use",
+      "expected": [
+        "b_name_create",
+        {
+          "at": "b_name_use",
+          "qualifiedFrom": [
+            "b_receiver"
+          ]
+        },
+        {
+          "at": "b_unicode_name_use",
+          "qualifiedFrom": [
+            "b_unicode_receiver"
+          ]
+        }
+      ],
+      "projectPath": "B/B.fsproj",
+      "declaration": "b_name_def"
+    },
+    {
+      "name": "b_branch_definition",
+      "method": "definition",
+      "at": "b_selected_use",
+      "expected": [
+        "b_selected_def"
+      ],
+      "projectPath": "B/B.fsproj"
+    },
+    {
+      "name": "b_nested_definition",
+      "method": "definition",
+      "at": "b_nested_use",
+      "expected": [
+        "b_nested_def"
+      ],
+      "projectPath": "B/B.fsproj"
+    },
+    {
+      "name": "b_unicode_definition",
+      "method": "definition",
+      "at": "b_unicode_name_use",
+      "expected": [
+        "b_name_def"
+      ],
+      "projectPath": "B/B.fsproj"
+    },
+    {
+      "name": "b_make_definition",
+      "method": "definition",
+      "at": "b_make_use",
+      "expected": [
+        "b_make_def"
+      ],
+      "projectPath": "B/B.fsproj"
+    }
+  ],
+  "edits": [],
+  "notes": [
+    "Version2 reconstructed fixture after VM loss; not asserted byte-identical to the previous16-casefixture.",
+    "Source bytes use CRLF; a nonBMP scalar before a field verifies UTF16 positions.",
+    "Two genuine evaluated compile instances share one physical file but have different A/Bdefines.",
+    "Expected sets are predeclared before actual FSAC/native runs; validate against actual shippedFSAC before treating them as goldens.",
+    "Common.Value reference UI expectation unions two source instances with identical qualifiedowner+physicaldeclaration; branch Name declarations occupy distinct ranges.",
+    "Inactive malformed strings/comments and active comments/triplestrings containing directive text must preserve context."
+  ]
+}

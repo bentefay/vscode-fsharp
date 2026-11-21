@@ -1,0 +1,10 @@
+{
+  "name": "fsharp-navigation-baseline-host",
+  "displayName": "F# navigation baseline measurement host",
+  "version": "0.0.1",
+  "publisher": "local-evaluation",
+  "engines": {"vscode": "^1.108.0"},
+  "main": "./extension.cjs",
+  "activationEvents": [],
+  "private": true
+}

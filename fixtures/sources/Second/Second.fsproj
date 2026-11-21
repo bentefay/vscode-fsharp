@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/Linked.fs"><Link>Shared/Linked.fs</Link></Compile>
+    <Compile Include="LinkedUse.fs" />
+  </ItemGroup>
+</Project>

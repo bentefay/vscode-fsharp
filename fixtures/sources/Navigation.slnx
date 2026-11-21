@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/Libraries/"><Project Path="Library/Library.fsproj" /></Folder>
+  <Folder Name="/Applications/">
+    <Project Path="App/App.fsproj" />
+    <Project Path="Second/Second.fsproj" />
+  </Folder>
+</Solution>

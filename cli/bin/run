@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+FN_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+export FN_INVOCATION_CWD="${FN_INVOCATION_CWD:-$PWD}"
+cd "$FN_ROOT"
+if [[ "${FN_DEVENV:-}" != 1 && "${FN_LOCAL_TOOLS:-}" != 1 ]]; then
+    if command -v nix >/dev/null 2>&1; then
+        exec "$FN_ROOT/scripts/devenv" shell -- "$FN_ROOT/cli/bin/run" "$@"
+    elif [[ -x "$FN_ROOT/.tools/safe-chain" && -x "$FN_ROOT/.tools/rust/bin/cargo" ]]; then
+        exec "$FN_ROOT/scripts/with-local-tools" "$FN_ROOT/cli/bin/run" "$@"
+    else
+        echo 'Install Nix with flakes enabled, then run cli/bin/run setup.' >&2
+        exit 1
+    fi
+fi
+if [[ ! -f node_modules/clipanion/package.json ]]; then
+    npm ci --ignore-scripts
+fi
+exec node cli/bin/run.mjs "$@"

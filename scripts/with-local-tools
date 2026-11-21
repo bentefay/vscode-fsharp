@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+FN_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+test -x "$FN_ROOT/.tools/safe-chain" || { echo 'Task-local verified Safe Chain is missing.' >&2; exit 1; }
+export FN_LOCAL_TOOLS=1
+export PATH="$FN_ROOT/.tools/bin:$FN_ROOT/.tools/rust/bin:$FN_ROOT/.tools/dotnet:$PATH"
+export DOTNET_ROOT="$FN_ROOT/.tools/dotnet"
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
+export DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS=48
+FN_TMPDIR="${TMPDIR:-}"
+if [[ -z "$FN_TMPDIR" || "$FN_TMPDIR" == /tmp ]]; then FN_TMPDIR="$FN_ROOT/.cache/tmp"; fi
+export TMPDIR="${FSHARP_NAVIGATOR_TMPDIR:-$FN_TMPDIR}"
+mkdir -p -- "$TMPDIR"
+exec "$@"

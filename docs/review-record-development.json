@@ -1,0 +1,4686 @@
+{
+  "binary": "/tmp/navigator-record-review-vl7ux9uh/engine",
+  "sha256": "86b72c873668df26001e3e9728b849b2a41f050e636e3ab4b67fc9cfceea7eae",
+  "cases": [
+    {
+      "name": "known_string_factory",
+      "source": "module Main\ntype Candidate = { Length:int }\nlet make () = System.String('x',3)\nlet text = make ()\nlet result = text.Length\n",
+      "query_line": 4,
+      "query_word": "Length",
+      "target_line": null,
+      "target_word": "Length",
+      "mode": "definition",
+      "expected": null,
+      "actual": [],
+      "exact": false,
+      "false_exact": false,
+      "correct": false,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/known_string_factory"
+          },
+          "elapsed_ms": 2.75524200151267,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5001216,
+              "snapshot": 1,
+              "snapshotId": "8fbd1cc43128d3f07cad2d1697947c0a335fc6fc75ba430afeda429da6b59ac0:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/known_string_factory/Main.fs",
+            "line": 4,
+            "character": 18
+          },
+          "elapsed_ms": 1.7056689994205954,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "unavailable",
+              "diagnostics": [
+                "Binding requires type inference or an unambiguous external catalog symbol"
+              ],
+              "documentVersion": null,
+              "locations": [],
+              "reason": "Binding requires type inference or an unambiguous external catalog symbol",
+              "snapshot": 3,
+              "snapshotId": "54e5d4c89280c826a9bc92dd3a1b8b13e1d553d8b3e038f54b610dede5a6675c:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.1588140003150329,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 246,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 354328,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 1,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 429,
+              "largestTokenCount": 23,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 1180,
+              "reindexedFiles": 0,
+              "rssBytes": 9494528,
+              "snapshot": 3,
+              "snapshotId": "54e5d4c89280c826a9bc92dd3a1b8b13e1d553d8b3e038f54b610dede5a6675c:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 9,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.17227299940714147,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 246,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 354328,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 1,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 429,
+          "largestTokenCount": 23,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 1180,
+          "reindexedFiles": 0,
+          "rssBytes": 9494528,
+          "snapshot": 3,
+          "snapshotId": "54e5d4c89280c826a9bc92dd3a1b8b13e1d553d8b3e038f54b610dede5a6675c:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 9,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "opened_class_shadow",
+      "source": "module Main\ntype Person = { Name:string }\nmodule Other =\n    type Person() =\n        member _.Name = \"class\"\nopen Other\nlet read (p:Person) = p.Name\n",
+      "query_line": 6,
+      "query_word": "Name",
+      "target_line": 4,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 4,
+          "character": 17
+        }
+      ],
+      "actual": [
+        {
+          "character": 17,
+          "line": 4
+        }
+      ],
+      "exact": true,
+      "false_exact": false,
+      "correct": true,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/opened_class_shadow"
+          },
+          "elapsed_ms": 2.511452999897301,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5046272,
+              "snapshot": 1,
+              "snapshotId": "3c323c566ce1b73baa1e63d54776e52fbc822aea04c16f6175d6932c83f032b9:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/opened_class_shadow/Main.fs",
+            "line": 6,
+            "character": 24
+          },
+          "elapsed_ms": 1.3712969994230662,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "exact",
+              "documentVersion": null,
+              "locations": [
+                {
+                  "range": {
+                    "end": {
+                      "character": 21,
+                      "line": 4
+                    },
+                    "start": {
+                      "character": 17,
+                      "line": 4
+                    }
+                  },
+                  "uri": "file:///tmp/navigator-record-review-vl7ux9uh/opened_class_shadow/Main.fs"
+                }
+              ],
+              "proof": {
+                "declarationPath": "/tmp/navigator-record-review-vl7ux9uh/opened_class_shadow/Main.fs",
+                "invalidation": "source-and-project-snapshot",
+                "kind": "nominal-receiver-facts"
+              },
+              "snapshot": 3,
+              "snapshotId": "ce88c2a80d13b4d5caf4d3662ad9aa99d3ca516cfca4808c4933f8fbde4a5aa9:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.1557889991090633,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 298,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 362568,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 3,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 531,
+              "largestTokenCount": 27,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 956,
+              "reindexedFiles": 0,
+              "rssBytes": 9646080,
+              "snapshot": 3,
+              "snapshotId": "ce88c2a80d13b4d5caf4d3662ad9aa99d3ca516cfca4808c4933f8fbde4a5aa9:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 4,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.2060529986920301,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 298,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 362568,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 3,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 531,
+          "largestTokenCount": 27,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 956,
+          "reindexedFiles": 0,
+          "rssBytes": 9646080,
+          "snapshot": 3,
+          "snapshotId": "ce88c2a80d13b4d5caf4d3662ad9aa99d3ca516cfca4808c4933f8fbde4a5aa9:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 4,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "opened_alias_shadow",
+      "source": "module Main\ntype Person = { Name:string }\nmodule Other =\n    type Widget = { Name:int }\n    type Person = Widget\nopen Other\nlet read (p:Person) = p.Name\n",
+      "query_line": 6,
+      "query_word": "Name",
+      "target_line": 3,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 3,
+          "character": 20
+        }
+      ],
+      "actual": [],
+      "exact": false,
+      "false_exact": false,
+      "correct": false,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/opened_alias_shadow"
+          },
+          "elapsed_ms": 2.85461799830955,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5042176,
+              "snapshot": 1,
+              "snapshotId": "73df14d591baa92c8cef6e7282333e902d09ada44c3a59aa89d1890050482bdb:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/opened_alias_shadow/Main.fs",
+            "line": 6,
+            "character": 24
+          },
+          "elapsed_ms": 1.4155619992379798,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "unavailable",
+              "diagnostics": [
+                "Binding requires type inference or an unambiguous external catalog symbol"
+              ],
+              "documentVersion": null,
+              "locations": [],
+              "reason": "Binding requires type inference or an unambiguous external catalog symbol",
+              "snapshot": 3,
+              "snapshotId": "bc5a7da9514faae872fee2d2583238826a3189ecb74145dc30c48a025bcfcfdd:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.11124299999210052,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 306,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 354328,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 2,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 597,
+              "largestTokenCount": 31,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 942,
+              "reindexedFiles": 0,
+              "rssBytes": 9576448,
+              "snapshot": 3,
+              "snapshotId": "bc5a7da9514faae872fee2d2583238826a3189ecb74145dc30c48a025bcfcfdd:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 7,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.1844019989221124,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 306,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 354328,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 2,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 597,
+          "largestTokenCount": 31,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 942,
+          "reindexedFiles": 0,
+          "rssBytes": 9576448,
+          "snapshot": 3,
+          "snapshotId": "bc5a7da9514faae872fee2d2583238826a3189ecb74145dc30c48a025bcfcfdd:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 7,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "anonymous_not_nominal",
+      "source": "module Main\ntype Candidate = { Name:string }\nlet value = {| Name=42 |}\nlet result = value.Name\n",
+      "query_line": 3,
+      "query_word": "Name",
+      "target_line": null,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": null,
+      "actual": [],
+      "exact": false,
+      "false_exact": false,
+      "correct": false,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/anonymous_not_nominal"
+          },
+          "elapsed_ms": 2.7304859995638253,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5115904,
+              "snapshot": 1,
+              "snapshotId": "b4fbde83902f4d1a0531f1835682e5514378720835e3dee9f03460e4b891ea44:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/anonymous_not_nominal/Main.fs",
+            "line": 3,
+            "character": 19
+          },
+          "elapsed_ms": 1.7061389989976306,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "unavailable",
+              "diagnostics": [
+                "Binding requires type inference or an unambiguous external catalog symbol"
+              ],
+              "documentVersion": null,
+              "locations": [],
+              "reason": "Binding requires type inference or an unambiguous external catalog symbol",
+              "snapshot": 3,
+              "snapshotId": "35d4ea5ad92538d2c62c3117d8515be6d7b7cefd1c142f5f815e1db508cda743:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.14304000069387257,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 190,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 354328,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 1,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 340,
+              "largestTokenCount": 17,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 993,
+              "reindexedFiles": 0,
+              "rssBytes": 9297920,
+              "snapshot": 3,
+              "snapshotId": "35d4ea5ad92538d2c62c3117d8515be6d7b7cefd1c142f5f815e1db508cda743:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 6,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.20633399981306866,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 190,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 354328,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 1,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 340,
+          "largestTokenCount": 17,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 993,
+          "reindexedFiles": 0,
+          "rssBytes": 9297920,
+          "snapshot": 3,
+          "snapshotId": "35d4ea5ad92538d2c62c3117d8515be6d7b7cefd1c142f5f815e1db508cda743:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 6,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "autoopen_latest_label",
+      "source": "module Main\ntype Person = { Name:string }\n[<AutoOpen>]\nmodule Extra =\n    type Other = { Name:string }\nlet value = {Name=\"other\"}\nlet result = value.Name\n",
+      "query_line": 6,
+      "query_word": "Name",
+      "target_line": 4,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 4,
+          "character": 19
+        }
+      ],
+      "actual": [],
+      "exact": false,
+      "false_exact": false,
+      "correct": false,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/autoopen_latest_label"
+          },
+          "elapsed_ms": 2.7192540001124144,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5148672,
+              "snapshot": 1,
+              "snapshotId": "c4f14e1bd1e60dafb09297fd59f4bd0bb0633adf079d807eaaf42f8fddd4026e:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/autoopen_latest_label/Main.fs",
+            "line": 6,
+            "character": 19
+          },
+          "elapsed_ms": 1.137047000156599,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "unavailable",
+              "diagnostics": [
+                "Binding requires type inference or an unambiguous external catalog symbol"
+              ],
+              "documentVersion": null,
+              "locations": [],
+              "reason": "Binding requires type inference or an unambiguous external catalog symbol",
+              "snapshot": 3,
+              "snapshotId": "204b0ef336ca59a759e34556144b6d913c74eb1add66a0763999093d29e95c58:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.10709799971664324,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 308,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 354328,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 1,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 570,
+              "largestTokenCount": 27,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 716,
+              "reindexedFiles": 0,
+              "rssBytes": 9404416,
+              "snapshot": 3,
+              "snapshotId": "204b0ef336ca59a759e34556144b6d913c74eb1add66a0763999093d29e95c58:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 6,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.15519900080107618,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 308,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 354328,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 1,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 570,
+          "largestTokenCount": 27,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 716,
+          "reindexedFiles": 0,
+          "rssBytes": 9404416,
+          "snapshot": 3,
+          "snapshotId": "204b0ef336ca59a759e34556144b6d913c74eb1add66a0763999093d29e95c58:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 6,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "fresh_formal_latest_label",
+      "source": "module Main\ntype Earlier = { Name:string }\ntype Later = { Name:int }\nlet read p = p.Name\n",
+      "query_line": 3,
+      "query_word": "Name",
+      "target_line": 2,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 2,
+          "character": 15
+        }
+      ],
+      "actual": [
+        {
+          "character": 15,
+          "line": 2
+        }
+      ],
+      "exact": true,
+      "false_exact": false,
+      "correct": true,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/fresh_formal_latest_label"
+          },
+          "elapsed_ms": 1.975125000171829,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5021696,
+              "snapshot": 1,
+              "snapshotId": "8381b1a430389f0674ec4a29fe45f93c5fcbc5f4f9c0c29d68573f67957bb3ab:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/fresh_formal_latest_label/Main.fs",
+            "line": 3,
+            "character": 15
+          },
+          "elapsed_ms": 0.9289359986723866,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "exact",
+              "documentVersion": null,
+              "locations": [
+                {
+                  "range": {
+                    "end": {
+                      "character": 19,
+                      "line": 2
+                    },
+                    "start": {
+                      "character": 15,
+                      "line": 2
+                    }
+                  },
+                  "uri": "file:///tmp/navigator-record-review-vl7ux9uh/fresh_formal_latest_label/Main.fs"
+                }
+              ],
+              "proof": {
+                "declarationPath": "/tmp/navigator-record-review-vl7ux9uh/fresh_formal_latest_label/Main.fs",
+                "invalidation": "source-and-project-snapshot",
+                "kind": "nominal-receiver-facts"
+              },
+              "snapshot": 3,
+              "snapshotId": "519a312ca949cd5a732665aa4ee70fc30ef185a679c79c37df19893c92adf666:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.11247500151512213,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 178,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 362568,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 2,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 427,
+              "largestTokenCount": 20,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 554,
+              "reindexedFiles": 0,
+              "rssBytes": 8945664,
+              "snapshot": 3,
+              "snapshotId": "519a312ca949cd5a732665aa4ee70fc30ef185a679c79c37df19893c92adf666:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 3,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.1491799994255416,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 178,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 362568,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 2,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 427,
+          "largestTokenCount": 20,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 554,
+          "reindexedFiles": 0,
+          "rssBytes": 8945664,
+          "snapshot": 3,
+          "snapshotId": "519a312ca949cd5a732665aa4ee70fc30ef185a679c79c37df19893c92adf666:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 3,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "fresh_formal_autoopen",
+      "source": "module Main\ntype Earlier = { Name:string }\n[<AutoOpen>]\nmodule Extra =\n    type Later = { Name:int }\nlet read p = p.Name\n",
+      "query_line": 5,
+      "query_word": "Name",
+      "target_line": 4,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 4,
+          "character": 19
+        }
+      ],
+      "actual": [],
+      "exact": false,
+      "false_exact": false,
+      "correct": false,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/fresh_formal_autoopen"
+          },
+          "elapsed_ms": 2.4528670001018327,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5152768,
+              "snapshot": 1,
+              "snapshotId": "82e3b61f7dc74a23c8fe0306be83766a20240234458e2df2c575ec065e6371ab:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/fresh_formal_autoopen/Main.fs",
+            "line": 5,
+            "character": 15
+          },
+          "elapsed_ms": 1.1509329997352324,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "unavailable",
+              "diagnostics": [
+                "Binding requires type inference or an unambiguous external catalog symbol"
+              ],
+              "documentVersion": null,
+              "locations": [],
+              "reason": "Binding requires type inference or an unambiguous external catalog symbol",
+              "snapshot": 3,
+              "snapshotId": "ae0e7f2fd95bdb23fe39405dd98961d537fe507225018c4b99105496b47e6b77:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.09515000056126155,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 242,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 354328,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 1,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 521,
+              "largestTokenCount": 24,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 612,
+              "reindexedFiles": 0,
+              "rssBytes": 9207808,
+              "snapshot": 3,
+              "snapshotId": "ae0e7f2fd95bdb23fe39405dd98961d537fe507225018c4b99105496b47e6b77:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 6,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.2657910008565523,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 242,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 354328,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 1,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 521,
+          "largestTokenCount": 24,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 612,
+          "reindexedFiles": 0,
+          "rssBytes": 9207808,
+          "snapshot": 3,
+          "snapshotId": "ae0e7f2fd95bdb23fe39405dd98961d537fe507225018c4b99105496b47e6b77:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 6,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "expected_argument_type",
+      "source": "module Main\ntype Person = { Name:string }\ntype Company = { Name:int }\nlet consume (x:Person) = x.Name\nlet result = consume {Name=\"person\"}\n",
+      "query_line": 4,
+      "query_word": "Name",
+      "target_line": 1,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 1,
+          "character": 16
+        }
+      ],
+      "actual": [],
+      "exact": false,
+      "false_exact": false,
+      "correct": false,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/expected_argument_type"
+          },
+          "elapsed_ms": 1.8028310005320236,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5001216,
+              "snapshot": 1,
+              "snapshotId": "25a0f34535a47c78cc89a7bd63e79e585a5284a5ff57622a60f6f00ed89a0290:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/expected_argument_type/Main.fs",
+            "line": 4,
+            "character": 22
+          },
+          "elapsed_ms": 1.2212259989610175,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "unavailable",
+              "diagnostics": [
+                "Binding requires type inference or an unambiguous external catalog symbol"
+              ],
+              "documentVersion": null,
+              "locations": [],
+              "reason": "Binding requires type inference or an unambiguous external catalog symbol",
+              "snapshot": 3,
+              "snapshotId": "bbd026560df81c43f406cc381dac54b6e822e88bcc83d02a8afb6b082ea86b75:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.09961599971575197,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 278,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 354328,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 1,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 573,
+              "largestTokenCount": 30,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 631,
+              "reindexedFiles": 0,
+              "rssBytes": 9977856,
+              "snapshot": 3,
+              "snapshotId": "bbd026560df81c43f406cc381dac54b6e822e88bcc83d02a8afb6b082ea86b75:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 2,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.21839600049133878,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 278,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 354328,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 1,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 573,
+          "largestTokenCount": 30,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 631,
+          "reindexedFiles": 0,
+          "rssBytes": 9977856,
+          "snapshot": 3,
+          "snapshotId": "bbd026560df81c43f406cc381dac54b6e822e88bcc83d02a8afb6b082ea86b75:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 2,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "extension_beats_other_record",
+      "source": "module Main\ntype Candidate = { Name:string }\ntype Receiver = { Id:int }\ntype Receiver with\n    member _.Name = \"extension\"\nlet value : Receiver = {Id=1}\nlet result = value.Name\n",
+      "query_line": 6,
+      "query_word": "Name",
+      "target_line": 4,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 4,
+          "character": 13
+        }
+      ],
+      "actual": [],
+      "exact": false,
+      "false_exact": false,
+      "correct": false,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/extension_beats_other_record"
+          },
+          "elapsed_ms": 2.8727039989462355,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5009408,
+              "snapshot": 1,
+              "snapshotId": "ace3a706ccacbd56da3be0c0f42a521555d32436a90205c3b9b692f55486b2ce:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/extension_beats_other_record/Main.fs",
+            "line": 6,
+            "character": 19
+          },
+          "elapsed_ms": 1.3499559991032584,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "unavailable",
+              "diagnostics": [
+                "Binding requires type inference or an unambiguous external catalog symbol"
+              ],
+              "documentVersion": null,
+              "locations": [],
+              "reason": "Binding requires type inference or an unambiguous external catalog symbol",
+              "snapshot": 3,
+              "snapshotId": "0af66930ea94f574c8f9c5e3edc310da8128c27aca2a9d1e4b62731e0f6140a5:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.1475570006732596,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 354,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 354328,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 1,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 602,
+              "largestTokenCount": 31,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 939,
+              "reindexedFiles": 0,
+              "rssBytes": 9400320,
+              "snapshot": 3,
+              "snapshotId": "0af66930ea94f574c8f9c5e3edc310da8128c27aca2a9d1e4b62731e0f6140a5:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 7,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.18209799964097328,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 354,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 354328,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 1,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 602,
+          "largestTokenCount": 31,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 939,
+          "reindexedFiles": 0,
+          "rssBytes": 9400320,
+          "snapshot": 3,
+          "snapshotId": "0af66930ea94f574c8f9c5e3edc310da8128c27aca2a9d1e4b62731e0f6140a5:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 7,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "generic_nested_alias",
+      "source": "module Main\ntype Person = { Name:string }\ntype Company = { Name:int }\ntype Box<'T> = { Value:'T }\ntype Alias = Box<Person>\nlet read (box:Alias) = box.Value.Name\n",
+      "query_line": 5,
+      "query_word": "Name",
+      "target_line": 1,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 1,
+          "character": 16
+        }
+      ],
+      "actual": [
+        {
+          "character": 16,
+          "line": 1
+        }
+      ],
+      "exact": true,
+      "false_exact": false,
+      "correct": true,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/generic_nested_alias"
+          },
+          "elapsed_ms": 2.524333000110346,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5001216,
+              "snapshot": 1,
+              "snapshotId": "e8a917715c80401849572326f3a77b78762d323b724143302b55919371939c44:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/generic_nested_alias/Main.fs",
+            "line": 5,
+            "character": 33
+          },
+          "elapsed_ms": 1.2538229984784266,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "exact",
+              "documentVersion": null,
+              "locations": [
+                {
+                  "range": {
+                    "end": {
+                      "character": 20,
+                      "line": 1
+                    },
+                    "start": {
+                      "character": 16,
+                      "line": 1
+                    }
+                  },
+                  "uri": "file:///tmp/navigator-record-review-vl7ux9uh/generic_nested_alias/Main.fs"
+                }
+              ],
+              "proof": {
+                "declarationPath": "/tmp/navigator-record-review-vl7ux9uh/generic_nested_alias/Main.fs",
+                "invalidation": "source-and-project-snapshot",
+                "kind": "nominal-receiver-facts"
+              },
+              "snapshot": 3,
+              "snapshotId": "63be35bf0e3cd8d31e631dc7ea70f497adf3982ec5f595c74430794ba001ba46:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.09640200005378574,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 322,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 362568,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 2,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 732,
+              "largestTokenCount": 39,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 840,
+              "reindexedFiles": 0,
+              "rssBytes": 9388032,
+              "snapshot": 3,
+              "snapshotId": "63be35bf0e3cd8d31e631dc7ea70f497adf3982ec5f595c74430794ba001ba46:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 10,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.15976500071701594,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 322,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 362568,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 2,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 732,
+          "largestTokenCount": 39,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 840,
+          "reindexedFiles": 0,
+          "rssBytes": 9388032,
+          "snapshot": 3,
+          "snapshotId": "63be35bf0e3cd8d31e631dc7ea70f497adf3982ec5f595c74430794ba001ba46:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 10,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "generic_nested_double",
+      "source": "module Main\ntype Person = { Name:string }\ntype Box<'T> = { Value:'T }\nlet read (box:Box<Box<Person>>) = box.Value.Value.Name\n",
+      "query_line": 3,
+      "query_word": "Name",
+      "target_line": 1,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 1,
+          "character": 16
+        }
+      ],
+      "actual": [
+        {
+          "character": 16,
+          "line": 1
+        }
+      ],
+      "exact": true,
+      "false_exact": false,
+      "correct": true,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/generic_nested_double"
+          },
+          "elapsed_ms": 2.624148999530007,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5054464,
+              "snapshot": 1,
+              "snapshotId": "288a3acd64a64b031e794236d616a73885ca3eac6c11140ee26ab914772bf3a7:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/generic_nested_double/Main.fs",
+            "line": 3,
+            "character": 50
+          },
+          "elapsed_ms": 1.302284999837866,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "exact",
+              "documentVersion": null,
+              "locations": [
+                {
+                  "range": {
+                    "end": {
+                      "character": 20,
+                      "line": 1
+                    },
+                    "start": {
+                      "character": 16,
+                      "line": 1
+                    }
+                  },
+                  "uri": "file:///tmp/navigator-record-review-vl7ux9uh/generic_nested_double/Main.fs"
+                }
+              ],
+              "proof": {
+                "declarationPath": "/tmp/navigator-record-review-vl7ux9uh/generic_nested_double/Main.fs",
+                "invalidation": "source-and-project-snapshot",
+                "kind": "nominal-receiver-facts"
+              },
+              "snapshot": 3,
+              "snapshotId": "692348e4118496d2a4fa5f7a3fc4359655e7085d4236315f59cac793862cdbbd:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.11309600085951388,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 250,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 362568,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 2,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 567,
+              "largestTokenCount": 33,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 892,
+              "reindexedFiles": 0,
+              "rssBytes": 9375744,
+              "snapshot": 3,
+              "snapshotId": "692348e4118496d2a4fa5f7a3fc4359655e7085d4236315f59cac793862cdbbd:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 19,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.16128700008266605,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 250,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 362568,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 2,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 567,
+          "largestTokenCount": 33,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 892,
+          "reindexedFiles": 0,
+          "rssBytes": 9375744,
+          "snapshot": 3,
+          "snapshotId": "692348e4118496d2a4fa5f7a3fc4359655e7085d4236315f59cac793862cdbbd:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 19,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "generic_field_wrapped_parameter",
+      "source": "module Main\ntype Person = { Name:string }\ntype Box<'T> = { Value:'T }\ntype Outer<'T> = { Inner:Box<'T> }\nlet read (outer:Outer<Person>) = outer.Inner.Value.Name\n",
+      "query_line": 4,
+      "query_word": "Name",
+      "target_line": 1,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 1,
+          "character": 16
+        }
+      ],
+      "actual": [],
+      "exact": false,
+      "false_exact": false,
+      "correct": false,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/generic_field_wrapped_parameter"
+          },
+          "elapsed_ms": 2.3262819995579775,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5054464,
+              "snapshot": 1,
+              "snapshotId": "c830674fb116e32e047fdbb35928eae94a0297f388ea7979e9c5c408a3d6b327:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/generic_field_wrapped_parameter/Main.fs",
+            "line": 4,
+            "character": 51
+          },
+          "elapsed_ms": 2.0439460004126886,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "unavailable",
+              "diagnostics": [
+                "Binding requires type inference or an unambiguous external catalog symbol"
+              ],
+              "documentVersion": null,
+              "locations": [],
+              "reason": "Binding requires type inference or an unambiguous external catalog symbol",
+              "snapshot": 3,
+              "snapshotId": "77f7466ccda689d5839d33d8444c47c2d86319f44ec9f13ed7a409543593c117:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.09180499910144135,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 322,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 354328,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 1,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 722,
+              "largestTokenCount": 41,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 920,
+              "reindexedFiles": 0,
+              "rssBytes": 9375744,
+              "snapshot": 3,
+              "snapshotId": "77f7466ccda689d5839d33d8444c47c2d86319f44ec9f13ed7a409543593c117:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 37,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.1624689994059736,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 322,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 354328,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 1,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 722,
+          "largestTokenCount": 41,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 920,
+          "reindexedFiles": 0,
+          "rssBytes": 9375744,
+          "snapshot": 3,
+          "snapshotId": "77f7466ccda689d5839d33d8444c47c2d86319f44ec9f13ed7a409543593c117:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 37,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "generic_alias_substitution",
+      "source": "module Main\ntype Person = { Name:string }\ntype Company = { Name:int }\ntype Box<'T> = { Value:'T }\ntype Alias<'T> = Box<'T>\nlet read (box:Alias<Person>) = box.Value.Name\n",
+      "query_line": 5,
+      "query_word": "Name",
+      "target_line": 1,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 1,
+          "character": 16
+        }
+      ],
+      "actual": [],
+      "exact": false,
+      "false_exact": false,
+      "correct": false,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/generic_alias_substitution"
+          },
+          "elapsed_ms": 2.0211520004522754,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5001216,
+              "snapshot": 1,
+              "snapshotId": "2844c6115cc656787210bbe04e506f1e12a6ce09291e3f59b08e377915ff3301:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/generic_alias_substitution/Main.fs",
+            "line": 5,
+            "character": 41
+          },
+          "elapsed_ms": 1.1918330001208233,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "unavailable",
+              "diagnostics": [
+                "Binding requires type inference or an unambiguous external catalog symbol"
+              ],
+              "documentVersion": null,
+              "locations": [],
+              "reason": "Binding requires type inference or an unambiguous external catalog symbol",
+              "snapshot": 3,
+              "snapshotId": "0a60ee4d76b93889343ea0daac7f1d4e6c1219f07af4464b38a882752f746a2d:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.1394949995301431,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 338,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 354328,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 1,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 768,
+              "largestTokenCount": 43,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 762,
+              "reindexedFiles": 0,
+              "rssBytes": 9453568,
+              "snapshot": 3,
+              "snapshotId": "0a60ee4d76b93889343ea0daac7f1d4e6c1219f07af4464b38a882752f746a2d:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 18,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.19338499987497926,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 338,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 354328,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 1,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 768,
+          "largestTokenCount": 43,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 762,
+          "reindexedFiles": 0,
+          "rssBytes": 9453568,
+          "snapshot": 3,
+          "snapshotId": "0a60ee4d76b93889343ea0daac7f1d4e6c1219f07af4464b38a882752f746a2d:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 18,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "rqa_annotation",
+      "source": "module Main\n[<RequireQualifiedAccess>]\ntype Person = { Name:string }\nlet read (p:Person) = p.Name\n",
+      "query_line": 3,
+      "query_word": "Name",
+      "target_line": 2,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 2,
+          "character": 16
+        }
+      ],
+      "actual": [
+        {
+          "character": 16,
+          "line": 2
+        }
+      ],
+      "exact": true,
+      "false_exact": false,
+      "correct": true,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/rqa_annotation"
+          },
+          "elapsed_ms": 1.9907280002371408,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5050368,
+              "snapshot": 1,
+              "snapshotId": "5261c2c91278bf4df23eb3708a89720c07a4e403d6644beca546af6800574cc9:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/rqa_annotation/Main.fs",
+            "line": 3,
+            "character": 24
+          },
+          "elapsed_ms": 1.001954000457772,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "exact",
+              "documentVersion": null,
+              "locations": [
+                {
+                  "range": {
+                    "end": {
+                      "character": 20,
+                      "line": 2
+                    },
+                    "start": {
+                      "character": 16,
+                      "line": 2
+                    }
+                  },
+                  "uri": "file:///tmp/navigator-record-review-vl7ux9uh/rqa_annotation/Main.fs"
+                }
+              ],
+              "proof": {
+                "declarationPath": "/tmp/navigator-record-review-vl7ux9uh/rqa_annotation/Main.fs",
+                "invalidation": "source-and-project-snapshot",
+                "kind": "nominal-receiver-facts"
+              },
+              "snapshot": 3,
+              "snapshotId": "4d6efc83563db716d2ed2c72797ea221d00782c2c006a1a4e0989df6b0d5b582:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.09627100007492118,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 196,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 362568,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 2,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 369,
+              "largestTokenCount": 19,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 640,
+              "reindexedFiles": 0,
+              "rssBytes": 9494528,
+              "snapshot": 3,
+              "snapshotId": "4d6efc83563db716d2ed2c72797ea221d00782c2c006a1a4e0989df6b0d5b582:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 4,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.17450700033805333,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 196,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 362568,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 2,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 369,
+          "largestTokenCount": 19,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 640,
+          "reindexedFiles": 0,
+          "rssBytes": 9494528,
+          "snapshot": 3,
+          "snapshotId": "4d6efc83563db716d2ed2c72797ea221d00782c2c006a1a4e0989df6b0d5b582:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 4,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "shadow_annotation_inside_scope",
+      "source": "module Main\ntype Person = { Name:string }\nmodule Child =\n    type Person = { Name:int }\n    let read (p:Person) = p.Name\n",
+      "query_line": 4,
+      "query_word": "Name",
+      "target_line": 3,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 3,
+          "character": 20
+        }
+      ],
+      "actual": [
+        {
+          "character": 20,
+          "line": 3
+        }
+      ],
+      "exact": true,
+      "false_exact": false,
+      "correct": true,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/shadow_annotation_inside_scope"
+          },
+          "elapsed_ms": 2.6423159997648327,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5296128,
+              "snapshot": 1,
+              "snapshotId": "c4195ab845ab006ccbd2d71eb9ad6622419aaf21ad999e24ab5d4324013d3f93:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/shadow_annotation_inside_scope/Main.fs",
+            "line": 4,
+            "character": 28
+          },
+          "elapsed_ms": 1.262116000361857,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "exact",
+              "documentVersion": null,
+              "locations": [
+                {
+                  "range": {
+                    "end": {
+                      "character": 24,
+                      "line": 3
+                    },
+                    "start": {
+                      "character": 20,
+                      "line": 3
+                    }
+                  },
+                  "uri": "file:///tmp/navigator-record-review-vl7ux9uh/shadow_annotation_inside_scope/Main.fs"
+                }
+              ],
+              "proof": {
+                "declarationPath": "/tmp/navigator-record-review-vl7ux9uh/shadow_annotation_inside_scope/Main.fs",
+                "invalidation": "source-and-project-snapshot",
+                "kind": "nominal-receiver-facts"
+              },
+              "snapshot": 3,
+              "snapshotId": "040ebb39ae9f6f1b52a4b56d737f6231b805d5778b55e78dbd0da262bcc356f1:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.11714199899870437,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 242,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 362568,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 2,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 507,
+              "largestTokenCount": 25,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 837,
+              "reindexedFiles": 0,
+              "rssBytes": 9351168,
+              "snapshot": 3,
+              "snapshotId": "040ebb39ae9f6f1b52a4b56d737f6231b805d5778b55e78dbd0da262bcc356f1:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 4,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.22016399998392444,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 242,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 362568,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 2,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 507,
+          "largestTokenCount": 25,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 837,
+          "reindexedFiles": 0,
+          "rssBytes": 9351168,
+          "snapshot": 3,
+          "snapshotId": "040ebb39ae9f6f1b52a4b56d737f6231b805d5778b55e78dbd0da262bcc356f1:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 4,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "private_record_representation_internal_use",
+      "source": "module Main\ntype Person = private { Name:string }\nlet read (p:Person) = p.Name\n",
+      "query_line": 2,
+      "query_word": "Name",
+      "target_line": 1,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 1,
+          "character": 24
+        }
+      ],
+      "actual": [
+        {
+          "character": 24,
+          "line": 1
+        }
+      ],
+      "exact": true,
+      "false_exact": false,
+      "correct": true,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/private_record_representation_internal_use"
+          },
+          "elapsed_ms": 1.9720499985851347,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5103616,
+              "snapshot": 1,
+              "snapshotId": "56c2ccd2d3e04afddd3fccbb90d684ec70d45f58749c1bdd6dfa37eb95b08e85:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/private_record_representation_internal_use/Main.fs",
+            "line": 2,
+            "character": 24
+          },
+          "elapsed_ms": 0.9747839994815877,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "exact",
+              "documentVersion": null,
+              "locations": [
+                {
+                  "range": {
+                    "end": {
+                      "character": 28,
+                      "line": 1
+                    },
+                    "start": {
+                      "character": 24,
+                      "line": 1
+                    }
+                  },
+                  "uri": "file:///tmp/navigator-record-review-vl7ux9uh/private_record_representation_internal_use/Main.fs"
+                }
+              ],
+              "proof": {
+                "declarationPath": "/tmp/navigator-record-review-vl7ux9uh/private_record_representation_internal_use/Main.fs",
+                "invalidation": "source-and-project-snapshot",
+                "kind": "nominal-receiver-facts"
+              },
+              "snapshot": 3,
+              "snapshotId": "1ae7482ad3675b2be569718a20999aa14554598854705ef783e4659d378f5731:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.10695699893403798,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 158,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 362568,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 2,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 333,
+              "largestTokenCount": 17,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 566,
+              "reindexedFiles": 0,
+              "rssBytes": 9289728,
+              "snapshot": 3,
+              "snapshotId": "1ae7482ad3675b2be569718a20999aa14554598854705ef783e4659d378f5731:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 4,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.22999899920250755,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 158,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 362568,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 2,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 333,
+          "largestTokenCount": 17,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 566,
+          "reindexedFiles": 0,
+          "rssBytes": 9289728,
+          "snapshot": 3,
+          "snapshotId": "1ae7482ad3675b2be569718a20999aa14554598854705ef783e4659d378f5731:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 4,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "alias32",
+      "source": "module Main\ntype Person={Name:string}\nlet read (x:Person) =\n    let a0 = x\n    let a1 = a0\n    let a2 = a1\n    let a3 = a2\n    let a4 = a3\n    let a5 = a4\n    let a6 = a5\n    let a7 = a6\n    let a8 = a7\n    let a9 = a8\n    let a10 = a9\n    let a11 = a10\n    let a12 = a11\n    let a13 = a12\n    let a14 = a13\n    let a15 = a14\n    let a16 = a15\n    let a17 = a16\n    let a18 = a17\n    let a19 = a18\n    let a20 = a19\n    let a21 = a20\n    let a22 = a21\n    let a23 = a22\n    let a24 = a23\n    let a25 = a24\n    let a26 = a25\n    let a27 = a26\n    let a28 = a27\n    let a29 = a28\n    let a30 = a29\n    let a31 = a30\n    a31.Name\n",
+      "query_line": 35,
+      "query_word": "Name",
+      "target_line": 1,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 1,
+          "character": 13
+        }
+      ],
+      "actual": [
+        {
+          "character": 13,
+          "line": 1
+        }
+      ],
+      "exact": true,
+      "false_exact": false,
+      "correct": true,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/alias32"
+          },
+          "elapsed_ms": 2.3423339989676606,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5079040,
+              "snapshot": 1,
+              "snapshotId": "cb12f7574074d769897b62a685941ebf62b2871daab117e59333c20653d0f04c:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/alias32/Main.fs",
+            "line": 35,
+            "character": 8
+          },
+          "elapsed_ms": 2.2820770009275293,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "exact",
+              "documentVersion": null,
+              "locations": [
+                {
+                  "range": {
+                    "end": {
+                      "character": 17,
+                      "line": 1
+                    },
+                    "start": {
+                      "character": 13,
+                      "line": 1
+                    }
+                  },
+                  "uri": "file:///tmp/navigator-record-review-vl7ux9uh/alias32/Main.fs"
+                }
+              ],
+              "proof": {
+                "declarationPath": "/tmp/navigator-record-review-vl7ux9uh/alias32/Main.fs",
+                "invalidation": "source-and-project-snapshot",
+                "kind": "nominal-receiver-facts"
+              },
+              "snapshot": 3,
+              "snapshotId": "9b92bb370839a74ed0688774b0886143f7acb4a562f7d335c0e2757fee283695:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.1146790000348119,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 1254,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 362568,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 2,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 2633,
+              "largestTokenCount": 144,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 1873,
+              "reindexedFiles": 0,
+              "rssBytes": 9785344,
+              "snapshot": 3,
+              "snapshotId": "9b92bb370839a74ed0688774b0886143f7acb4a562f7d335c0e2757fee283695:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 68,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.15532799989159685,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 1254,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 362568,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 2,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 2633,
+          "largestTokenCount": 144,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 1873,
+          "reindexedFiles": 0,
+          "rssBytes": 9785344,
+          "snapshot": 3,
+          "snapshotId": "9b92bb370839a74ed0688774b0886143f7acb4a562f7d335c0e2757fee283695:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 68,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "copy_update_preserves_earlier_owner",
+      "source": "module Main\ntype Person = { Name:string }\ntype Company = { Name:int }\nlet original : Person = {Name=\"p\"}\nlet updated = {original with Name=\"changed\"}\nlet result = updated.Name\n",
+      "query_line": 5,
+      "query_word": "Name",
+      "target_line": 1,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 1,
+          "character": 16
+        }
+      ],
+      "actual": [
+        {
+          "character": 16,
+          "line": 1
+        }
+      ],
+      "exact": true,
+      "false_exact": false,
+      "correct": true,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/copy_update_preserves_earlier_owner"
+          },
+          "elapsed_ms": 2.1402070015028585,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5152768,
+              "snapshot": 1,
+              "snapshotId": "8bd9dfb038b1abf5cc03a1653231034b4e1b4862530bb9d82678222aa5cf14bc:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/copy_update_preserves_earlier_owner/Main.fs",
+            "line": 5,
+            "character": 21
+          },
+          "elapsed_ms": 1.1881370010087267,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "exact",
+              "documentVersion": null,
+              "locations": [
+                {
+                  "range": {
+                    "end": {
+                      "character": 20,
+                      "line": 1
+                    },
+                    "start": {
+                      "character": 16,
+                      "line": 1
+                    }
+                  },
+                  "uri": "file:///tmp/navigator-record-review-vl7ux9uh/copy_update_preserves_earlier_owner/Main.fs"
+                }
+              ],
+              "proof": {
+                "declarationPath": "/tmp/navigator-record-review-vl7ux9uh/copy_update_preserves_earlier_owner/Main.fs",
+                "invalidation": "source-and-project-snapshot",
+                "kind": "nominal-receiver-facts"
+              },
+              "snapshot": 3,
+              "snapshotId": "39fd391e25d252195b2285095c08ef7cd8751a8f936988a0ac903140f6f7fe88:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.1833099995565135,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 352,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 362568,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 2,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 625,
+              "largestTokenCount": 31,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 755,
+              "reindexedFiles": 0,
+              "rssBytes": 9277440,
+              "snapshot": 3,
+              "snapshotId": "39fd391e25d252195b2285095c08ef7cd8751a8f936988a0ac903140f6f7fe88:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 6,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.1617779998923652,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 352,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 362568,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 2,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 625,
+          "largestTokenCount": 31,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 755,
+          "reindexedFiles": 0,
+          "rssBytes": 9277440,
+          "snapshot": 3,
+          "snapshotId": "39fd391e25d252195b2285095c08ef7cd8751a8f936988a0ac903140f6f7fe88:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 6,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "source_member_explicit_this",
+      "source": "module Main\ntype Person = { Name:string } with\n    member this.Read = this.Name\n",
+      "query_line": 2,
+      "query_word": "Name",
+      "target_line": 1,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 1,
+          "character": 16
+        }
+      ],
+      "actual": [
+        {
+          "character": 16,
+          "line": 1
+        }
+      ],
+      "exact": true,
+      "false_exact": false,
+      "correct": true,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/source_member_explicit_this"
+          },
+          "elapsed_ms": 2.07583299925318,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 4997120,
+              "snapshot": 1,
+              "snapshotId": "9e437073c6790d146fdeab8e94e07d66ebbd5c165498445d433012cbfa64bc12:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/source_member_explicit_this/Main.fs",
+            "line": 2,
+            "character": 28
+          },
+          "elapsed_ms": 1.0086130005220184,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "exact",
+              "documentVersion": null,
+              "locations": [
+                {
+                  "range": {
+                    "end": {
+                      "character": 20,
+                      "line": 1
+                    },
+                    "start": {
+                      "character": 16,
+                      "line": 1
+                    }
+                  },
+                  "uri": "file:///tmp/navigator-record-review-vl7ux9uh/source_member_explicit_this/Main.fs"
+                }
+              ],
+              "proof": {
+                "declarationPath": "/tmp/navigator-record-review-vl7ux9uh/source_member_explicit_this/Main.fs",
+                "invalidation": "source-and-project-snapshot",
+                "kind": "nominal-receiver-facts"
+              },
+              "snapshot": 3,
+              "snapshotId": "ade252b806a3c1436d2c97fbbded72bc4df0456f8d6440948f284016da23d7c9:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.10778900104924105,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 160,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 362568,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 2,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 323,
+              "largestTokenCount": 15,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 635,
+              "reindexedFiles": 0,
+              "rssBytes": 8400896,
+              "snapshot": 3,
+              "snapshotId": "ade252b806a3c1436d2c97fbbded72bc4df0456f8d6440948f284016da23d7c9:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 4,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.17893400035973173,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 160,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 362568,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 2,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 323,
+          "largestTokenCount": 15,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 635,
+          "reindexedFiles": 0,
+          "rssBytes": 8400896,
+          "snapshot": 3,
+          "snapshotId": "ade252b806a3c1436d2c97fbbded72bc4df0456f8d6440948f284016da23d7c9:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 4,
+          "watcherActive": true
+        }
+      }
+    },
+    {
+      "name": "return_function_not_record_value",
+      "source": "module Main\ntype Person = { Name:string }\nlet make () : Person = {Name=\"p\"}\nlet returned = make ()\nlet result = returned.Name\n",
+      "query_line": 4,
+      "query_word": "Name",
+      "target_line": 1,
+      "target_word": "Name",
+      "mode": "definition",
+      "expected": [
+        {
+          "line": 1,
+          "character": 16
+        }
+      ],
+      "actual": [
+        {
+          "character": 16,
+          "line": 1
+        }
+      ],
+      "exact": true,
+      "false_exact": false,
+      "correct": true,
+      "trace": [
+        {
+          "method": "workspace/open",
+          "params": {
+            "root": "/tmp/navigator-record-review-vl7ux9uh/return_function_not_record_value"
+          },
+          "elapsed_ms": 2.678939001270919,
+          "response": {
+            "id": 1,
+            "result": {
+              "bytesRead": 0,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 0,
+              "filesRead": 0,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 292528,
+              "indexErrors": {},
+              "indexFileCount": 0,
+              "indexHits": 0,
+              "indexedFiles": 0,
+              "invalidatedFiles": 0,
+              "largestSummaryBytes": 0,
+              "largestTokenCount": 0,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 0,
+              "queryTimeMicros": 0,
+              "reindexedFiles": 0,
+              "rssBytes": 5292032,
+              "snapshot": 1,
+              "snapshotId": "bf4f367d788ce624f5566634dc4782f870d14e121de2f9a0bf034ba31895ecad:1",
+              "sourceFileCount": 0,
+              "typeProofSteps": 0,
+              "watcherActive": false
+            }
+          }
+        },
+        {
+          "method": "navigation/definition",
+          "params": {
+            "path": "/tmp/navigator-record-review-vl7ux9uh/return_function_not_record_value/Main.fs",
+            "line": 4,
+            "character": 22
+          },
+          "elapsed_ms": 1.2077559986209963,
+          "response": {
+            "id": 2,
+            "result": {
+              "completeness": "exact",
+              "documentVersion": null,
+              "locations": [
+                {
+                  "range": {
+                    "end": {
+                      "character": 20,
+                      "line": 1
+                    },
+                    "start": {
+                      "character": 16,
+                      "line": 1
+                    }
+                  },
+                  "uri": "file:///tmp/navigator-record-review-vl7ux9uh/return_function_not_record_value/Main.fs"
+                }
+              ],
+              "proof": {
+                "declarationPath": "/tmp/navigator-record-review-vl7ux9uh/return_function_not_record_value/Main.fs",
+                "invalidation": "source-and-project-snapshot",
+                "kind": "nominal-receiver-facts"
+              },
+              "snapshot": 3,
+              "snapshotId": "3879818cfbfdc6bb187ef45883a33bdd849173428efc47c7b6d724402dc5d8ac:2",
+              "source": "indexed",
+              "version": null
+            }
+          }
+        },
+        {
+          "method": "workspace/stats",
+          "params": null,
+          "elapsed_ms": 0.09777400009625126,
+          "response": {
+            "id": 3,
+            "result": {
+              "bytesRead": 252,
+              "cacheHits": 0,
+              "compilerLaunches": 0,
+              "filesParsed": 1,
+              "filesRead": 2,
+              "helperRssBytes": 0,
+              "helperStarts": 0,
+              "indexBytes": 362568,
+              "indexErrors": {},
+              "indexFileCount": 1,
+              "indexHits": 2,
+              "indexedFiles": 1,
+              "invalidatedFiles": 1,
+              "largestSummaryBytes": 455,
+              "largestTokenCount": 23,
+              "memoryPolicy": {
+                "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+                "helperMemoryLimitMb": 256,
+                "indexCacheMb": 8,
+                "maxFileBytes": 8388608,
+                "nativeHardRssCap": false,
+                "overlayBudgetBytes": 33554432
+              },
+              "mode": "indexed",
+              "overlayBytesReceived": 0,
+              "peakHelperRssBytes": 0,
+              "queryCount": 1,
+              "queryTimeMicros": 777,
+              "reindexedFiles": 0,
+              "rssBytes": 9478144,
+              "snapshot": 3,
+              "snapshotId": "3879818cfbfdc6bb187ef45883a33bdd849173428efc47c7b6d724402dc5d8ac:2",
+              "sourceFileCount": 1,
+              "typeProofSteps": 5,
+              "watcherActive": true
+            }
+          }
+        },
+        {
+          "method": "shutdown",
+          "params": null,
+          "elapsed_ms": 0.16792699898360297,
+          "response": {
+            "id": 4,
+            "result": {
+              "shutdown": true
+            }
+          }
+        }
+      ],
+      "stats": {
+        "id": 3,
+        "result": {
+          "bytesRead": 252,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 1,
+          "filesRead": 2,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 362568,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 2,
+          "indexedFiles": 1,
+          "invalidatedFiles": 1,
+          "largestSummaryBytes": 455,
+          "largestTokenCount": 23,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 1,
+          "queryTimeMicros": 777,
+          "reindexedFiles": 0,
+          "rssBytes": 9478144,
+          "snapshot": 3,
+          "snapshotId": "3879818cfbfdc6bb187ef45883a33bdd849173428efc47c7b6d724402dc5d8ac:2",
+          "sourceFileCount": 1,
+          "typeProofSteps": 5,
+          "watcherActive": true
+        }
+      }
+    }
+  ],
+  "notes": [
+    "No semantic snapshot or evaluated catalog used.",
+    "External/anonymous expected=None means cannot accept an arbitrary source target; unavailable remains missing coverage.",
+    "Manual expected declarations need oracle validation before performance acceptance."
+  ],
+  "compiler_validation": {
+    "command": ".tools/dotnet/dotnet fsi --exec .tmp/record-review/CompilerValidation.fsx",
+    "exit_code": 0,
+    "scope": "All20 source snippets compile in separate nested modules; this does not independently query their declaration targets."
+  },
+  "additional_crossfile_shadow": {
+    "sha256": "86b72c873668df26001e3e9728b849b2a41f050e636e3ab4b67fc9cfceea7eae",
+    "responses": [
+      {
+        "id": 0,
+        "result": {
+          "bytesRead": 0,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 0,
+          "filesRead": 0,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 292528,
+          "indexErrors": {},
+          "indexFileCount": 0,
+          "indexHits": 0,
+          "indexedFiles": 0,
+          "invalidatedFiles": 0,
+          "largestSummaryBytes": 0,
+          "largestTokenCount": 0,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 0,
+          "queryTimeMicros": 0,
+          "reindexedFiles": 0,
+          "rssBytes": 5058560,
+          "snapshot": 1,
+          "snapshotId": "cd4e1cb70caa95b157f7d18d35bdd45bcf82027247b77b47b87006d5fd29cda6:1",
+          "sourceFileCount": 0,
+          "typeProofSteps": 0,
+          "watcherActive": false
+        }
+      },
+      {
+        "id": 1,
+        "result": {
+          "completeness": "exact",
+          "documentVersion": null,
+          "locations": [
+            {
+              "range": {
+                "end": {
+                  "character": 20,
+                  "line": 1
+                },
+                "start": {
+                  "character": 16,
+                  "line": 1
+                }
+              },
+              "uri": "file:///workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/crossfile-shadow-nkucr_s_/A.fs"
+            }
+          ],
+          "proof": {
+            "declarationPath": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/crossfile-shadow-nkucr_s_/A.fs",
+            "invalidation": "source-and-project-snapshot",
+            "kind": "nominal-receiver-facts"
+          },
+          "snapshot": 4,
+          "snapshotId": "02e90a3b9a61748696061b36202ec33a58ed70986da6ca71da4a9a9145ea8490:3",
+          "source": "indexed",
+          "version": null
+        }
+      },
+      {
+        "id": 2,
+        "result": {
+          "shutdown": true
+        }
+      }
+    ],
+    "sources": {
+      "A.fs": "namespace Shared\ntype Person = { Name:string }\nmodule Other =\n    type Person = { Name:int }\n",
+      "B.fs": "namespace Shared\nmodule Use =\n    open Other\n    let read (p:Person) = p.Name\n"
+    },
+    "compiler_proof": {
+      "command": ".tools/dotnet/dotnet fsi --exec .tmp/crossfile-shadow-nkucr_s_/Proof.fsx",
+      "exit_code": 0,
+      "stdout": "1\n",
+      "expected_declaration": {
+        "file": "A.fs",
+        "line": 3,
+        "character": 20
+      },
+      "native_declaration": {
+        "file": "A.fs",
+        "line": 1,
+        "character": 16
+      },
+      "false_exact": true
+    }
+  },
+  "verdict": "REJECTED development candidate: wrong cross-file/merged-open type owner and stale exact refs after offline same-length timestamp-preserving edits.",
+  "merged_module_environment": {
+    "sha256": "86b72c873668df26001e3e9728b849b2a41f050e636e3ab4b67fc9cfceea7eae",
+    "responses": [
+      {
+        "id": 0,
+        "result": {
+          "bytesRead": 0,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 0,
+          "filesRead": 0,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 292528,
+          "indexErrors": {},
+          "indexFileCount": 0,
+          "indexHits": 0,
+          "indexedFiles": 0,
+          "invalidatedFiles": 0,
+          "largestSummaryBytes": 0,
+          "largestTokenCount": 0,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 0,
+          "queryTimeMicros": 0,
+          "reindexedFiles": 0,
+          "rssBytes": 4997120,
+          "snapshot": 1,
+          "snapshotId": "1d86f8ab61a181f959248e2b8da5858ae6baaf91a8972d8d382130b4e6dca0a4:1",
+          "sourceFileCount": 0,
+          "typeProofSteps": 0,
+          "watcherActive": false
+        }
+      },
+      {
+        "id": 1,
+        "result": {
+          "completeness": "exact",
+          "documentVersion": null,
+          "locations": [
+            {
+              "range": {
+                "end": {
+                  "character": 20,
+                  "line": 1
+                },
+                "start": {
+                  "character": 16,
+                  "line": 1
+                }
+              },
+              "uri": "file:///workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/nearest-open-v3r4cgwj/A.fs"
+            }
+          ],
+          "proof": {
+            "declarationPath": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/nearest-open-v3r4cgwj/A.fs",
+            "invalidation": "source-and-project-snapshot",
+            "kind": "nominal-receiver-facts"
+          },
+          "snapshot": 4,
+          "snapshotId": "6c80c5735ec87a7085de4469846940f6f3ebfd830f9618f92691e7d778a0e75c:3",
+          "source": "indexed",
+          "version": null
+        }
+      },
+      {
+        "id": 2,
+        "result": {
+          "completeness": "exact",
+          "documentVersion": null,
+          "locations": [
+            {
+              "range": {
+                "end": {
+                  "character": 20,
+                  "line": 1
+                },
+                "start": {
+                  "character": 16,
+                  "line": 1
+                }
+              },
+              "uri": "file:///workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/nearest-open-v3r4cgwj/A.fs"
+            }
+          ],
+          "proof": {
+            "declarationPath": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/nearest-open-v3r4cgwj/A.fs",
+            "invalidation": "source-and-project-snapshot",
+            "kind": "nominal-receiver-facts"
+          },
+          "snapshot": 4,
+          "snapshotId": "6c80c5735ec87a7085de4469846940f6f3ebfd830f9618f92691e7d778a0e75c:3",
+          "source": "indexed",
+          "version": null
+        }
+      },
+      {
+        "id": 3,
+        "result": {
+          "completeness": "exact",
+          "documentVersion": null,
+          "locations": [
+            {
+              "range": {
+                "end": {
+                  "character": 20,
+                  "line": 1
+                },
+                "start": {
+                  "character": 16,
+                  "line": 1
+                }
+              },
+              "uri": "file:///workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/nearest-open-v3r4cgwj/A.fs"
+            }
+          ],
+          "proof": {
+            "declarationPath": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/nearest-open-v3r4cgwj/A.fs",
+            "invalidation": "source-and-project-snapshot",
+            "kind": "nominal-receiver-facts"
+          },
+          "snapshot": 4,
+          "snapshotId": "6c80c5735ec87a7085de4469846940f6f3ebfd830f9618f92691e7d778a0e75c:3",
+          "source": "indexed",
+          "version": null
+        }
+      },
+      {
+        "id": 4,
+        "result": {
+          "shutdown": true
+        }
+      }
+    ],
+    "sources": {
+      "A.fs": "namespace Shared\ntype Person = { Name:string }\nmodule Other =\n    type Person = { Name:int }\n",
+      "B.fs": "namespace Shared\nmodule Use =\n    module Other =\n        type Widget = { Id:int }\n    open Other\n    let read (p:Person) = p.Name\n    let make () : Person = {Name=\"person\"}\n    let value = make ()\n    let result = value.Name\nmodule AliasUse =\n    module Other =\n        type Widget = { Id:int }\n    module Alias = Other\n    open Alias\n    let read (p:Person) = p.Name\n"
+    },
+    "requests": [
+      [
+        "workspace/open",
+        {
+          "root": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/nearest-open-v3r4cgwj"
+        }
+      ],
+      [
+        "navigation/definition",
+        {
+          "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/nearest-open-v3r4cgwj/B.fs",
+          "line": 5,
+          "character": 28
+        }
+      ],
+      [
+        "navigation/definition",
+        {
+          "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/nearest-open-v3r4cgwj/B.fs",
+          "line": 8,
+          "character": 23
+        }
+      ],
+      [
+        "navigation/definition",
+        {
+          "path": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/nearest-open-v3r4cgwj/B.fs",
+          "line": 14,
+          "character": 28
+        }
+      ],
+      [
+        "shutdown",
+        {}
+      ]
+    ],
+    "initial_hypothesis": "Nearest module lacking Person blocks farther module. Disproved by FSI; do not use as expected target.",
+    "final_sources": {
+      "A.fs": "namespace Shared\ntype Person = { Name:string }\nmodule Other =\n    type Person = { Name:int }\n",
+      "B.fs": "namespace Shared\nmodule Use =\n    module Other =\n        type Widget = { Id:int }\n    open Other\n    let read (p:Person) = p.Name\n    let make () : Person = {Name=10}\n    let value = make ()\n    let result = value.Name\nmodule AliasUse =\n    module Other =\n        type Widget = { Id:int }\n    module Alias = Other\n    open Alias\n    let read (p:Person) = p.Name\n",
+      "Proof.fsx": "#load \"/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/nearest-open-v3r4cgwj/A.fs\"\n#load \"/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/nearest-open-v3r4cgwj/B.fs\"\nprintfn \"%A,%A,%A\" (Shared.Use.read {Shared.Other.Person.Name=1}) Shared.Use.result (Shared.AliasUse.read {Shared.Other.Person.Name=2})\n"
+    },
+    "compiler_result": {
+      "exit_code": 0,
+      "stdout": "1,10,2\n",
+      "correct_owner": "Shared.Other.Person.Name for direct open, returned value and module alias"
+    }
+  },
+  "offline_preserved_timestamp": {
+    "sha256": "86b72c873668df26001e3e9728b849b2a41f050e636e3ab4b67fc9cfceea7eae",
+    "before": [
+      {
+        "id": 0,
+        "result": {
+          "bytesRead": 0,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 0,
+          "filesRead": 0,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 292528,
+          "indexErrors": {},
+          "indexFileCount": 0,
+          "indexHits": 0,
+          "indexedFiles": 0,
+          "invalidatedFiles": 0,
+          "largestSummaryBytes": 0,
+          "largestTokenCount": 0,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 0,
+          "queryTimeMicros": 0,
+          "reindexedFiles": 0,
+          "rssBytes": 5005312,
+          "snapshot": 1,
+          "snapshotId": "286e6c2a992d724e34c1aa3a0173f54322fed816b337568886b31ac992942486:1",
+          "sourceFileCount": 0,
+          "typeProofSteps": 0,
+          "watcherActive": false
+        }
+      },
+      {
+        "id": 1,
+        "result": {
+          "complete": true,
+          "completeness": "exact",
+          "diagnostics": [],
+          "documentVersion": null,
+          "locations": [
+            {
+              "range": {
+                "end": {
+                  "character": 18,
+                  "line": 1
+                },
+                "start": {
+                  "character": 13,
+                  "line": 1
+                }
+              },
+              "uri": "file:///workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/offline-preserved-time-7dzsadku/B.fs"
+            }
+          ],
+          "snapshot": 4,
+          "snapshotId": "52fc230e91b8436b9f0669f3fd4ca5904e22b75b44c5230d9257fc07ac21e642:3",
+          "source": "indexed",
+          "version": null
+        }
+      },
+      {
+        "id": 2,
+        "result": {
+          "shutdown": true
+        }
+      }
+    ],
+    "after": [
+      {
+        "id": 0,
+        "result": {
+          "bytesRead": 0,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 0,
+          "filesRead": 0,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 102400,
+          "indexErrors": {},
+          "indexFileCount": 2,
+          "indexHits": 0,
+          "indexedFiles": 0,
+          "invalidatedFiles": 0,
+          "largestSummaryBytes": 0,
+          "largestTokenCount": 0,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 0,
+          "queryTimeMicros": 0,
+          "reindexedFiles": 0,
+          "rssBytes": 4894720,
+          "snapshot": 1,
+          "snapshotId": "286e6c2a992d724e34c1aa3a0173f54322fed816b337568886b31ac992942486:3",
+          "sourceFileCount": 0,
+          "typeProofSteps": 0,
+          "watcherActive": false
+        }
+      },
+      {
+        "id": 1,
+        "result": {
+          "complete": true,
+          "completeness": "exact",
+          "diagnostics": [],
+          "documentVersion": null,
+          "locations": [
+            {
+              "range": {
+                "end": {
+                  "character": 18,
+                  "line": 1
+                },
+                "start": {
+                  "character": 13,
+                  "line": 1
+                }
+              },
+              "uri": "file:///workspace/scratch/dd9aeba5da3c/fsharp-navigator/.tmp/offline-preserved-time-7dzsadku/B.fs"
+            }
+          ],
+          "snapshot": 2,
+          "snapshotId": "52fc230e91b8436b9f0669f3fd4ca5904e22b75b44c5230d9257fc07ac21e642:3",
+          "source": "indexed-cache",
+          "version": null
+        }
+      },
+      {
+        "id": 2,
+        "result": {
+          "shutdown": true
+        }
+      }
+    ],
+    "source_before": "module B\nlet answer=A.value\n",
+    "source_after": "module B\nlet answer=A.other\n",
+    "expected_after_locations": []
+  },
+  "offline_preserved_timestamp_addition": {
+    "sha256": "86b72c873668df26001e3e9728b849b2a41f050e636e3ab4b67fc9cfceea7eae",
+    "before": [
+      {
+        "id": 0,
+        "result": {
+          "bytesRead": 0,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 0,
+          "filesRead": 0,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 292528,
+          "indexErrors": {},
+          "indexFileCount": 0,
+          "indexHits": 0,
+          "indexedFiles": 0,
+          "invalidatedFiles": 0,
+          "largestSummaryBytes": 0,
+          "largestTokenCount": 0,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 0,
+          "queryTimeMicros": 0,
+          "reindexedFiles": 0,
+          "rssBytes": 5160960,
+          "snapshot": 1,
+          "snapshotId": "508dbca33fa2c9b47b37319144c033ccccc9a66e59a20e16076bbff165d839ac:1",
+          "sourceFileCount": 0,
+          "typeProofSteps": 0,
+          "watcherActive": false
+        }
+      },
+      {
+        "id": 1,
+        "result": {
+          "complete": true,
+          "completeness": "exact",
+          "diagnostics": [],
+          "documentVersion": null,
+          "locations": [],
+          "snapshot": 4,
+          "snapshotId": "782bd5cb80bf26638156f16be1b356a452f344912dd976d05affca2387456b98:3",
+          "source": "indexed",
+          "version": null
+        }
+      },
+      {
+        "id": 2,
+        "result": {
+          "shutdown": true
+        }
+      }
+    ],
+    "after": [
+      {
+        "id": 0,
+        "result": {
+          "bytesRead": 0,
+          "cacheHits": 0,
+          "compilerLaunches": 0,
+          "filesParsed": 0,
+          "filesRead": 0,
+          "helperRssBytes": 0,
+          "helperStarts": 0,
+          "indexBytes": 102400,
+          "indexErrors": {},
+          "indexFileCount": 1,
+          "indexHits": 0,
+          "indexedFiles": 0,
+          "invalidatedFiles": 0,
+          "largestSummaryBytes": 0,
+          "largestTokenCount": 0,
+          "memoryPolicy": {
+            "helperEnforcement": "sampled process-tree RSS; kill on overrun during requests",
+            "helperMemoryLimitMb": 256,
+            "indexCacheMb": 8,
+            "maxFileBytes": 8388608,
+            "nativeHardRssCap": false,
+            "overlayBudgetBytes": 33554432
+          },
+          "mode": "indexed",
+          "overlayBytesReceived": 0,
+          "peakHelperRssBytes": 0,
+          "queryCount": 0,
+          "queryTimeMicros": 0,
+          "reindexedFiles": 0,
+          "rssBytes": 5181440,
+          "snapshot": 1,
+          "snapshotId": "508dbca33fa2c9b47b37319144c033ccccc9a66e59a20e16076bbff165d839ac:3",
+          "sourceFileCount": 0,
+          "typeProofSteps": 0,
+          "watcherActive": false
+        }
+      },
+      {
+        "id": 1,
+        "result": {
+          "complete": true,
+          "completeness": "exact",
+          "diagnostics": [],
+          "documentVersion": null,
+          "locations": [],
+          "snapshot": 2,
+          "snapshotId": "782bd5cb80bf26638156f16be1b356a452f344912dd976d05affca2387456b98:3",
+          "source": "indexed-cache",
+          "version": null
+        }
+      },
+      {
+        "id": 2,
+        "result": {
+          "shutdown": true
+        }
+      }
+    ],
+    "source_before": "module B\nlet answer=A.other\n",
+    "source_after": "module B\nlet answer=A.value\n",
+    "expected_after_locations": [
+      {
+        "file": "B.fs",
+        "line": 1,
+        "character": 13
+      }
+    ]
+  },
+  "metadata_preserved_timestamp": {
+    "sha256": "86b72c873668df26001e3e9728b849b2a41f050e636e3ab4b67fc9cfceea7eae",
+    "catalog_source": "/workspace/scratch/dd9aeba5da3c/fsharp-navigator/.cache/certificate-review-frozen/catalog.json",
+    "only_copied_artifact_mutated": true,
+    "first": {
+      "id": 2,
+      "result": {
+        "completeness": "exact",
+        "contents": "```fsharp\nval map : ('T -> 'U) -> 'T Microsoft.FSharp.Collections.list -> 'U Microsoft.FSharp.Collections.list\n```\n\nBuilds a new collection whose elements are the results of applying the given function to each of the elements of the collection.\n\n**mapping:** The function to transform elements from the input list.\n\n**list:** The input list.\n\n**Returns:** The list of transformed elements.\n\nlet inputs = [ \"a\"; \"bbb\"; \"cc\" ] inputs |> List.map (fun x -> x.Length) Evaluates to [ 1; 3; 2 ]\n\nThis is an O(n) operation, where n is the length of the list.",
+        "documentVersion": null,
+        "hover": {
+          "isExternal": true,
+          "markdown": "```fsharp\nval map : ('T -> 'U) -> 'T Microsoft.FSharp.Collections.list -> 'U Microsoft.FSharp.Collections.list\n```\n\nBuilds a new collection whose elements are the results of applying the given function to each of the elements of the collection.\n\n**mapping:** The function to transform elements from the input list.\n\n**list:** The input list.\n\n**Returns:** The list of transformed elements.\n\nlet inputs = [ \"a\"; \"bbb\"; \"cc\" ] inputs |> List.map (fun x -> x.Length) Evaluates to [ 1; 3; 2 ]\n\nThis is an O(n) operation, where n is the length of the list.",
+          "range": {
+            "end": {
+              "character": 50,
+              "line": 1
+            },
+            "start": {
+              "character": 47,
+              "line": 1
+            }
+          }
+        },
+        "ownership": "external",
+        "snapshot": 4,
+        "snapshotId": "33010b2afe72e6a992a06401e1ae7bcf17b6784b0ee61bb99c70579eeac7b3b5:2",
+        "source": "metadata-catalog",
+        "version": null
+      }
+    },
+    "same_session_after": {
+      "id": 3,
+      "result": {
+        "completeness": "exact",
+        "contents": "```fsharp\nval map : ('T -> 'U) -> 'T Microsoft.FSharp.Collections.list -> 'U Microsoft.FSharp.Collections.list\n```\n\nBuilds a new collection whose elements are the results of applying the given function to each of the elements of the collection.\n\n**mapping:** The function to transform elements from the input list.\n\n**list:** The input list.\n\n**Returns:** The list of transformed elements.\n\nlet inputs = [ \"a\"; \"bbb\"; \"cc\" ] inputs |> List.map (fun x -> x.Length) Evaluates to [ 1; 3; 2 ]\n\nThis is an O(n) operation, where n is the length of the list.",
+        "documentVersion": null,
+        "hover": {
+          "isExternal": true,
+          "markdown": "```fsharp\nval map : ('T -> 'U) -> 'T Microsoft.FSharp.Collections.list -> 'U Microsoft.FSharp.Collections.list\n```\n\nBuilds a new collection whose elements are the results of applying the given function to each of the elements of the collection.\n\n**mapping:** The function to transform elements from the input list.\n\n**list:** The input list.\n\n**Returns:** The list of transformed elements.\n\nlet inputs = [ \"a\"; \"bbb\"; \"cc\" ] inputs |> List.map (fun x -> x.Length) Evaluates to [ 1; 3; 2 ]\n\nThis is an O(n) operation, where n is the length of the list.",
+          "range": {
+            "end": {
+              "character": 50,
+              "line": 1
+            },
+            "start": {
+              "character": 47,
+              "line": 1
+            }
+          }
+        },
+        "ownership": "external",
+        "snapshot": 4,
+        "snapshotId": "33010b2afe72e6a992a06401e1ae7bcf17b6784b0ee61bb99c70579eeac7b3b5:2",
+        "source": "indexed-cache",
+        "version": null
+      }
+    },
+    "restarted_after": {
+      "id": 2,
+      "result": {
+        "completeness": "exact",
+        "contents": "```fsharp\nval map : ('T -> 'U) -> 'T Microsoft.FSharp.Collections.list -> 'U Microsoft.FSharp.Collections.list\n```\n\nBuilds a new collection whose elements are the results of applying the given function to each of the elements of the collection.\n\n**mapping:** The function to transform elements from the input list.\n\n**list:** The input list.\n\n**Returns:** The list of transformed elements.\n\nlet inputs = [ \"a\"; \"bbb\"; \"cc\" ] inputs |> List.map (fun x -> x.Length) Evaluates to [ 1; 3; 2 ]\n\nThis is an O(n) operation, where n is the length of the list.",
+        "documentVersion": null,
+        "hover": {
+          "isExternal": true,
+          "markdown": "```fsharp\nval map : ('T -> 'U) -> 'T Microsoft.FSharp.Collections.list -> 'U Microsoft.FSharp.Collections.list\n```\n\nBuilds a new collection whose elements are the results of applying the given function to each of the elements of the collection.\n\n**mapping:** The function to transform elements from the input list.\n\n**list:** The input list.\n\n**Returns:** The list of transformed elements.\n\nlet inputs = [ \"a\"; \"bbb\"; \"cc\" ] inputs |> List.map (fun x -> x.Length) Evaluates to [ 1; 3; 2 ]\n\nThis is an O(n) operation, where n is the length of the list.",
+          "range": {
+            "end": {
+              "character": 50,
+              "line": 1
+            },
+            "start": {
+              "character": 47,
+              "line": 1
+            }
+          }
+        },
+        "ownership": "external",
+        "snapshot": 3,
+        "snapshotId": "33010b2afe72e6a992a06401e1ae7bcf17b6784b0ee61bb99c70579eeac7b3b5:2",
+        "source": "metadata-catalog",
+        "version": null
+      }
+    },
+    "mutation": "List.map documentation Builds\u2192Yields, samebytes/inode/mtime; ctime changes",
+    "expected": "Cached artifact must be invalidated or refreshed; old Builds documentation cannot remain exact."
+  }
+}

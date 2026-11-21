@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "queries": [
+    {
+      "name": "field_direct",
+      "method": "definition",
+      "at": "name_direct_use",
+      "expected": [
+        "signature_name_def"
+      ]
+    },
+    {
+      "name": "field_inferred",
+      "method": "definition",
+      "at": "name_inferred_use",
+      "expected": [
+        "signature_name_def"
+      ]
+    },
+    {
+      "name": "field_body",
+      "method": "definition",
+      "at": "name_body_use",
+      "expected": [
+        "signature_name_def"
+      ]
+    },
+    {
+      "name": "field_construction",
+      "method": "definition",
+      "at": "name_construct",
+      "expected": [
+        "signature_name_def"
+      ]
+    },
+    {
+      "name": "function_call",
+      "method": "definition",
+      "at": "create_use",
+      "expected": [
+        "signature_create_def"
+      ]
+    },
+    {
+      "name": "read_call",
+      "method": "definition",
+      "at": "read_use",
+      "expected": [
+        "signature_read_def"
+      ]
+    },
+    {
+      "name": "implementation_field_decl",
+      "method": "definition",
+      "at": "implementation_name_def",
+      "expected": [
+        "signature_name_def"
+      ]
+    },
+    {
+      "name": "implementation_value_decl",
+      "method": "definition",
+      "at": "implementation_create_def",
+      "expected": [
+        "signature_create_def"
+      ]
+    },
+    {
+      "name": "signature_field_decl",
+      "method": "definition",
+      "at": "signature_name_def",
+      "expected": [
+        "implementation_name_def"
+      ]
+    },
+    {
+      "name": "field_references",
+      "method": "references",
+      "at": "signature_name_def",
+      "expected": [
+        "implementation_name_def",
+        "name_construct",
+        {
+          "at": "name_body_use",
+          "qualifiedFrom": [
+            "name_body_receiver"
+          ]
+        },
+        {
+          "at": "name_direct_use",
+          "qualifiedFrom": [
+            "name_direct_receiver"
+          ]
+        },
+        {
+          "at": "name_inferred_use",
+          "qualifiedFrom": [
+            "name_inferred_receiver"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "function_references",
+      "method": "references",
+      "at": "signature_create_def",
+      "expected": [
+        "implementation_create_def",
+        "create_use"
+      ]
+    },
+    {
+      "name": "signature_value_decl",
+      "method": "definition",
+      "at": "signature_create_def",
+      "expected": [
+        "implementation_create_def"
+      ]
+    },
+    {
+      "name": "signature_read_decl",
+      "method": "definition",
+      "at": "signature_read_def",
+      "expected": [
+        "implementation_read_def"
+      ]
+    }
+  ],
+  "edits": [],
+  "notes": [
+    "Reconstructed exact pre-reset13-case suite from preserved agent history; rerun actualFSAC before reporting fresh evidence.",
+    "Prior observed FSAC uses/implementation declarations goto.fsi, signature declaration cursor toggles.fs; references include both declarations.",
+    "Prior native0444/13 included7presentation-target mismatches and2unavailable refs; this is historical, not a recovered raw run."
+  ]
+}
