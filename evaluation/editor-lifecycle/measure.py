@@ -19,7 +19,7 @@ def observe_editor(args, env, output):
     start = time.monotonic_ns()
     env = dict(env, FSNAV_LAUNCH_NS=str(start), FSNAV_QUERY_RESULT=str(output))
     owned = {}
-    peak_kib = samples = 0
+    memory_samples = []
     process_names = set()
     timeout = False
     with output.with_suffix('.log').open('w') as log:
@@ -28,8 +28,7 @@ def observe_editor(args, env, output):
         try:
             while proc.poll() is None:
                 rss, pids, _, _, _ = process_tree_details(proc.pid, stamp, owned)
-                peak_kib = max(peak_kib, rss)
-                samples += 1
+                memory_samples.append(((time.monotonic_ns() - start) / 1e6, rss))
                 for pid in pids:
                     try:
                         process_names.add(Path(f'/proc/{pid}/comm').read_text().strip())
@@ -47,9 +46,14 @@ def observe_editor(args, env, output):
                 except subprocess.TimeoutExpired:
                     os.killpg(proc.pid, signal.SIGKILL)
                     proc.wait()
-    return dict(exitCode=proc.returncode, timedOut=timeout, peakTreeRssKiB=peak_kib, sampleCount=samples,
-                processNames=sorted(process_names), processesObserved=len(owned),
-                query=json.loads(output.read_text()) if output.is_file() else None)
+    query = json.loads(output.read_text()) if output.is_file() else None
+    for sample in query.get('samples', []) if query and memory_samples else []:
+        finished = sample['finishedMsFromLaunch']
+        at_ms, rss = min(memory_samples, key=lambda point: abs(point[0] - finished))
+        sample['nearestTreeRssKiB'] = rss
+        sample['rssSampleOffsetMs'] = at_ms - finished
+    return dict(exitCode=proc.returncode, timedOut=timeout, peakTreeRssKiB=max((r for _, r in memory_samples), default=None),
+                sampleCount=len(memory_samples), processNames=sorted(process_names), processesObserved=len(owned), query=query)
 
 
 def main():

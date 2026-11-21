@@ -9,6 +9,8 @@ const expected = {
 };
 
 exports.run = async function () {
+  const launchNs = BigInt(process.env.FSNAV_LAUNCH_NS);
+  const sinceLaunchMs = () => Number(process.hrtime.bigint() - launchNs) / 1e6;
   const extension = vscode.extensions.getExtension(process.env.FSNAV_PROVIDER);
   const result = { vscode: vscode.version, provider: extension?.id, providerVersion: extension?.packageJSON.version, alreadyActive: extension?.isActive, samples: [] };
   try {
@@ -30,7 +32,7 @@ exports.run = async function () {
       }).sort((a, b) => a.range[1] - b.range[1]);
       const correctRanges = expected[method].map(([line, a, endLine, b]) => ({ uri: uri.toString(), range: [line, a + shift, endLine, b + shift] }));
       const status = ranges.length === 0 ? 'unavailable' : JSON.stringify(ranges) === JSON.stringify(correctRanges) ? 'correct' : 'wrong';
-      result.samples.push({ stage, method, status, elapsedMs, ranges });
+      result.samples.push({ stage, method, status, elapsedMs, finishedMsFromLaunch: sinceLaunchMs(), ranges });
       return status;
     };
     const queryStart = performance.now();
@@ -41,7 +43,7 @@ exports.run = async function () {
     }
     if (status === 'correct') {
       result.firstUsefulProviderMs = performance.now() - queryStart;
-      result.launchToFirstUsefulMs = Number(process.hrtime.bigint() - BigInt(process.env.FSNAV_LAUNCH_NS)) / 1e6;
+      result.launchToFirstUsefulMs = sinceLaunchMs();
     }
     await query('firstReferences', 'references');
     for (let i = 0; i < 8; i++) await query('warm', 'definition');
