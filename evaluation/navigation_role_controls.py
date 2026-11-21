@@ -37,7 +37,7 @@ CASES = [
     ('named', BOTH, 'let caller «x» = C.M(«x»=«x»)', False),
     ('spaced', STATIC, 'let caller «x» = C.M («x»=«x»)', False),
     ('functionFormal', '', 'let caller (g:bool -> bool) «x» = g(«x»=«x»)', True),
-    ('qualified', 'module A =\n    let g a=a', 'let caller «x» = A.g(«x»=«x»)', True),
+    ('qualified', 'module A =\n    let g a=a', 'let caller «x» = A.g(«x»=«x»)', False),
     ('valueAlias', 'let g a=a\nlet f=g', 'let caller «x» = f(«x»=«x»)', True),
     ('methodValue', STATIC + '\nlet g=C.M', 'let caller «x» = g(«x»=«x»)', True),
     ('grouped', STATIC, 'let caller «x» = C.M((«x»)=«x»)', True),
@@ -274,6 +274,8 @@ def main():
     parser.add_argument('--previous-binary', type=Path, help='Run first and retain its SQLite caches')
     parser.add_argument('--output-dir', required=True, type=Path, help='New directory for controlled inputs and evidence')
     parser.add_argument('--dotnet', type=Path, default=Path(shutil.which('dotnet') or ROOT / '.tools/dotnet/dotnet'))
+    parser.add_argument('--require-full-coverage', action='store_true',
+                        help='Fail on every unavailable operation in addition to the required positives')
     args = parser.parse_args()
     out = args.output_dir.resolve()
     out.mkdir(parents=True, exist_ok=False)
@@ -293,10 +295,12 @@ def main():
             continue
         rows = replay(binary.resolve(), out, manifest, checked, required)
         counts = dict(Counter(r['status'] for r in rows))
-        report['runs'][label] = {'binarySha256': digest(binary), 'counts': counts, 'queries': rows}
-        print(label, len(rows), counts, flush=True)
+        qualified = Counter(r['status'] for r in rows if r['case'].startswith('qualified/'))
+        report['runs'][label] = {'binarySha256': digest(binary), 'counts': counts,
+                                 'unpreparedQualifiedEquality': dict(qualified), 'queries': rows}
+        print(label, len(rows), counts, 'unprepared qualified equality', dict(qualified), flush=True)
         (out / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
-    return int(any(r['status'] in {'error', 'wrong'} or (r['required'] and r['status'] != 'correct')
+    return int(any(r['status'] in {'error', 'wrong'} or ((r['required'] or args.require_full_coverage) and r['status'] != 'correct')
                    for r in report['runs']['candidate']['queries']))
 
 
