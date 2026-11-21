@@ -4,6 +4,10 @@
   "description": "Rust-first F# navigation and ordered project browsing with explicit experimental semantic mode.",
   "version": "0.1.0",
   "publisher": "bentefay",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bentefay/vscode-fsharp.git"
+  },
   "license": "MIT",
   "engines": {
     "vscode": "^1.108.0"
