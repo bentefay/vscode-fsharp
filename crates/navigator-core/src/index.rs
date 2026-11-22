@@ -15,6 +15,14 @@ use std::{
     time::UNIX_EPOCH,
 };
 
+/// Bounded suggestions, never a certificate that all declarations were visited.
+pub struct CandidatePaths {
+    pub paths: Vec<String>,
+    pub truncated: bool,
+    pub rows_examined: usize,
+    pub eligible_seen: usize,
+}
+
 // Conservative name postings: inspect literal/comment text too. False positives
 // cost a candidate parse; omitted interpolation/escaped identifiers would be
 // an unsound reference filter. No syntax tree is constructed here.
@@ -119,6 +127,22 @@ pub struct Index {
     validated: HashMap<String, (DiskIdentity, String)>,
     validated_bytes: usize,
     request_cache: Option<RequestCache>,
+    overlay_trace: Option<OverlayUpdateTrace>,
+}
+
+#[derive(Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct OverlayUpdateTrace {
+    pub lookup_micros: u64,
+    pub transaction_begin_micros: u64,
+    pub postings_delete_micros: u64,
+    pub names_insert_micros: u64,
+    pub state_write_micros: u64,
+    pub commit_micros: u64,
+    pub hash_micros: u64,
+    pub name_scan_micros: u64,
+    pub names_count: usize,
+    pub index_update_micros: u64,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
@@ -289,6 +313,7 @@ impl Index {
             validated: HashMap::new(),
             validated_bytes: 0,
             request_cache: None,
+            overlay_trace: None,
         })
     }
     pub fn set_cancellation(&mut self, cancellation: CancellationToken) {
@@ -420,6 +445,23 @@ impl Index {
         self.remember_validation(path, identity, hash);
         Ok(changed)
     }
+    pub(crate) fn overlay_traced(
+        &mut self,
+        path: &str,
+        source: &str,
+        indexed: bool,
+        tracing: bool,
+    ) -> Result<(bool, blake3::Hash, Option<OverlayUpdateTrace>)> {
+        self.overlay_trace = tracing.then(OverlayUpdateTrace::default);
+        let started = tracing.then(std::time::Instant::now);
+        let result = self.overlay(path, source, indexed);
+        let mut trace = self.overlay_trace.take();
+        if let (Some(trace), Some(started)) = (&mut trace, started) {
+            trace.index_update_micros = started.elapsed().as_micros().min(u64::MAX as u128) as u64;
+        }
+        result.map(|(changed, hash)| (changed, hash, trace))
+    }
+
     pub fn overlay(
         &mut self,
         path: &str,
@@ -498,8 +540,19 @@ impl Index {
     ) -> Result<(bool, blake3::Hash)> {
         self.cancellation.check()?;
         let _scope = self.cancellation.enter();
+        let hash_started = self
+            .overlay_trace
+            .as_ref()
+            .map(|_| std::time::Instant::now());
         let source_hash = blake3::hash(source.as_bytes());
+        if let (Some(trace), Some(started)) = (&mut self.overlay_trace, hash_started) {
+            trace.hash_micros = started.elapsed().as_micros().min(u64::MAX as u128) as u64;
+        }
         let hash = format!("{}{}", summary_revision(indexed), source_hash.to_hex());
+        let lookup_started = self
+            .overlay_trace
+            .as_ref()
+            .map(|_| std::time::Instant::now());
         let old: Option<String> = self
             .db
             .query_row(
@@ -508,11 +561,22 @@ impl Index {
                 |r| r.get(0),
             )
             .optional()?;
+        if let (Some(trace), Some(started)) = (&mut self.overlay_trace, lookup_started) {
+            trace.lookup_micros = started.elapsed().as_micros().min(u64::MAX as u128) as u64;
+        }
         if old.as_deref() == Some(&hash) {
+            let state_write_started = self
+                .overlay_trace
+                .as_ref()
+                .map(|_| std::time::Instant::now());
             self.db.execute(
                 "UPDATE files SET stamp=?2,len=?3,dirty=?4 WHERE file_id=(SELECT id FROM paths WHERE path=?1)",
                 params![path, mtime, len, dirty],
             )?;
+            if let (Some(trace), Some(started)) = (&mut self.overlay_trace, state_write_started) {
+                trace.state_write_micros =
+                    started.elapsed().as_micros().min(u64::MAX as u128) as u64;
+            }
             if eager && self.needs_summary(path)? {
                 crate::foreground::parse()?;
                 let parsed = if indexed {
@@ -553,25 +617,59 @@ impl Index {
             self.counters.files_parsed += 1;
         }
         self.cancellation.check()?;
+        let transaction_begin_started = self
+            .overlay_trace
+            .as_ref()
+            .map(|_| std::time::Instant::now());
         let tx = self.db.transaction()?;
+        if let (Some(trace), Some(started)) = (&mut self.overlay_trace, transaction_begin_started) {
+            trace.transaction_begin_micros =
+                started.elapsed().as_micros().min(u64::MAX as u128) as u64;
+        }
+        let postings_delete_started = self
+            .overlay_trace
+            .as_ref()
+            .map(|_| std::time::Instant::now());
         let file_id = Self::file_id(&tx, path)?;
         tx.execute("DELETE FROM context_summaries WHERE file_id=?1", [file_id])?;
         tx.execute("DELETE FROM occurrences WHERE file_id=?1", [file_id])?;
         tx.execute("DELETE FROM declarations WHERE file_id=?1", [file_id])?;
         tx.execute("DELETE FROM modules WHERE file_id=?1", [file_id])?;
+        if let (Some(trace), Some(started)) = (&mut self.overlay_trace, postings_delete_started) {
+            trace.postings_delete_micros =
+                started.elapsed().as_micros().min(u64::MAX as u128) as u64;
+        }
         {
             let mut insert =
                 tx.prepare_cached("INSERT OR IGNORE INTO occurrences(name,file_id) VALUES(?1,?2)")?;
-            for (position, name) in raw_names(source, &self.cancellation)?
-                .into_iter()
-                .enumerate()
-            {
+            let scan_started = self
+                .overlay_trace
+                .as_ref()
+                .map(|_| std::time::Instant::now());
+            let names = raw_names(source, &self.cancellation)?;
+            if let (Some(trace), Some(started)) = (&mut self.overlay_trace, scan_started) {
+                trace.name_scan_micros = started.elapsed().as_micros().min(u64::MAX as u128) as u64;
+                trace.names_count = names.len();
+            }
+            let names_insert_started = self
+                .overlay_trace
+                .as_ref()
+                .map(|_| std::time::Instant::now());
+            for (position, name) in names.into_iter().enumerate() {
                 if position % 256 == 0 {
                     self.cancellation.check()?;
                 }
                 insert.execute(params![name, file_id])?;
             }
+            if let (Some(trace), Some(started)) = (&mut self.overlay_trace, names_insert_started) {
+                trace.names_insert_micros =
+                    started.elapsed().as_micros().min(u64::MAX as u128) as u64;
+            }
         }
+        let state_write_started = self
+            .overlay_trace
+            .as_ref()
+            .map(|_| std::time::Instant::now());
         tx.execute("INSERT OR REPLACE INTO files(file_id,hash,stamp,len,dirty,parsed,module) VALUES(?1,?2,?3,?4,?5,NULL,?6)",params![file_id,hash,mtime,len,dirty,parsed.as_ref().and_then(|p|p.module.as_ref())])?;
         if let Some(parsed) = &parsed {
             if !(parsed.tokens.is_empty() && !parsed.supported) {
@@ -586,8 +684,19 @@ impl Index {
         }
         tx.execute("DELETE FROM answers", [])?;
         tx.execute("UPDATE state SET value=value+1 WHERE key='generation'", [])?;
+        if let (Some(trace), Some(started)) = (&mut self.overlay_trace, state_write_started) {
+            trace.state_write_micros = started.elapsed().as_micros().min(u64::MAX as u128) as u64;
+        }
         self.cancellation.check()?;
+        let commit_started = self
+            .overlay_trace
+            .as_ref()
+            .map(|_| std::time::Instant::now());
         tx.commit()?;
+        if let (Some(trace), Some(started)) = (&mut self.overlay_trace, commit_started) {
+            trace.commit_micros = started.elapsed().as_micros().min(u64::MAX as u128) as u64;
+        }
+
         self.invalidate_request_cache();
         if old.is_some() {
             self.counters.reindexed_files += 1;
@@ -623,6 +732,28 @@ impl Index {
         tx.commit()?;
         self.invalidate_request_cache();
         Ok(())
+    }
+    /// Fresh bytes for candidate-only syntax recovery. Dirty overlays are owned
+    /// by Workspace and must never be replaced by disk text here.
+    pub fn candidate_source(&mut self, path: &str) -> Result<String> {
+        self.cancellation.check()?;
+        self.validate_disk(path)?;
+        let (expected, dirty): (String, bool) = self.db.query_row(
+            "SELECT hash,dirty FROM files WHERE file_id=(SELECT id FROM paths WHERE path=?1)",
+            [path],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        anyhow::ensure!(
+            !dirty,
+            "Candidate source requires the current dirty overlay: {path}"
+        );
+        let identity = disk_identity(path)?;
+        let (source, hash) = self.read_verified(path, &identity)?;
+        anyhow::ensure!(
+            expected.ends_with(&hash),
+            "File changed while query was pending; refresh and retry: {path}"
+        );
+        Ok(source)
     }
     pub fn parsed(&mut self, path: &str) -> Result<ParsedFile> {
         self.cancellation.check()?;
@@ -1032,6 +1163,69 @@ impl Index {
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(result)
     }
+    pub fn candidate_paths_limited(&self, name: &str, limit: usize) -> Result<Vec<String>> {
+        self.cancellation.check()?;
+        let mut statement = self.db.prepare_cached(
+            "SELECT p.path FROM occurrences o JOIN paths p ON p.id=o.file_id WHERE o.name=?1 ORDER BY p.path LIMIT ?2",
+        )?;
+        let result = statement
+            .query_map(params![name, limit], |row| row.get(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(result)
+    }
+    /// Filter eligibility and rank evidence before the retained-path cap. Memory
+    /// is O(limit); scanning is bounded independently and cancellation is checked
+    /// for every row. A stopped scan or omitted eligible path is explicit.
+    pub fn ranked_candidate_paths(
+        &self,
+        name: &str,
+        limit: usize,
+        max_rows: usize,
+        mut rank: impl FnMut(&str) -> Option<usize>,
+    ) -> Result<CandidatePaths> {
+        self.cancellation.check()?;
+        let mut statement = self.db.prepare_cached(
+            "SELECT p.path FROM occurrences o JOIN paths p ON p.id=o.file_id WHERE o.name=?1 ORDER BY o.file_id LIMIT ?2",
+        )?;
+        let mut rows = statement.query(params![name, max_rows.saturating_add(1)])?;
+        let mut retained = std::collections::BinaryHeap::<(usize, String)>::new();
+        let mut result = CandidatePaths {
+            paths: Vec::new(),
+            truncated: false,
+            rows_examined: 0,
+            eligible_seen: 0,
+        };
+        while let Some(row) = rows.next()? {
+            self.cancellation.check()?;
+            if result.rows_examined == max_rows {
+                result.truncated = true;
+                break;
+            }
+            result.rows_examined += 1;
+            let path: String = row.get(0)?;
+            let Some(priority) = rank(&path) else {
+                continue;
+            };
+            result.eligible_seen += 1;
+            if limit == 0 {
+                continue;
+            }
+            let candidate = (priority, path);
+            if retained.len() < limit {
+                retained.push(candidate);
+            } else if retained.peek().is_some_and(|last| &candidate < last) {
+                retained.pop();
+                retained.push(candidate);
+            }
+        }
+        result.truncated |= result.eligible_seen > limit;
+        result.paths = retained
+            .into_sorted_vec()
+            .into_iter()
+            .map(|(_, path)| path)
+            .collect();
+        Ok(result)
+    }
     pub fn needs_summary(&self, path: &str) -> Result<bool> {
         Ok(self
             .db
@@ -1230,8 +1424,10 @@ impl Index {
             .query_map([], |r| r.get::<_, String>(0))?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         drop(stmt);
+        self.cancellation.check()?;
         let set: std::collections::HashSet<&String> = paths.iter().collect();
         for p in existing {
+            self.cancellation.check()?;
             if !set.contains(&p) {
                 self.remove(&p)?;
             }
@@ -1665,6 +1861,72 @@ mod tests {
         fs::create_dir_all(&path).unwrap();
         path
     }
+    #[test]
+    fn candidate_source_revalidates_disk_and_never_replaces_a_dirty_overlay() {
+        let dir = fixture_dir();
+        let path = dir.join("A.fs").to_string_lossy().into_owned();
+        let before = "module A\nlet target = 1\n";
+        let after = "module A\nlet absent = 1\n";
+        fs::write(&path, before).unwrap();
+        let mut index = Index::open(&dir.join("cache"), 1, 1024).unwrap();
+        index.search_name(&path, "target", true).unwrap();
+        assert_eq!(index.candidate_source(&path).unwrap(), before);
+        fs::write(&path, after).unwrap();
+        // Validation refreshes the indexed row before exposing current bytes.
+        assert_eq!(index.candidate_source(&path).unwrap(), after);
+        index.search_name(&path, "absent", true).unwrap();
+        assert_eq!(index.candidate_source(&path).unwrap(), after);
+        index.overlay(&path, before, true).unwrap();
+        assert!(index.candidate_source(&path).is_err());
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn candidate_path_cap_follows_domain_and_evidence_with_explicit_truncation() {
+        let dir = fixture_dir();
+        let index = Index::open(&dir.join("cache"), 1, 1024).unwrap();
+        for i in 0..80 {
+            let path = format!("/repo/{i:03}.fs");
+            index
+                .db
+                .execute("INSERT INTO paths(path) VALUES (?1)", [&path])
+                .unwrap();
+            index.db.execute("INSERT INTO occurrences(name,file_id) SELECT 'target',id FROM paths WHERE path=?1", [&path]).unwrap();
+        }
+        let plan = index.db.prepare("EXPLAIN QUERY PLAN SELECT p.path FROM occurrences o JOIN paths p ON p.id=o.file_id WHERE o.name=?1 ORDER BY o.file_id LIMIT ?2")
+            .unwrap().query_map(params!["target", 101], |row| row.get::<_, String>(3))
+            .unwrap().collect::<rusqlite::Result<Vec<_>>>().unwrap();
+        assert!(
+            !plan.iter().any(|step| step.contains("TEMP B-TREE")),
+            "{plan:?}"
+        );
+        let found = index
+            .ranked_candidate_paths("target", 2, 100, |path| {
+                if path.ends_with("079.fs") {
+                    Some(0)
+                } else if path.ends_with("078.fs") {
+                    Some(1)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        assert_eq!(found.paths, ["/repo/079.fs", "/repo/078.fs"]);
+        assert!(!found.truncated);
+        assert_eq!((found.rows_examined, found.eligible_seen), (80, 2));
+        let capped = index
+            .ranked_candidate_paths("target", 2, 100, |_| Some(0))
+            .unwrap();
+        assert!(capped.truncated);
+        assert_eq!(capped.paths, ["/repo/000.fs", "/repo/001.fs"]);
+        let scan_capped = index
+            .ranked_candidate_paths("target", 2, 40, |_| None)
+            .unwrap();
+        assert!(scan_capped.truncated);
+        assert_eq!(scan_capped.rows_examined, 40);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
     #[test]
     fn raw_postings_do_not_swallow_comments_or_unicode() {
         let names=raw_names("module Other\n// ``\nlet result = Main.value\n// ``\nlet cafe\u{301}=3\nlet ``snow man``=cafe\u{301}\n", &CancellationToken::new()).unwrap();
@@ -2242,5 +2504,38 @@ mod tests {
             .is_err());
         index.end_request();
         fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+// Suppress only this connection's SQLite files before watcher queue admission.
+// Mixed-path events and rescan signals must still invalidate normally.
+pub(crate) fn owned_file_event(event: &notify::Event, database: &Path) -> bool {
+    !event.need_rescan()
+        && !event.paths.is_empty()
+        && event.paths.iter().all(|path| {
+            path == database
+                || ["-wal", "-shm", "-journal"].iter().any(|suffix| {
+                    let mut sibling = database.as_os_str().to_os_string();
+                    sibling.push(suffix);
+                    path.as_os_str() == sibling
+                })
+        })
+}
+
+#[cfg(test)]
+mod owned_event_tests {
+    use super::*;
+    #[test]
+    fn sqlite_filter_does_not_hide_sources_mixed_events_or_rescan() {
+        let database = Path::new("/repo/.storage/index.sqlite");
+        let event = notify::Event::new(notify::EventKind::Modify(notify::event::ModifyKind::Any))
+            .add_path(PathBuf::from("/repo/.storage/index.sqlite-wal"));
+        assert!(owned_file_event(&event, database));
+        let mixed = event
+            .clone()
+            .add_path(PathBuf::from("/repo/.storage/Actual.fs"));
+        assert!(!owned_file_event(&mixed, database));
+        let rescan = event.set_flag(notify::event::Flag::Rescan);
+        assert!(!owned_file_event(&rescan, database));
     }
 }

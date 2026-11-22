@@ -41,12 +41,13 @@ export async function buildDecompiler({ readyToRun = false, rid } = {}) {
   console.log('This framework-dependent helper requires installed .NET 10.0.11; it is not bundled into the VSIX.');
 }
 export async function check() {
-  await exec('node', ['--test', 'scripts/restore-parser-sources.test.mjs']);
+  await exec('python3', ['scripts/test_normalize_vsix.py']);
+  await exec('node', ['--test', 'scripts/restore-parser-sources.test.mjs', 'scripts/package-output.test.mjs', 'scripts/isolated-install.test.mjs']);
   await exec('node',['node_modules/typescript/bin/tsc','-p','extension/tsconfig.json','--noEmit']);
   await exec('cargo',['fmt','--all','--','--check']);
   await exec('cargo',['test','--workspace','--locked']);
   await npm('run','compile');
-  await exec('node',['--test','extension/test/transport.test.cjs','extension/test/virtualDocuments.test.cjs','extension/test/adapterContract.test.cjs']);
+  await exec('node',['--test','extension/test/transport.test.cjs','extension/test/transportTrace.test.cjs','extension/test/virtualDocuments.test.cjs','extension/test/adapterContract.test.cjs']);
 }
 export async function testHost(packaged = false) {
   const env = { ...process.env, FSHARP_BACKEND_PATH: path.join(root,'target/release/fsharp-navigator') };
@@ -83,6 +84,7 @@ export class TestCommand extends Command {
   static paths=[['test']];
   layer=Option.String();
   async execute(){
+    if(this.layer==='installer') { await exec('node',['--test','scripts/isolated-install.test.mjs']); return; }
     if(this.layer==='unit') return check();
     if (this.layer === 'adapter') {
       await build();
@@ -94,7 +96,7 @@ export class TestCommand extends Command {
     }
     if(this.layer==='integration'){await build();return testHost(false);}
     if(this.layer==='ui'){await build();return testHost(true);}
-    throw new Error('Expected unit, adapter (mocked editor API with real Rust), integration, or ui.');
+    throw new Error('Expected unit, installer, adapter (mocked editor API with real Rust), integration, or ui.');
   }
 }
 export class VerifyCommand extends Command {

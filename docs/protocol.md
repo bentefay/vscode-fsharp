@@ -28,6 +28,61 @@ within one validation generation avoids charging repeated hashes. The bounds cov
 source and project-model work. Explicit library artifacts have separate ingestion
 and validation paths. SQLite row visits and allocator/RSS usage are distinct.
 
+### Progressive discovery in the default daemon
+
+For an unprepared indexed workspace, a nonlocal navigation demand requests
+background preparation. A document-local proof remains available before this
+work. If the foreground discovery budget is insufficient, subsequent requests
+receive an explicitly unavailable, pending result while the daemon resumes a
+separate discovery cursor between requests. No compiler, project-evaluation
+helper or semantic snapshot import is scheduled by this work.
+
+Partial traversal never becomes the live project model. Once traversal finishes,
+the daemon publishes the raw inventory and updates source postings in separate
+idle slices. Background raw-project membership remains provisional: it can
+support current-source, explicitly incomplete candidates, but cannot certify a
+non-document exact binding or complete references. `ready` means the bounded
+discovery/index job completed, not compiler-certified project correctness.
+An explicitly supplied evaluated model retains its existing validation rules.
+
+`workspace/stats.background` reports `phase`, `discoveryComplete`,
+`indexComplete`, `entriesVisited`, `projectsDiscovered`, `filesDiscovered`,
+`filesIndexed`, `filesReused`, `slices`, `generation`, `reason` and
+`modelProvisional`. Pending `workspace/tree` replies expose an incomplete tree
+instead of implicitly completing the scan for a linked-buffer membership check.
+The existing explicit `workspace/index` command remains separate from automatic
+preparation and may import an explicitly configured semantic snapshot. When an
+automatic provisional model is already loaded, the command reconstructs it using
+the existing explicit discovery/evaluated-model installation path before indexing.
+It does not promote the old project's flags in place. The provisional guard is
+cleared only after successful installation and input-event validation; cancellation,
+failed discovery or changed membership retains guarded behavior. Unsupported
+imports remain inexact under the existing explicit discovery rules, and no
+compiler is launched implicitly.
+
+Restart does not trust a persisted project inventory. It rediscovers membership
+and reuses SQLite facts through the existing current-source validation. New
+project/configuration inputs, directory membership changes and lost watcher
+events invalidate the discovered generation. Filesystem calls and individual
+bounded project/source operations are not hard real-time deadlines; a sustained
+nonempty foreground queue can postpone idle work.
+
+The scanner yields after at most 32 admitted entries or one project read;
+postings advance one source file per idle slice. Final publication also sorts
+the bounded inventory, reconciles index membership and installs source watches;
+that atomic step is not a 32-entry slice and may delay an arriving request.
+Processing a bounded watcher journal can also refresh several changed sources;
+cooperative cancellation applies between those operations.
+Retained discovery limits are
+250,000 entries, 16,384 directories, depth 64, 2,048 projects, 100,000 source
+paths/aggregate Compile inputs, 32 MiB of accounted paths and 64 MiB of project
+input bytes. A project XML read is at most 1 MiB, with a separate 8 MiB limit on
+its expanded path strings. Source reads retain `maxFileBytes`; watcher journals
+hold at most 1,024 events and overflow invalidates the generation. These limits
+bound selected work units and retained inputs, not total process RSS. A terminal
+limit is reported as incomplete rather than silently restarting the same scan
+on every query.
+
 ## Requests
 
 | Method | Parameters |
@@ -43,16 +98,20 @@ and validation paths. SQLite row visits and allocator/RSS usage are distinct.
 | `document/open`, `document/change` | `path`, complete `text`, monotonically increasing integer `version` |
 | `document/close` | `path` |
 | `navigation/definition`, `navigation/references` | `path`, `line`, `character`; references optionally `includeDeclaration` |
+| `navigation/possibleReferences` | `path`, `line`, `character`; optional current overlay `version`/`documentVersion`, `expectedSourceText` |
 | `navigation/hover` | `path`, `line`, `character` |
 | `shutdown` | none; reply then exit |
 
 Mutation replies acknowledge the accepted version/snapshot. Navigation results
 must correspond to the current accepted document snapshot. Dirty-buffer text
 overrides disk content in all relevant files. Unknown methods produce errors.
-The native daemon is sequential: `$/cancelRequest` cannot preempt a running
-request. The adapter cancels its pending promise and discards late results;
-bounded/coalesced queues prevent repeated edits from retaining every text
-snapshot. This does not implement foreground-priority scheduling.
+Workspace mutations and queries execute sequentially. A separate bounded
+transport reader accepts `$/cancelRequest` while a query runs; cooperative
+checks stop native work, and the completion lock prevents an accepted
+cancellation from subsequently publishing an exact response. The adapter also
+cancels its pending promise and discards late results. Bounded/coalesced queues
+prevent repeated edits from retaining every text snapshot. Cancellation is
+cooperative, not a hard wall-clock deadline for an individual filesystem call.
 
 ## Navigation result shapes
 
@@ -68,6 +127,148 @@ or fast path actually used. Diagnostics are optional strings. Standard editor
 providers may expose only exact results; a separate candidate command can show
 approximate results explicitly. Cancellation/limits must not resemble a complete
 empty reference list.
+
+`navigation/possibleReferences` is a separate, explicit opt-in spelling search.
+It does not run automatically after ordinary FAR or F12. Its response always has
+`locations:[]`, `completeness:"unavailable"`, `source:"occurrence-search"`,
+`candidateKind:"same-name-occurrences"`, and `candidateCompleteness:"incomplete"`.
+`candidates` contains current physical-source identifier token ranges with the
+selected spelling; unrelated bindings, declarations and inactive conditional
+branches may be included. `includeDeclarations:true` states that declaration
+tokens are included; the command does not implement semantic declaration
+exclusion. No list, including an empty list or singleton, is a complete reference
+set. Normal `navigation/references` behavior and proof checks remain unchanged.
+
+The command searches the origin first, current matching eligible overlays, then
+available name-posting files from the workspace model. Later compilation files
+and reverse-project consumers are eligible. Linked physical files are deduplicated;
+unknown external files are outside the available domain. It neither completes
+name coverage nor launches a compiler/helper. An unloaded raw workspace uses the ordinary bounded initial discovery policy
+(up to 512 entries), preserving small-workspace proof behavior. If preparation
+is pending or hits that cap, it retains only already parsed origin occurrences,
+marks preparation pending/truncation, and lets background discovery continue;
+it does not reset the exhausted foreground budget. Raw physical syntax is parsed without choosing compiler defines or
+entering facts into exact-proof caches. Unknown literal boundaries and parser
+recovery cause source omission, not speculative identifier extraction.
+
+`occurrenceSearch` records `scannedFiles`, `skippedFiles`, fixed-category
+`skipReasons`, `scannedBytes`, `rowsExamined`, `eligiblePathsSeen`, limits, and
+background state. Limits are 32 selected files including the origin, 4,096
+posting rows plus overflow lookahead, 200 locations, 1 MiB per source and 4 MiB
+of scanned source text; the existing foreground read budget may stop sooner.
+Eligible overlays are bounded by the existing overlay memory policy and checked
+for cancellation during selection. `candidateTruncated` and its reason disclose
+work/page bounds. Skipped sources and unfinished discovery/indexing remain
+explicit even when no numeric cap was reached. `modelAvailable` describes a
+loaded model; `discoveryComplete`/`indexComplete` describe background phases and
+do not certify complete workspace reference coverage.
+
+`occurrenceIdentity.origin` and `occurrenceIdentity.targets` contain URI, BLAKE3
+source hash and overlay version (null for disk) from the bytes actually searched.
+They are freshness witnesses, not binding proofs. `snapshotId` identifies the
+workspace snapshot. A versioned request must match the acknowledged overlay.
+`expectedSourceText`, when supplied, must equal the current origin bytes exactly;
+otherwise the request fails. For a clean editor buffer the adapter removes its
+clean overlay, omits the native version, and supplies this text so stale clean UI
+cannot mask an external disk edit. Dirty overlays remain authoritative.
+Selecting a possible occurrence reissues this endpoint: the origin and selected
+target identities must both remain unchanged and the full URI/range must still
+exist. A deletion, rebind, rename, version or hash change rejects the old row,
+even if a new same-spelling match occupies that location.
+
+An unresolved indexed definition may additionally carry `candidates`, an array
+of locations, `candidateKind: "same-name-declarations"` (or
+`"same-source-declarations"` while discovery is pending), and
+`candidateCompleteness: "incomplete"`. These are current-source spelling
+suggestions, not established bindings, even when there is only one. `locations`
+remains empty and the answer is not `exact`. The adapter displays them separately
+as possible definitions without selecting a target. Existing raw name postings
+are streamed in SQLite index order, with at most 4,096 ranked rows plus one overflow lookahead per pass.
+A cold empty-result lookup may seed eight files and repeat once; warm lookup
+uses one pass. Domain
+filtering and source-project ranking precede retention of at most 32 source paths
+and 200 locations. The independent scan bound prevents an unbounded foreground
+query. `candidateTruncated:true` and `candidateTruncationReason` disclose visited-row,
+retained-path or location limits; the adapter shows the limit reason. Even without
+truncation, suggestions remain incomplete and may include unrelated declarations.
+Candidate lookup does not demand whole-repository name coverage. A bounded cold
+seed may inspect up to eight nearby compile inputs when no indexed path exists.
+
+The full collected `candidates` array remains available in its original order.
+Optional `likelyCandidates` is a subset of at most five of those locations,
+selected from the strongest syntactic-evidence bucket. `candidateRanking:
+"syntactic-evidence-v1"` identifies the presentation rule; `candidateEvidence`
+contains `{location, evidence: string[]}` entries for the displayed subset.
+Evidence includes written type or qualifier spelling, record-label shape,
+enclosing lexical scope, and source/project proximity. `alias-rhs-declaration-shape`
+also ranks nominal declarations for a syntactic alias RHS; that grammar shape can
+instead denote a singleton union case, so it is not a proven type role. It is heuristic: aliases,
+shadowing and unknown type identity can make a lower-tier target correct.
+Neither tier changes binding completeness, reference completeness or exactness.
+`likelyCandidateLimit` is five and `likelyCandidateTotal` counts all tied
+strongest-bucket targets **within the retained bounded candidate union**, not
+within the uncapped workspace. When that count exceeds five, the remaining ties
+are still in `candidates`. An empty likely subset is permitted when no positive
+evidence exists. Candidate truncation remains independently visible; revealing
+all collected candidates cannot recover targets omitted by a disclosed work cap.
+
+Current-source alias anchors and declarations before the first lexically real
+preprocessor directive may be offered without guessing compiler defines. The
+prefix stops at any directive, including `#nowarn` or `#load`, and rejects
+unsupported lexical constructs. It is candidate-only evidence, never an exact
+binding or namespace certificate. If that prefix does not contain the definition
+query cursor and the first lexically real directive is `#if`, the engine may
+recover only the physical query identifier and qualifier from current source
+(up to 1 MiB). Full lexical-boundary validation and the existing bounded syntax
+parser must succeed without recovered syntax. This does not determine whether
+the branch is active. Declarations, type facts and scope facts from that physical
+parse never become target/proof inputs; target declarations still follow the
+conservative prefix/context rules. The result may identify
+`candidateOrigin:"physical-conditional-source"`; shortlist evidence labels this
+as `physical-conditional-origin-spelling`. All alternatives and existing
+file/row/location caps remain unchanged. The same query-spelling recovery can
+keep a pending definition request retryable while background work progresses.
+Normal exact navigation, FAR and Possible References do not use this fallback.
+A preceding `#nowarn`, `#r`, `#load` or other directive, uncertain literal
+boundaries, recovered syntax or the source cap can still leave the query
+unavailable. No compiler defines, unique binding or complete references are
+inferred from the spelling. Dirty overlays remain authoritative. After model publication, an origin
+with ambiguous linked ownership requires a selected project context. Early
+same-source suggestions make no ownership or project-membership claim and are
+withheld when an explicit project selection cannot yet be validated.
+Only for a single certified, evaluated project with no project references,
+unique compile inputs and exclusively `.fs` implementation files, suggestions
+exclude source files later than the queried file in compiler order. Unknown
+ordering, signatures (including mixed-case suffixes), scripts, duplicate inputs
+or additional projects retain the broader candidate set. This filter never
+changes exact results or promotes a remaining singleton.
+The list is not cached as an exact answer. Cancelled and obsolete-version
+requests do not publish candidates. When bounded project discovery is already pending, current-source suggestions
+may be returned with explicit incomplete status; they do not certify the partial
+model. The first request that exhausts the foreground discovery budget may still
+be unavailable: the engine does not reset that exhausted budget to parse more
+source in the same request. A subsequent request can use the source-local path.
+
+An empty indexed definition may include
+`indexing: {phase: "scanning" | "indexing", generation: number, retryAfterMs: 100}`
+when active bounded background work can still supply candidate inputs. This is
+an advisory continuation hint, not a completion or exactness certificate.
+It is omitted for exact answers, nonempty candidate results, references, known
+nonidentifier positions, invalid project selections, stopped/limited work and
+ready workspaces. The first discovery-limited request may provisionally carry
+this hint before source-token classification; the next request classifies it.
+The generation identifies the native preparation lifecycle and does not replace
+source-version, workspace or cancellation checks. The adapter may continue a
+single user invocation within its bounded deadline; it must stop on cancellation
+or superseding document/caret/workspace state and must not wait after usable
+exact results or candidates are available.
+Selecting a displayed candidate repeats the native definition request against
+current overlays and disk inputs. The editor opens it only if the same URI and
+full range remains among the fresh candidates or an exact definition result,
+and the origin version, workspace epoch, latest definition request and displayed
+list generation remain current. A removed or shifted target is rejected and
+the obsolete list cleared. This check adds work only after deliberate selection;
+time until choices are visible and selection-to-jump latency are separate metrics.
 
 For indexed definition and reference requests, an explicit matching overlay
 version enables a document-local proof before project discovery. Eligible
@@ -86,6 +287,68 @@ clears the cache. Workspace stats expose `localProofAttempts`, `localProofHits`,
 `localProofParsedBytes`, `localProofVisitedNodes`, `localProofParseMicros` and
 `localProofMicros`. Parse and proof metrics include unsuccessful work. Cache
 hits reuse the answer without parsing the document.
+
+`localProofOutcomes` counts fixed diagnostic categories, and
+`localProofLastAttempt` records the most recently recorded attempt number,
+document version, source hash, position, operation, outcome, parse/total
+microseconds, visited nodes and parsed bytes. This is bounded diagnostic state,
+not a proof certificate. If an early error prevents recording, the last recorded
+attempt may lag `localProofAttempts`; compare the numbers before attribution.
+With `FSHARP_NAVIGATOR_TRACE=1`, a response whose dispatch attempted a local proof
+also carries `localProofAttempt` at the envelope level, correlated with that
+response's request ID. It is null if no diagnostic was recorded for that attempt;
+absence means no new attempt, not a refusal. No source text or path is logged.
+The ordinary non-tracing envelope remains unchanged.
+
+Outcomes distinguish `parse-time-budget` (100 ms), `proof-time-budget` (150 ms),
+`rss-budget`, `parse-rss-budget`, depth/node/reference/location budgets,
+`input-guard`, `invalid-position`, `syntax-error`, `unsupported`, `parser-aborted`,
+`cancelled`, `error`, `exact` and `cache-hit`. They report the first observed
+refusal in existing guard order, not a unique causal explanation when several
+limits overlap. Parse callback precedence is cancellation, elapsed time, then
+memory; proof traversal precedence is depth, nodes, cancellation, then elapsed
+time. A final typed cancellation error is reported as `cancelled`. `exact` and
+`cache-hit` describe the local proof stage, which can still be cancelled before
+transport publication. Cache-hit zero parse/proof counters do not imply zero
+request latency. Elapsed-time guards include process descheduling; daemon
+`nativeTiming.dispatchMs` also includes other work and cannot identify the
+particular refusal on its own.
+
+With the same trace flag, successful `document/open` and `document/change`
+responses carry a request-ID-correlated `documentUpdate` envelope. It records
+an opaque normalized-document-key hash, acknowledged `version`, current BLAKE3
+`sourceHash`, source `bytes`, whether indexed contents `changed`, and the number
+of positive local cache entries evicted for this document. It contains no path
+or source text. Error/cancelled responses omit this update envelope; omission
+must not be interpreted as zero work or proof that an update was not applied.
+
+Update timing fields are wall-clock microseconds: `validationMicros` covers
+path/version/overlay-budget checks; `indexUpdateMicros` covers the existing
+hash/index update; `overlayStoreMicros` covers local-cache invalidation and
+storing the acknowledged overlay (including the opt-in document-key hash);
+`snapshotMicros` covers changed-content snapshot invalidation; `totalMicros`
+covers the update handler through diagnostic capture. `hashMicros` and
+`nameScanMicros` are **nested within** `indexUpdateMicros`; do not add them to
+that enclosing duration. `namesCount` counts the unique raw posting names
+computed for changed contents. Additional nonoverlapping subspans nested within
+`indexUpdateMicros` are `lookupMicros` (existing stored-hash lookup),
+`transactionBeginMicros` (transaction creation), `postingsDeleteMicros`
+(file-ID lookup/insertion plus deletion of prior context summaries, postings,
+declarations and modules), `namesInsertMicros` (posting insertion loop, including
+its existing cancellation checks, excluding name scanning), `stateWriteMicros`
+(file-row update, answer invalidation and generation write), and `commitMicros`
+(transaction commit). On the unchanged-hash path only hash, lookup and the
+existing file-row update in `stateWriteMicros` execute; other subspans are zero.
+Zero may also mean an executed phase rounded below one microsecond. Statement
+preparation, trace capture and other bookkeeping remain in the unattributed
+index remainder. These are wall durations around operations, not pure SQLite
+CPU time; errors/rollbacks do not emit a successful update envelope.
+The ordinary overlay update is lazy (`eager=false`) and does not construct a
+syntax tree. Parsing for a subsequent local query is recorded separately by
+`localProofAttempt`. These spans exclude queueing, wire serialization and
+renderer work; elapsed time includes descheduling. Disabled tracing adds no
+phase clock reads or diagnostic source/path hashing. Timing does not change
+cache keys, invalidation, cancellation, or source-version checks.
 
 A definition proof for a single-use ASCII parameter can also establish the
 complete declaration-inclusive reference answer at that cursor. When the cursor

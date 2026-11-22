@@ -4,11 +4,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 #[cfg(test)]
 use sha2::{Digest, Sha256};
+use std::fs::{self, ReadDir};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
 };
-use walkdir::WalkDir;
 #[path = "environment.rs"]
 pub mod environment;
 #[path = "membership.rs"]
@@ -165,84 +165,238 @@ pub fn excluded(name: &str) -> bool {
     )
 }
 
-pub fn discover(root: &str) -> Result<Model> {
-    let mut projects = Vec::new();
-    let mut sources = Vec::new();
-    let mut solutions = Vec::new();
-    let mut exact = true;
-    let mut diagnostics = Vec::new();
-    for entry in WalkDir::new(root)
-        .into_iter()
-        .filter_entry(|e| e.depth() == 0 || !excluded(&e.file_name().to_string_lossy()))
-    {
-        crate::cancellation::check()?;
-        crate::foreground::entries(1)?;
-        let e = entry?;
-        if !e.file_type().is_file() {
-            continue;
-        }
-        let p = e.path();
-        if solution_tree::is_solution(p) {
-            solutions.push(normalize(p));
-        }
-        if is_source(p) {
-            sources.push(normalize(p))
-        }
-        if p.extension().and_then(|x| x.to_str()) == Some("fsproj") {
-            let (project, complete, notes) = parse_project(p)?;
-            exact &= complete;
-            diagnostics.extend(notes);
-            projects.push(project);
-        }
-        if matches!(
-            e.file_name().to_str(),
-            Some("Directory.Build.props" | "Directory.Build.targets")
-        ) {
-            exact = false;
-            diagnostics.push("Directory.Build inputs require evaluated project manifest".into());
-        }
+/// Resumable raw-project discovery. Partial membership never leaves this cursor.
+/// Limits bound retained inputs/work units, not wall-clock time or process RSS.
+pub(crate) struct Discovery {
+    root: String,
+    stack: Vec<ReadDir>,
+    pending: Option<PathBuf>,
+    projects: Vec<Project>,
+    sources: Vec<String>,
+    solutions: Vec<String>,
+    exact: bool,
+    diagnostics: Vec<String>,
+    pub entries: usize,
+    directories: usize,
+    path_bytes: usize,
+    project_bytes: u64,
+    compile_inputs: usize,
+    ambient: bool,
+}
+impl Discovery {
+    pub fn new(root: &str) -> Result<Self> {
+        Ok(Self {
+            root: root.into(),
+            stack: vec![fs::read_dir(root)?],
+            pending: None,
+            projects: Vec::new(),
+            sources: Vec::new(),
+            solutions: Vec::new(),
+            exact: true,
+            diagnostics: Vec::new(),
+            entries: 0,
+            directories: 1,
+            path_bytes: root.len(),
+            project_bytes: 0,
+            compile_inputs: 0,
+            ambient: false,
+        })
     }
-    // Ambient MSBuild imports may change order, defines, references and source
-    // membership. A provisional parser cannot certify their absence by looking
-    // only inside a project XML document.
-    let ambient = Path::new(root).ancestors().any(|p| {
-        p.join("Directory.Build.props").exists() || p.join("Directory.Build.targets").exists()
-    }) || diagnostics.iter().any(|d| d.contains("Directory.Build"));
-    if ambient {
-        exact = false;
-        for p in &mut projects {
-            p.exact = false;
-        }
-        diagnostics
-            .push("Ambient Directory.Build imports require evaluated project context".into());
+    pub fn project_count(&self) -> usize {
+        self.projects.len()
     }
-    projects.sort_by(|a, b| a.path.cmp(&b.path));
-    sources.sort();
-    // Explicit compile includes take priority over discovery, including linked
-    // or generated files under otherwise skipped directories.
-    let mut files = Vec::new();
-    let mut seen = HashSet::new();
-    for p in &projects {
-        for f in &p.files {
-            if seen.insert(f.clone()) {
-                files.push(f.clone())
+    pub fn source_count(&self) -> usize {
+        self.sources.len()
+    }
+    pub fn step(
+        &mut self,
+        quantum: usize,
+        mut watch: impl FnMut(&Path) -> Result<()>,
+    ) -> Result<bool> {
+        for _ in 0..quantum {
+            crate::cancellation::check()?;
+            if self.pending.is_none() {
+                loop {
+                    let Some(directory) = self.stack.last_mut() else {
+                        return Ok(true);
+                    };
+                    match directory.next() {
+                        Some(entry) => {
+                            let entry = entry?;
+                            if excluded(&entry.file_name().to_string_lossy()) {
+                                continue;
+                            }
+                            self.pending = Some(entry.path());
+                            break;
+                        }
+                        None => {
+                            self.stack.pop();
+                        }
+                    }
+                }
+                self.entries += 1;
+                anyhow::ensure!(
+                    self.entries <= 250_000,
+                    "Background discovery entry limit (250000) reached"
+                );
+            }
+            crate::foreground::entries(1)?;
+            let path = self.pending.as_ref().unwrap().clone();
+            let metadata = fs::symlink_metadata(&path)?;
+            if metadata.is_dir() {
+                anyhow::ensure!(
+                    self.stack.len() < 64 && self.directories < 16_384,
+                    "Background discovery directory/depth limit reached"
+                );
+                anyhow::ensure!(
+                    self.path_bytes + path.as_os_str().len() <= 32 * 1024 * 1024,
+                    "Background discovery directory-path storage limit reached"
+                );
+                watch(&path)?;
+                self.path_bytes += path.as_os_str().len();
+                self.stack.push(fs::read_dir(&path)?);
+                self.directories += 1;
+            } else if metadata.is_file() {
+                let name = path.file_name().and_then(|v| v.to_str()).unwrap_or("");
+                if solution_tree::is_solution(&path) {
+                    self.solutions.push(normalize(&path));
+                }
+                if is_source(&path) {
+                    self.sources.push(normalize(&path));
+                }
+                if path.extension().and_then(|x| x.to_str()) == Some("fsproj") {
+                    anyhow::ensure!(
+                        self.projects.len() < 2048
+                            && self.project_bytes + metadata.len() <= 64 * 1024 * 1024,
+                        "Background discovery project-count/bytes limit reached"
+                    );
+                    let (project, complete, notes) = parse_project(&path)?;
+                    let bytes = project
+                        .files
+                        .iter()
+                        .chain(&project.references)
+                        .map(String::len)
+                        .sum::<usize>()
+                        + project
+                            .items
+                            .iter()
+                            .map(|item| item.to_string().len())
+                            .sum::<usize>();
+                    anyhow::ensure!(
+                        self.path_bytes.saturating_add(bytes) <= 32 * 1024 * 1024
+                            && self.compile_inputs.saturating_add(project.files.len()) <= 100_000,
+                        "Background discovery retained compile-input/path-storage limit reached"
+                    );
+                    self.path_bytes += bytes;
+                    self.compile_inputs += project.files.len();
+                    self.project_bytes += metadata.len();
+                    self.exact &= complete;
+                    self.diagnostics.extend(
+                        notes
+                            .into_iter()
+                            .take(128usize.saturating_sub(self.diagnostics.len())),
+                    );
+                    self.projects.push(project);
+                }
+                if matches!(name, "Directory.Build.props" | "Directory.Build.targets") {
+                    self.exact = false;
+                    self.ambient = true;
+                    if self.diagnostics.len() < 128 {
+                        self.diagnostics.push(
+                            "Directory.Build inputs require evaluated project manifest".into(),
+                        );
+                    }
+                }
+                self.path_bytes += path.as_os_str().len();
+                anyhow::ensure!(
+                    self.sources.len() <= 100_000 && self.path_bytes <= 32 * 1024 * 1024,
+                    "Background discovery source/path-storage limit reached"
+                );
+            }
+            self.pending = None;
+            // At most one bounded project XML read per background quantum.
+            if path.extension().and_then(|x| x.to_str()) == Some("fsproj") {
+                return Ok(false);
             }
         }
+        Ok(false)
     }
-    if projects.is_empty() {
-        exact = false;
-        diagnostics.push("No evaluated project: loose file scope only".into());
-        files = sources;
+    pub fn finish(self) -> Result<Model> {
+        anyhow::ensure!(
+            self.stack.is_empty() && self.pending.is_none(),
+            "Discovery is incomplete"
+        );
+        let Self {
+            root,
+            mut projects,
+            mut sources,
+            solutions,
+            mut exact,
+            mut diagnostics,
+            ambient: discovered_ambient,
+            ..
+        } = self;
+        // Ambient MSBuild imports may change order, defines, references and source
+        // membership. A provisional parser cannot certify their absence by looking
+        // only inside a project XML document.
+        let ambient = Path::new(&root).ancestors().any(|p| {
+            p.join("Directory.Build.props").exists() || p.join("Directory.Build.targets").exists()
+        }) || discovered_ambient;
+        if ambient {
+            exact = false;
+            for p in &mut projects {
+                p.exact = false;
+            }
+            diagnostics
+                .push("Ambient Directory.Build imports require evaluated project context".into());
+        }
+        crate::cancellation::check()?;
+        projects.sort_by(|a, b| a.path.cmp(&b.path));
+        crate::cancellation::check()?;
+        sources.sort();
+        crate::cancellation::check()?;
+        // Explicit compile includes take priority over discovery, including linked
+        // or generated files under otherwise skipped directories.
+        let mut files = Vec::new();
+        let mut seen = HashSet::new();
+        for p in &projects {
+            crate::cancellation::check()?;
+            for f in &p.files {
+                crate::cancellation::check()?;
+                if seen.insert(f.clone()) {
+                    files.push(f.clone())
+                }
+            }
+        }
+        if projects.is_empty() {
+            exact = false;
+            diagnostics.push("No evaluated project: loose file scope only".into());
+            files = sources;
+        }
+        Ok(Model {
+            validation_metrics: Default::default(),
+            root,
+            projects,
+            files,
+            exact,
+            diagnostics,
+            inputs: solutions,
+        })
     }
-    Ok(Model {
-        validation_metrics: Default::default(),
-        root: root.into(),
-        projects,
-        files,
-        exact,
-        diagnostics,
-        inputs: solutions,
-    })
+}
+
+pub fn discover(root: &str) -> Result<Model> {
+    Ok(discover_with_directories(root)?.0)
+}
+
+pub(crate) fn discover_with_directories(root: &str) -> Result<(Model, Vec<PathBuf>)> {
+    let mut discovery = Discovery::new(root)?;
+    let mut directories = Vec::new();
+    while !discovery.step(32, |path| {
+        directories.push(path.to_path_buf());
+        Ok(())
+    })? {}
+    Ok((discovery.finish()?, directories))
 }
 
 // Native discovery normally needs just the ordered physical paths. Store
@@ -264,12 +418,13 @@ fn save_link(items: &mut Vec<Value>, index: usize, link: &str) {
 }
 
 fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
-    let source = crate::foreground::read_text(path, u64::MAX)
+    let source = crate::foreground::read_text(path, 1024 * 1024)
         .with_context(|| format!("read {}", path.display()))?;
     let mut reader = Reader::from_str(&source);
     reader.config_mut().trim_text(true);
     let mut files = Vec::new();
     let mut refs = Vec::new();
+    let mut retained_path_bytes = 0usize;
     let mut items = Vec::new();
     let mut compile_item = None;
     // MSBuild can inherit OtherFlags even when the project does not define it.
@@ -285,6 +440,7 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
     let mut property = String::new();
     let parent = path.parent().unwrap_or(Path::new("."));
     loop {
+        crate::cancellation::check()?;
         let event = reader.read_event()?;
         let empty = matches!(event, Event::Empty(_));
         match event {
@@ -307,7 +463,13 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                         crate::foreground::entries(1)?;
                         let source = parent.join(value.replace('\\', "/"));
                         exact &= explicit_source(&source);
-                        include = Some(normalize(source));
+                        let source = normalize(source);
+                        retained_path_bytes = retained_path_bytes.saturating_add(source.len());
+                        anyhow::ensure!(
+                            retained_path_bytes <= 8 * 1024 * 1024,
+                            "Project retained-path limit reached"
+                        );
+                        include = Some(source);
                     }
                     if name == "Compile" && key == "Link" {
                         link = Some(value.clone());
@@ -317,7 +479,13 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                     }
                     if name == "ProjectReference" && key == "Include" {
                         crate::foreground::entries(1)?;
-                        refs.push(normalize(parent.join(value.replace('\\', "/"))));
+                        let reference = normalize(parent.join(value.replace('\\', "/")));
+                        retained_path_bytes = retained_path_bytes.saturating_add(reference.len());
+                        anyhow::ensure!(
+                            retained_path_bytes <= 8 * 1024 * 1024,
+                            "Project retained-path limit reached"
+                        );
+                        refs.push(reference);
                     }
                 }
                 if name == "Compile" {
@@ -327,6 +495,10 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                         if let Some(link) = link {
                             save_link(&mut items, i, &link);
                         }
+                        anyhow::ensure!(
+                            files.len() < 100_000,
+                            "Project compile-input limit reached"
+                        );
                         files.push(path);
                         if !empty {
                             compile_item = Some(i);

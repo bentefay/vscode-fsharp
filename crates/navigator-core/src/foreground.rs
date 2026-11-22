@@ -29,7 +29,7 @@ thread_local! { static CURRENT: Cell<Option<Budget>> = const { Cell::new(None) }
 pub(crate) struct Limit;
 impl fmt::Display for Limit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Indexed navigation reached its foreground work limit; run F# Navigator: Index Workspace (workspace/index) to prepare repository postings and the configured semantic snapshot")
+        f.write_str("Indexed navigation reached its foreground work limit; background indexing may prepare additional source postings, but this request has no complete result")
     }
 }
 impl std::error::Error for Limit {}
@@ -64,6 +64,9 @@ fn charge(update: impl FnOnce(&mut Budget)) -> Result<()> {
         }
     }
     Ok(())
+}
+pub(crate) fn is_active() -> bool {
+    CURRENT.get().is_some()
 }
 pub(crate) fn check() -> Result<()> {
     charge(|_| {})

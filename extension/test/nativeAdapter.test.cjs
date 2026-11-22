@@ -149,3 +149,58 @@ test('native linked contexts use tree selection, preserve branch identity and sh
   assert.equal(stats.overlayBytesReceived, bytesBeforeSwitch, 'Project selection preserves physical text synchronization');
   assert.equal(stats.helperStarts, 0);
 });
+
+// A real daemon with the same synthetic evaluated-model boundary scaffolding as
+// the linked-context test above. The actual Grace editor test independently
+// supplies a genuine model and exercises physical files outside the workspace.
+test('linked dependency outside the workspace synchronizes dirty text before first query and rebinding', async t => {
+  const tempRoot = process.env.TMPDIR || path.resolve(__dirname, '../../.cache/test-tmp');
+  await fs.mkdir(tempRoot, { recursive: true });
+  const temporary = await fs.mkdtemp(path.join(tempRoot, 'fsnav-outside-link-'));
+  const directory = path.join(temporary, 'Workspace');
+  const linkedDirectory = path.join(temporary, 'Linked');
+  await fs.mkdir(directory);
+  await fs.mkdir(linkedDirectory);
+  const dependencyPath = path.join(linkedDirectory, 'Earlier.fs');
+  const consumerPath = path.join(directory, 'Later.fs');
+  const dependencySource = 'module Shared\nlet selected = 1\n';
+  const consumerSource = 'module Consumer\nlet value = Shared.selected\n';
+  await fs.writeFile(dependencyPath, dependencySource);
+  await fs.writeFile(consumerPath, consumerSource);
+  const projectPath = path.join(directory, 'Linked.fsproj');
+  const xml = '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include="../Linked/Earlier.fs"><Link>Earlier.fs</Link></Compile><Compile Include="Later.fs"/></ItemGroup></Project>';
+  await fs.writeFile(projectPath, xml);
+  const environmentCertificate = await syntheticProjectCertificate(directory);
+  const modelPath = path.join(directory, 'evaluated.json');
+  await fs.writeFile(modelPath, JSON.stringify({
+    completeness: 'exact', inputs: [projectPath],
+    inputHashes: [{ path: projectPath, sha256: require('node:crypto').createHash('sha256').update(xml).digest('hex') }],
+    projects: [{ path: projectPath, name: 'Linked', files: [dependencyPath, consumerPath], references: [], defines: [], targetFramework: 'net10.0', configuration: 'Debug', compilerArgs: ['--langversion:preview'], evaluation: 'design-time-fsc-arguments', membershipReusable: true, sourceMembership: [], environmentCertificate, exact: true }],
+  }));
+  const binary = process.env.FSHARP_BACKEND_PATH || path.resolve(__dirname, '../../target/release/fsharp-navigator');
+  const editor = await createEditor(directory, binary, { evaluatedModelPath: modelPath });
+  t.after(async () => { editor.dispose(); await fs.rm(temporary, { recursive: true, force: true }); });
+  const dependency = await editor.open('../Linked/Earlier.fs');
+  const consumer = await editor.open('Later.fs');
+  assert.deepEqual(editor.api.processIds, [], 'The dependency is edited before a session or routing cache exists');
+  editor.edit(dependency, 'module Shared\n\nlet selected = 2\n');
+  const cursor = editor.position(consumer, 1, 'selected');
+  const query = async expectedLine => {
+    const locations = await editor.providers.definition.provideDefinition(consumer, cursor, editor.uncancelled);
+    assert.equal(locations?.length, 1, JSON.stringify(editor.api.lastResult));
+    assert.equal(editor.api.lastResult.completeness, 'exact');
+    assert.equal(locations[0].uri.fsPath, dependencyPath);
+    assert.deepEqual(locations[0].range, new (locations[0].range.constructor)(expectedLine, 4, expectedLine, 12));
+    assert.equal(consumer.version, 1, 'Only the earlier linked dependency changes');
+    assert.equal(consumer.getText(), consumerSource);
+  };
+  await query(2); // Disk still points at line 1; returning that exact target is stale.
+  editor.edit(dependency, 'module Shared\nlet oldSelected = 2\n\nlet selected = oldSelected\n');
+  await query(3); // The formerly exact line-2 declaration no longer exists.
+  editor.edit(dependency, dependencySource);
+  await query(1); // Buffer reversion must also invalidate the rebound answer.
+  assert.equal(await fs.readFile(dependencyPath, 'utf8'), dependencySource);
+  const [stats] = await editor.api.stats();
+  assert.equal(stats.helperStarts, 0);
+  assert.equal(stats.compilerLaunches, 0);
+});

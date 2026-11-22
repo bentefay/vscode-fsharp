@@ -9,7 +9,7 @@ export async function inspectPackage(filename, expectedNativeHash) {
   const entries = (await exec('unzip', ['-Z1', filename], { capture: true })).split('\n');
   const bundled = JSON.parse(await exec('unzip', ['-p', filename, 'extension/package.json'], { capture: true }));
   if (bundled.publisher !== manifest.publisher || bundled.name !== manifest.name) throw new Error('VSIX identity mismatch.');
-  for (const required of ['extension/THIRD_PARTY_NOTICES.md', 'extension/extension/dist/extension.js', 'extension/extension/dist/backend.js', 'extension/extension/dist/overlays.js', 'extension/extension/dist/virtualDocuments.js', 'extension/bin/linux-x64/fsharp-navigator']) {
+  for (const required of ['extension/THIRD_PARTY_NOTICES.md', 'extension/extension/dist/extension.js', 'extension/extension/dist/backend.js', 'extension/extension/dist/overlays.js', 'extension/extension/dist/trace.js', 'extension/extension/dist/virtualDocuments.js', 'extension/bin/linux-x64/fsharp-navigator']) {
     if (!entries.includes(required)) throw new Error(`Missing ${required}`);
   }
   const notices = await exec('unzip', ['-p', filename, 'extension/THIRD_PARTY_NOTICES.md'], { capture: true });
@@ -23,7 +23,11 @@ export async function inspectPackage(filename, expectedNativeHash) {
   if (expectedNativeHash && native.sha256 !== expectedNativeHash) throw new Error('Bundled native binary differs from the reviewed build.');
   return bundled;
 }
-export async function buildPackage() {
+export function packageOutputPath(output) {
+  return output === undefined ? vsixPath : path.resolve(process.env.FN_INVOCATION_CWD || root, output);
+}
+export async function buildPackage(output) {
+  const destination = packageOutputPath(output);
   if (process.platform !== 'linux' || process.arch !== 'x64') throw new Error('This prototype package target is linux-x64 only.');
   await exec('cargo', ['build', '--release', '--locked']);
   await exec('npm', ['run', 'compile']);
@@ -34,11 +38,15 @@ export async function buildPackage() {
   await copyFile(path.join(root, 'target/release/fsharp-navigator'), binary);
   await chmod(binary, 0o755);
   const nativeHash = createHash('sha256').update(await readFile(binary)).digest('hex');
-  await mkdir(path.dirname(vsixPath), { recursive: true });
-  await exec('node', ['node_modules/@vscode/vsce/vsce', 'package', '--no-dependencies', '--allow-missing-repository', '--target', 'linux-x64', '--out', vsixPath]);
-  await inspectPackage(vsixPath, nativeHash);
-  const hash = createHash('sha256').update(await readFile(vsixPath)).digest('hex');
-  await writeFile(vsixPath + '.sha256', `${hash}  ${path.basename(vsixPath)}\n`);
-  console.log(`${vsixPath}\nSHA-256 ${hash}\nNative SHA-256 ${nativeHash}\nBytes ${(await stat(vsixPath)).size}`);
-  return vsixPath;
+  await mkdir(path.dirname(destination), { recursive: true });
+  await exec('node', ['node_modules/@vscode/vsce/vsce', 'package', '--no-dependencies', '--allow-missing-repository', '--target', 'linux-x64', '--out', destination]);
+  const sourceEpoch = process.env.SOURCE_DATE_EPOCH || (await exec('git', ['show', '-s', '--format=%ct', 'HEAD'], { capture: true })).trim();
+  if (!/^\d+$/.test(sourceEpoch)) throw new Error('SOURCE_DATE_EPOCH must be a nonnegative integer.');
+  await exec('python3', ['scripts/normalize-vsix.py', destination, '--epoch', sourceEpoch]);
+  await inspectPackage(destination, nativeHash);
+  const hash = createHash('sha256').update(await readFile(destination)).digest('hex');
+  await writeFile(destination + '.sha256', `${hash}  ${path.basename(destination)}\n`);
+  await writeFile(destination + '.build.json', JSON.stringify({ sourceDateEpoch: Number(sourceEpoch), vsixSha256: hash, nativeSha256: nativeHash, scope: 'Same source and pinned build toolchain; not a cross-host Rust reproducibility claim' }, null, 2) + '\n');
+  console.log(`${destination}\nSHA-256 ${hash}\nNative SHA-256 ${nativeHash}\nBytes ${(await stat(destination)).size}`);
+  return destination;
 }

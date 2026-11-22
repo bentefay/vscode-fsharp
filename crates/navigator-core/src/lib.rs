@@ -1,5 +1,7 @@
+mod background;
 mod builtins;
 pub mod cancellation;
+mod candidate_ranking;
 pub mod context;
 pub mod decompiler;
 mod document_navigation;
@@ -9,6 +11,7 @@ mod index;
 mod library_types;
 mod local_lexical;
 mod metadata;
+mod possible_references;
 pub mod prepared;
 pub mod producer_contract;
 pub mod project;
@@ -87,12 +90,15 @@ struct Symbol {
     owner: String,
 }
 pub struct Workspace {
+    background: background::Background,
     root: String,
     mode: Mode,
     model: Model,
     index: Index,
     overlays: HashMap<String, Overlay>,
     document_navigation: document_navigation::DocumentNavigation,
+    trace_updates: bool,
+    document_update_trace: Option<Value>,
     epoch: u64,
     snapshot: String,
     session_id: String,
@@ -100,8 +106,10 @@ pub struct Workspace {
     model_hash: String,
     events: Receiver<notify::Result<notify::Event>>,
     pending_refresh: HashSet<String>,
+    discovery_directories: Vec<PathBuf>,
     _watcher: Option<RecommendedWatcher>,
     watcher_reliable: bool,
+    watcher_overflow: std::sync::Arc<std::sync::atomic::AtomicBool>,
     decompiler_path: Option<String>,
     decompiler_args: Vec<String>,
     decompiler_starts: u64,
@@ -134,8 +142,32 @@ pub struct Workspace {
     source_contexts: HashMap<String, context::SourceContext>,
     instance_contexts: HashMap<String, Option<context::SourceContext>>,
     query_domain: HashSet<String>,
+    request_source_candidates: Option<(Vec<Value>, bool, candidate_ranking::Ranking)>,
+    request_definition_can_progress: bool,
     builtin_path: Option<String>,
     builtin_environment: Option<builtins::Environment>,
+}
+
+fn candidate_declaration_tokens(parsed: &ParsedFile) -> impl Iterator<Item = usize> + '_ {
+    parsed
+        .declarations
+        .iter()
+        .chain(&parsed.potential_bindings)
+        .map(|declaration| declaration.token)
+        .chain(
+            parsed
+                .record_types
+                .iter()
+                .flat_map(|owner| owner.fields.iter().map(|field| field.token)),
+        )
+        .chain(parsed.type_aliases.iter().map(|alias| alias.token))
+        .chain(parsed.method_declarations.iter().map(|method| method.token))
+        .chain(
+            parsed
+                .pattern_declarations
+                .iter()
+                .map(|pattern| pattern.token),
+        )
 }
 
 fn string<'a>(p: &'a Value, name: &str) -> Result<&'a str> {
@@ -201,7 +233,9 @@ impl Workspace {
             .and_then(Value::as_str)
             .map(str::to_string);
         let mut ws = Self {
+            background: Default::default(),
             watcher_reliable: false,
+            watcher_overflow: Default::default(),
             session_id: format!(
                 "{}-{}",
                 std::process::id(),
@@ -215,6 +249,8 @@ impl Workspace {
             source_contexts: HashMap::new(),
             instance_contexts: HashMap::new(),
             query_domain: HashSet::new(),
+            request_source_candidates: None,
+            request_definition_can_progress: false,
             builtin_path: p
                 .get("builtinEnvironmentPath")
                 .and_then(Value::as_str)
@@ -227,12 +263,15 @@ impl Workspace {
             index,
             overlays: HashMap::new(),
             document_navigation: Default::default(),
+            trace_updates: std::env::var("FSHARP_NAVIGATOR_TRACE").as_deref() == Ok("1"),
+            document_update_trace: None,
             epoch: 0,
             snapshot: String::new(),
             context_hash: String::new(),
             model_hash: String::new(),
             events,
             pending_refresh: HashSet::new(),
+            discovery_directories: Vec::new(),
             _watcher: None,
             decompiler_path: p
                 .get("decompilerPath")
@@ -533,25 +572,79 @@ impl Workspace {
         if self.model_loaded {
             return Ok(());
         }
+        if matches!(self.background.phase, "scanning" | "limited") && foreground::is_active() {
+            return Err(background::Pending.into());
+        }
         let started = Instant::now();
-        self.model = if let Some(path) = &self.evaluated_model_path {
+        let model = if let Some(path) = &self.evaluated_model_path {
             Model::from_evaluated(
                 &self.root,
                 &serde_json::from_str(&foreground::read_text(Path::new(path), u64::MAX)?)?,
             )?
         } else {
-            project::discover(&self.root)?
+            let (model, directories) = project::discover_with_directories(&self.root)?;
+            self.discovery_directories = directories;
+            model
         };
+        self.install_model(model)?;
+        self.finish_explicit_discovery();
+        self.model_load_micros += started.elapsed().as_micros() as u64;
+        Ok(())
+    }
+    fn prepare_explicit_index_model(&mut self) -> Result<()> {
+        let replacing_provisional = self.background.raw_model;
+        if replacing_provisional {
+            // An explicit index must use the same fresh discovery/validation
+            // path as an explicit index before background publication. Never
+            // promote the existing provisional projects in place.
+            self.model_loaded = false;
+            self.background.phase = "scanning";
+        }
+        self.ensure_model()?;
+        self.drain_events()?;
+        if !self.model_loaded {
+            return Err(background::Pending.into());
+        }
+        if replacing_provisional {
+            // Keep the guard on cancellation, discovery, installation errors,
+            // or input events that invalidate the newly installed membership.
+            self.background.raw_model = false;
+        }
+        Ok(())
+    }
+
+    fn install_model(&mut self, model: Model) -> Result<()> {
+        self.model = model;
+        self.source_contexts.clear();
+        self.instance_contexts.clear();
+        self.covered_names.clear();
+        self.index.db.execute("DELETE FROM answers", [])?;
         self.index.retain_paths(&self.model.files)?;
+        self.index_errors
+            .retain(|path, _| self.model.files.contains(path));
         // Register only known source/configuration directories, not a recursive
         // crawl through .git, toolchains, node_modules or build outputs.
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = mpsc::sync_channel(1024);
         self.events = rx;
-        if let Ok(mut watcher) = notify::recommended_watcher(move |event| {
-            let _ = tx.send(event);
-        }) {
+        self.watcher_overflow = Default::default();
+        let overflow = self.watcher_overflow.clone();
+        let index_path = self.index.path.clone();
+        if let Ok(mut watcher) = notify::recommended_watcher(
+            move |event: notify::Result<notify::Event>| {
+                if matches!(&event, Ok(event) if !event.need_rescan() && (event.kind.is_access() || index::owned_file_event(event, &index_path)))
+                {
+                    return;
+                }
+                if matches!(tx.try_send(event), Err(mpsc::TrySendError::Full(_))) {
+                    overflow.store(true, std::sync::atomic::Ordering::Release);
+                }
+            },
+        ) {
             self.watcher_reliable = true;
             let mut dirs = HashSet::from([PathBuf::from(&self.root)]);
+            if self.evaluated_model_path.is_none() {
+                dirs.extend(self.discovery_directories.iter().cloned());
+            }
             for path in self
                 .model
                 .files
@@ -559,16 +652,21 @@ impl Workspace {
                 .chain(self.model.projects.iter().map(|p| &p.path))
                 .chain(self.model.inputs.iter())
             {
+                self.cancellation.check()?;
                 if let Some(parent) = Path::new(path).parent() {
                     dirs.insert(parent.to_path_buf());
                 }
             }
             let mut watches = HashMap::new();
             for mut directory in dirs {
-                while !directory.is_dir() && directory.pop() {}
+                self.cancellation.check()?;
+                while !directory.is_dir() && directory.pop() {
+                    self.cancellation.check()?;
+                }
                 watches.insert(directory, false);
             }
             for (root, recursive) in self.model.membership_roots() {
+                self.cancellation.check()?;
                 let mut path = PathBuf::from(root);
                 let root_exists = path.is_dir();
                 while !path.is_dir() && path.pop() {}
@@ -582,6 +680,7 @@ impl Workspace {
                     .or_insert(recursive);
             }
             for (dir, recursive) in watches {
+                self.cancellation.check()?;
                 let mode = if recursive {
                     RecursiveMode::Recursive
                 } else {
@@ -611,7 +710,6 @@ impl Workspace {
         self.refresh_context()?;
         self.refresh_snapshot()?;
         self.model_loaded = true;
-        self.model_load_micros += started.elapsed().as_micros() as u64;
         Ok(())
     }
     fn ensure_builtins(&mut self) -> Result<bool> {
@@ -793,9 +891,16 @@ impl Workspace {
     }
     fn drain_events(&mut self) -> Result<()> {
         let mut paths = std::mem::take(&mut self.pending_refresh);
-        let mut context_changed = false;
-        let mut semantic_changed = false;
-        for event in self.events.try_iter() {
+        let mut context_changed = self
+            .watcher_overflow
+            .swap(false, std::sync::atomic::Ordering::AcqRel);
+        if context_changed {
+            self.watcher_reliable = false;
+        }
+        let mut semantic_changed = context_changed;
+        let mut events_drained = 0;
+        for event in self.events.try_iter().take(1024) {
+            events_drained += 1;
             let e = match event {
                 Ok(e) if !e.need_rescan() => e,
                 _ => {
@@ -814,6 +919,28 @@ impl Workspace {
                     notify::EventKind::Modify(notify::event::ModifyKind::Name(_))
                 );
             for p in e.paths {
+                if self.evaluated_model_path.is_none()
+                    && p.strip_prefix(&self.root).is_ok_and(|relative| {
+                        relative
+                            .components()
+                            .any(|part| project::excluded(&part.as_os_str().to_string_lossy()))
+                    })
+                {
+                    continue;
+                }
+                if membership_event
+                    && self.evaluated_model_path.is_none()
+                    && p.starts_with(&self.root)
+                    && (p.is_dir()
+                        || self.discovery_directories.contains(&p)
+                        || matches!(
+                            e.kind,
+                            notify::EventKind::Create(notify::event::CreateKind::Folder)
+                                | notify::EventKind::Remove(notify::event::RemoveKind::Folder)
+                        ))
+                {
+                    context_changed = true;
+                }
                 if self.model.inputs.contains(&normalize(&p))
                     || membership_event
                         && self
@@ -850,6 +977,15 @@ impl Workspace {
                 }
             }
         }
+        if events_drained == 1024 && self.events.try_recv().is_ok()
+            || self
+                .watcher_overflow
+                .swap(false, std::sync::atomic::Ordering::AcqRel)
+        {
+            context_changed = true;
+            semantic_changed = true;
+            self.watcher_reliable = false;
+        }
         if context_changed {
             self.index.db.execute("DELETE FROM answers", [])?;
             self.covered_names.clear();
@@ -861,6 +997,7 @@ impl Workspace {
             }
             self.model.diagnostics.push("Project/configuration input changed; explicit workspace/evaluate or reopen is required".into());
             self.refresh_context()?;
+            self.restart_raw_discovery()?;
         }
         let mut changed = false;
         let mut paths = paths.into_iter();
@@ -909,11 +1046,13 @@ impl Workspace {
         self.cancellation = token;
     }
     pub fn dispatch(&mut self, method: &str, p: &Value) -> Result<Value> {
+        self.document_update_trace = None;
         let _scope = self.cancellation.enter();
         if self.cancellation.is_cancelled() {
             self.document_navigation.clear();
             self.cancellation.check()?;
         }
+        self.poll_background_changes()?;
         self.index.begin_request();
         let result = self.dispatch_inner(method, p);
         self.index.end_request();
@@ -937,8 +1076,18 @@ impl Workspace {
     fn dispatch_inner(&mut self, method: &str, p: &Value) -> Result<Value> {
         match method {
             "workspace/tree" | "project/tree" => {
+                if !self.model_loaded && matches!(self.background.phase, "scanning" | "limited") {
+                    return Ok(
+                        json!({"nodes":[],"projects":[],"completeness":"unavailable","source":"project-model","background":self.background.status(),"diagnostics":["Background discovery has not established the project membership; retry when discovery completes"]}),
+                    );
+                }
                 self.ensure_model()?;
                 self.drain_events()?;
+                if !self.model_loaded {
+                    return Ok(
+                        json!({"nodes":[],"projects":[],"completeness":"unavailable","source":"project-model","background":self.background.status(),"diagnostics":["Project membership changed; background discovery is pending"]}),
+                    );
+                }
                 Ok(self.model.tree())
             }
             "workspace/stats" => self.stats(),
@@ -948,6 +1097,7 @@ impl Workspace {
                     self.helper = None;
                     self.document_navigation.clear();
                     self.mode = mode;
+                    self.reset_background_mode();
                     self.covered_names.clear();
                     for o in self.overlays.values() {
                         self.index
@@ -976,8 +1126,7 @@ impl Workspace {
                 Ok(json!({"closed":true,"snapshotId":self.snapshot}))
             }
             "workspace/index" => {
-                self.ensure_model()?;
-                self.drain_events()?;
+                self.prepare_explicit_index_model()?;
                 let mut changed = false;
                 for path in self.model.files.clone() {
                     changed |= self.refresh_file(
@@ -1019,6 +1168,7 @@ impl Workspace {
                         .diagnostics
                         .push("Project inputs changed; reevaluate or reopen workspace".into());
                     self.refresh_context()?;
+                    self.restart_raw_discovery()?;
                     changed = true;
                 }
                 if changed {
@@ -1069,10 +1219,13 @@ impl Workspace {
                     json!({"occurrences":count,"snapshotId":self.snapshot,"invalidation":"All imported results invalid after any source/context edit; no semantic early cutoff claimed"}),
                 )
             }
+            "navigation/possibleReferences" => self.possible_references(p),
             "navigation/definition" | "navigation/references" | "navigation/hover" => {
                 if self.mode != Mode::Indexed {
                     return self.navigation(method, p);
                 }
+                self.request_source_candidates = None;
+                self.request_definition_can_progress = false;
                 let _scope = foreground::Scope::enter();
                 let answer = self.navigation(method, p);
                 self.cancellation.check()?;
@@ -1082,16 +1235,53 @@ impl Workspace {
                     // if part of its required work was declined.
                     self.covered_names.clear();
                     self.refresh_snapshot()?;
-                    let mut unavailable =
-                        self.empty(method == "navigation/hover", &limit.to_string());
+                    if self.background.requested && !self.model_loaded {
+                        self.background.phase = "scanning";
+                    }
+                    let reason = if self.background_pending() {
+                        "Indexed navigation reached its foreground work limit; background discovery/indexing is in progress; retry navigation".to_string()
+                    } else {
+                        limit.to_string()
+                    };
+                    let mut unavailable = self.empty(method == "navigation/hover", &reason);
+                    self.attach_source_candidates(&mut unavailable);
+                    unavailable["background"] = self.background.status();
                     let version = self.overlays.get(&path_param(p)?).map(|o| o.version);
                     unavailable["documentVersion"] = json!(version);
                     unavailable["version"] = json!(version);
                     unavailable["snapshotId"] = json!(self.snapshot);
                     unavailable["snapshot"] = json!(self.epoch);
+                    self.attach_indexing_hint(method, &mut unavailable);
+                    Ok(unavailable)
+                } else if answer
+                    .as_ref()
+                    .err()
+                    .is_some_and(|e| e.is::<background::Pending>())
+                {
+                    let reason = if self.background.phase == "limited" {
+                        format!(
+                            "Background preparation stopped: {}",
+                            self.background
+                                .reason
+                                .as_deref()
+                                .unwrap_or("resource limit reached")
+                        )
+                    } else {
+                        background::Pending.to_string()
+                    };
+                    let mut unavailable = self.empty(method == "navigation/hover", &reason);
+                    self.attach_source_candidates(&mut unavailable);
+                    unavailable["background"] = self.background.status();
+                    let version = self.overlays.get(&path_param(p)?).map(|o| o.version);
+                    unavailable["version"] = json!(version);
+                    unavailable["documentVersion"] = json!(version);
+                    self.attach_indexing_hint(method, &mut unavailable);
                     Ok(unavailable)
                 } else {
-                    answer
+                    answer.map(|mut result| {
+                        self.attach_indexing_hint(method, &mut result);
+                        result
+                    })
                 }
             }
             "$/cancelRequest" => Ok(
@@ -1105,6 +1295,7 @@ impl Workspace {
         }
     }
     fn change(&mut self, p: &Value) -> Result<Value> {
+        let started = self.trace_updates.then(Instant::now);
         let path = path_param(p)?;
         let text = string(p, "text")?;
         let version = p
@@ -1126,10 +1317,18 @@ impl Workspace {
             .sum::<usize>()
             + text.len();
         anyhow::ensure!(bytes<=self.overlay_budget,"Open document text exceeds configured overlayBudgetMb; close another document or raise budget");
-        let (changed, source_hash) = self
-            .index
-            .overlay(&path, text, self.mode != Mode::Lexical)?;
-        self.document_navigation.invalidate(&path);
+        let validation_micros = started.map(|started| started.elapsed().as_micros() as u64);
+        let (changed, source_hash, index_trace) = self.index.overlay_traced(
+            &path,
+            text,
+            self.mode != Mode::Lexical,
+            self.trace_updates,
+        )?;
+        let store_started = self.trace_updates.then(Instant::now);
+        let document_key = self
+            .trace_updates
+            .then(|| blake3::hash(path.as_bytes()).to_hex().to_string());
+        let proof_cache_evicted = self.document_navigation.invalidate(&path);
         self.overlays.insert(
             path.clone(),
             Overlay {
@@ -1139,10 +1338,31 @@ impl Workspace {
                 source_hash: source_hash.to_hex().to_string(),
             },
         );
+        let overlay_store_micros =
+            store_started.map(|started| started.elapsed().as_micros() as u64);
+        let snapshot_started = self.trace_updates.then(Instant::now);
         if changed {
             self.semantic_revision += 1;
             self.covered_names.clear();
             self.refresh_snapshot()?;
+        }
+        if let (Some(started), Some(index_trace)) = (started, index_trace) {
+            self.document_update_trace = Some(json!({
+                "documentKey":document_key,"version":version,"sourceHash":source_hash.to_hex().to_string(),
+                "bytes":text.len(),"changed":changed,"validationMicros":validation_micros,
+                "indexUpdateMicros":index_trace.index_update_micros,"hashMicros":index_trace.hash_micros,
+                "nameScanMicros":index_trace.name_scan_micros,"namesCount":index_trace.names_count,
+                "lookupMicros":index_trace.lookup_micros,
+                "transactionBeginMicros":index_trace.transaction_begin_micros,
+                "postingsDeleteMicros":index_trace.postings_delete_micros,
+                "namesInsertMicros":index_trace.names_insert_micros,
+                "stateWriteMicros":index_trace.state_write_micros,
+                "commitMicros":index_trace.commit_micros,
+
+                "overlayStoreMicros":overlay_store_micros,"proofCacheEvicted":proof_cache_evicted,
+                "snapshotMicros":snapshot_started.map(|started|started.elapsed().as_micros() as u64),
+                "totalMicros":started.elapsed().as_micros() as u64,
+            }));
         }
         Ok(
             json!({"accepted":true,"version":version,"documentVersion":version,"snapshot":self.epoch,"snapshotId":self.snapshot}),
@@ -1459,6 +1679,314 @@ impl Workspace {
             json!({"locations":[],"completeness":"unavailable","source":self.mode.name(),"reason":reason,"diagnostics":[reason]})
         }
     }
+    /// Later implementation files cannot bind an earlier use in this deliberately
+    /// narrow certified compilation. Unknown ordering, signatures and linked or
+    /// referenced projects retain the broader suggestions instead.
+    fn later_candidate_files(&self, origin: &str) -> HashSet<String> {
+        if self.model.projects.len() != 1 || self.possible_signature_context(origin, false) {
+            return HashSet::new();
+        }
+        let Some(project) = self.model.source_instance_project(origin, None) else {
+            return HashSet::new();
+        };
+        if project.evaluation != "design-time-fsc-arguments"
+            || project.membership_reusable != Some(true)
+            || project.compiler_args.is_empty()
+            || !project.references.is_empty()
+            || project.files.iter().collect::<HashSet<_>>().len() != project.files.len()
+        {
+            return HashSet::new();
+        }
+        let Some(position) = project.files.iter().position(|path| path == origin) else {
+            return HashSet::new();
+        };
+        project.files[position + 1..].iter().cloned().collect()
+    }
+    // Prefer an existing contextual summary. The raw fallback below is used
+    // only for suggestions and never enters contextual or binding-proof caches.
+    // Unknown conditionals retain the unconditional physical-source prefix.
+    fn candidate_parsed(&mut self, path: &str) -> Result<ParsedFile> {
+        if !self.ambiguous_instance(path) {
+            let parsed = self.parsed(path)?;
+            if !parsed.tokens.is_empty() || parsed.supported {
+                return Ok(parsed);
+            }
+        }
+        self.raw_candidate_parsed(path)
+    }
+    fn raw_candidate_parsed(&mut self, path: &str) -> Result<ParsedFile> {
+        let source = if let Some(overlay) = self.overlays.get(path) {
+            overlay.text.to_string()
+        } else {
+            self.index.candidate_source(path)?
+        };
+        let prefix = match context::unconditional_prefix(&source, &self.cancellation) {
+            Ok(prefix) => prefix,
+            Err(error)
+                if error.is::<cancellation::Cancelled>() || error.is::<foreground::Limit>() =>
+            {
+                return Err(error)
+            }
+            Err(_) => return Ok(syntax::parse("")),
+        };
+        foreground::parse()?;
+        let parsed = if project::signature(path) {
+            treesitter::parse_signature(prefix)
+        } else {
+            parse_indexed(prefix)
+        };
+        self.index.counters.files_parsed += 1;
+        self.cancellation.check()?;
+        Ok(parsed)
+    }
+
+    fn attach_indexing_hint(&self, method: &str, result: &mut Value) {
+        if method == "navigation/definition"
+            && self.request_definition_can_progress
+            && self.background_pending()
+            && matches!(self.background.phase, "scanning" | "indexing")
+            && result["completeness"] != "exact"
+            && result
+                .get("locations")
+                .and_then(Value::as_array)
+                .is_none_or(Vec::is_empty)
+            && result
+                .get("candidates")
+                .and_then(Value::as_array)
+                .is_none_or(Vec::is_empty)
+        {
+            result["indexing"] = json!({"phase":self.background.phase,"generation":self.background.generation,"retryAfterMs":100});
+        }
+    }
+
+    fn attach_source_candidates(&mut self, result: &mut Value) {
+        if let Some((candidates, truncated, ranking)) = self.request_source_candidates.take() {
+            ranking.apply(result);
+            if truncated {
+                result["candidateTruncated"] = json!(true);
+                result["candidateTruncationReason"] = json!("Source candidate search reached its 200-location limit; additional plausible targets may exist");
+            }
+            result["candidates"] = json!(candidates);
+            result["candidateKind"] = json!("same-source-declarations");
+            result["candidateCompleteness"] = json!("incomplete");
+        }
+    }
+    /// Recover only the physical query identifier/qualifier after an unknown
+    /// conditional. Target declarations still use conservative prefix parsing.
+    fn candidate_query(
+        &mut self,
+        path: &str,
+        parsed: &ParsedFile,
+        line: u32,
+        col: u32,
+    ) -> Result<Option<(String, candidate_ranking::UseEvidence)>> {
+        if let Some(token) = parsed.token_at(line, col) {
+            return Ok(parsed.tokens[token].ident.then(|| {
+                (
+                    parsed.tokens[token].text.clone(),
+                    candidate_ranking::UseEvidence::new(parsed, token),
+                )
+            }));
+        }
+        const MAX_PHYSICAL_SOURCE: usize = 1024 * 1024;
+        self.cancellation.check()?;
+        let source = if let Some(overlay) = self.overlays.get(path) {
+            if overlay.text.len() > MAX_PHYSICAL_SOURCE || parsed.source_len >= overlay.text.len() {
+                return Ok(None);
+            }
+            overlay.text.to_string()
+        } else {
+            let len = std::fs::metadata(path)?.len();
+            if len > MAX_PHYSICAL_SOURCE as u64 || parsed.source_len as u64 >= len {
+                return Ok(None);
+            }
+            self.index.candidate_source(path)?
+        };
+        if source.len() > MAX_PHYSICAL_SOURCE {
+            return Ok(None);
+        }
+        let prefix = match context::unconditional_prefix(&source, &self.cancellation) {
+            Ok(prefix) => prefix,
+            Err(error)
+                if error.is::<cancellation::Cancelled>() || error.is::<foreground::Limit>() =>
+            {
+                return Err(error)
+            }
+            Err(_) => return Ok(None),
+        };
+        let suffix = source[prefix.len()..].trim_start_matches([' ', '\t']);
+        if !suffix
+            .strip_prefix("#if")
+            .is_some_and(|rest| rest.starts_with(char::is_whitespace))
+            || (line as usize) < prefix.bytes().filter(|byte| *byte == b'\n').count()
+        {
+            return Ok(None);
+        }
+        match context::validate_candidate_lexical_source(&source, &self.cancellation) {
+            Ok(()) => (),
+            Err(error)
+                if error.is::<cancellation::Cancelled>() || error.is::<foreground::Limit>() =>
+            {
+                return Err(error)
+            }
+            Err(_) => return Ok(None),
+        }
+        foreground::parse()?;
+        let physical = if project::signature(path) {
+            treesitter::parse_signature(&source)
+        } else {
+            treesitter::parse(&source)
+        };
+        self.index.counters.files_parsed += 1;
+        self.cancellation.check()?;
+        if physical
+            .reasons
+            .iter()
+            .any(|reason| reason == "Tree-sitter recovered incomplete or unsupported syntax")
+        {
+            return Ok(None);
+        }
+        let Some(token) = physical.token_at(line, col).filter(|token| {
+            physical.tokens[*token].ident && physical.tokens[*token].start >= prefix.len()
+        }) else {
+            return Ok(None);
+        };
+        Ok(Some((
+            physical.tokens[token].text.clone(),
+            candidate_ranking::UseEvidence::conditional_qualifier(physical.qualifier(token)),
+        )))
+    }
+
+    fn prepare_source_candidates(&mut self, path: &str, line: u32, col: u32) -> Result<()> {
+        self.ensure_path(path)?;
+        let parsed = self.raw_candidate_parsed(path)?;
+        let Some((name, hint)) = self.candidate_query(path, &parsed, line, col)? else {
+            self.request_definition_can_progress = false;
+            return Ok(());
+        };
+        self.request_definition_can_progress = true;
+        let mut ranking = candidate_ranking::Ranking::default();
+        let mut seen = HashSet::new();
+        let mut locations = Vec::new();
+        let mut truncated = false;
+        for ordinal in candidate_declaration_tokens(&parsed) {
+            let Some(token) = parsed.tokens.get(ordinal) else {
+                continue;
+            };
+            if token.text != name || !seen.insert(ordinal) {
+                continue;
+            }
+            if locations.len() == 200 {
+                truncated = true;
+                break;
+            }
+            let location = json!({"uri":uri(path),"range":token.range()});
+            ranking.observe(&location, hint.rank(&parsed, ordinal, true, false));
+            locations.push(location);
+        }
+        if !locations.is_empty() {
+            self.request_source_candidates = Some((locations, truncated, ranking));
+        }
+        Ok(())
+    }
+
+    /// Bounded suggestions, deliberately separate from binding proofs and answer caches.
+    /// Reparse current source rather than trusting declaration token ordinals from SQLite:
+    /// an edit can move or replace the declaration occupying an old ordinal.
+    fn possible_definitions(
+        &mut self,
+        origin: &str,
+        name: &str,
+        hint: Option<&candidate_ranking::UseEvidence>,
+    ) -> Result<(Vec<Value>, bool, candidate_ranking::Ranking)> {
+        const MAX_FILES: usize = 32;
+        const MAX_LOCATIONS: usize = 200;
+        let later_files = self.later_candidate_files(origin);
+        let selected_files = self
+            .model
+            .source_instance_project(origin, self.active_project.as_deref())
+            .map(|project| project.files.iter().cloned().collect::<HashSet<_>>())
+            .unwrap_or_default();
+        let rank = |path: &str, domain: &HashSet<String>| {
+            if path == origin || !domain.contains(path) || later_files.contains(path) {
+                None
+            } else {
+                Some(if selected_files.contains(path) { 0 } else { 1 })
+            }
+        };
+        let mut selected =
+            self.index
+                .ranked_candidate_paths(name, MAX_FILES - 1, 4096, |path| {
+                    rank(path, &self.query_domain)
+                })?;
+        let mut truncated = selected.truncated;
+        // Seed at most eight nearby compilation inputs only when the bounded
+        // indexed search has no eligible path. Warm suggestions scan rows once.
+        if selected.paths.is_empty() {
+            let nearby = self
+                .model
+                .source_instance_project(origin, self.active_project.as_deref())
+                .map(|project| {
+                    let at = project
+                        .files
+                        .iter()
+                        .position(|file| file == origin)
+                        .unwrap_or(0);
+                    project.files[..at]
+                        .iter()
+                        .rev()
+                        .chain(project.files[at..].iter())
+                        .filter(|file| file.as_str() != origin)
+                        .take(8)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            for path in nearby {
+                self.cancellation.check()?;
+                self.refresh_file(&path, false)?;
+            }
+            selected = self
+                .index
+                .ranked_candidate_paths(name, MAX_FILES - 1, 4096, |path| {
+                    rank(path, &self.query_domain)
+                })?;
+            truncated |= selected.truncated;
+        }
+        let mut ranking = candidate_ranking::Ranking::default();
+        let mut locations = Vec::new();
+        let mut seen = HashSet::new();
+        for path in std::iter::once(origin.to_owned()).chain(selected.paths) {
+            self.cancellation.check()?;
+            self.ensure_path(&path)?;
+            let parsed = self.candidate_parsed(&path)?;
+            let tokens = candidate_declaration_tokens(&parsed);
+            for ordinal in tokens {
+                let Some(token) = parsed.tokens.get(ordinal) else {
+                    continue;
+                };
+                if token.text == name && seen.insert((path.clone(), ordinal)) {
+                    if locations.len() == MAX_LOCATIONS {
+                        return Ok((locations, true, ranking));
+                    }
+                    let location = json!({"uri":uri(&path),"range":token.range()});
+                    if let Some(hint) = hint {
+                        ranking.observe(
+                            &location,
+                            hint.rank(
+                                &parsed,
+                                ordinal,
+                                path == origin,
+                                selected_files.contains(&path),
+                            ),
+                        );
+                    }
+                    locations.push(location);
+                }
+            }
+        }
+        Ok((locations, truncated, ranking))
+    }
     fn navigation(&mut self, method: &str, p: &Value) -> Result<Value> {
         let started = Instant::now();
         self.index.counters.query_count += 1;
@@ -1543,9 +2071,27 @@ impl Workspace {
                 }
             }
         }
+        self.request_definition_can_progress = method == "navigation/definition"
+            && p.get("projectPath").and_then(Value::as_str).is_none();
+        if self.mode == Mode::Indexed
+            && self.evaluated_model_path.is_none()
+            && !self.model_loaded
+            && matches!(self.background.phase, "scanning" | "limited")
+            && p.get("projectPath").and_then(Value::as_str).is_none()
+            && method == "navigation/definition"
+        {
+            self.prepare_source_candidates(&path, line, col)?;
+        }
         self.type_proofs = Default::default();
+        if self.mode == Mode::Indexed && self.evaluated_model_path.is_none() {
+            self.background.requested = true;
+            self.background.demand_origin = Some(path.clone());
+        }
         self.ensure_model()?;
         self.drain_events()?;
+        if !self.model_loaded {
+            return Err(background::Pending.into());
+        }
         let requested_project = p
             .get("projectPath")
             .and_then(Value::as_str)
@@ -1555,6 +2101,7 @@ impl Workspace {
             .source_instance_project(&path, requested_project.as_deref())
             .map(|p| p.path.clone());
         if requested_project.is_some() && selected.is_none() {
+            self.request_definition_can_progress = false;
             return Ok(self.empty(
                 method == "navigation/hover",
                 "The selected project does not identify this source instance",
@@ -1562,6 +2109,7 @@ impl Workspace {
         }
         self.select_project(selected);
         if self.ambiguous_instance(&path) {
+            self.request_definition_can_progress = false;
             return Ok(self.empty(
                 method == "navigation/hover",
                 "Select a project context for this linked source file",
@@ -1592,6 +2140,7 @@ impl Workspace {
         } else {
             None
         };
+        let raw_unproven = self.mode == Mode::Indexed && self.background.raw_model && !hover;
         if let Some(parsed) = &parsed {
             if let Some(token) = parsed.token_at(line, col) {
                 let local = parsed.local_binding(token);
@@ -1609,7 +2158,7 @@ impl Workspace {
                         && method != "navigation/references"))
                     || shadowable_open
                     || (method == "navigation/references" && local.is_some_and(|d| d.top_level));
-                if needs_name_coverage && !parsed.possible_named_argument(token) {
+                if !raw_unproven && needs_name_coverage && !parsed.possible_named_argument(token) {
                     self.ensure_name_coverage(&parsed.tokens[token].text)?;
                 }
             }
@@ -1619,6 +2168,8 @@ impl Workspace {
             self.semantic(method, p)?
         } else if let Some(cached) = semantic_cached {
             cached
+        } else if raw_unproven {
+            self.empty(false, "Background project membership is provisional; no exact project-wide proof is available")
         } else if let Some(mut cached) = self.index.answer(&key, &self.snapshot)? {
             // Catalog artifacts and their assembly/XML inputs may change while
             // source files remain unchanged. A cached external answer carries
@@ -1645,18 +2196,17 @@ impl Workspace {
                     self.definition_binding(&path, &parsed, token)?
                 } {
                     if method == "navigation/definition" {
-                        let Some(target) =
+                        if let Some(target) =
                             self.definition_target(&path, &parsed, token, symbol.clone())?
-                        else {
-                            return Ok(
-                                self.empty(false, "Declaration-to-contract routing is not proven")
-                            );
-                        };
-                        let mut answer = json!({"locations":[self.location(&target)?],"completeness":"exact","source":self.mode.name()});
-                        if symbol.member {
-                            answer["proof"] = json!({"kind":"nominal-receiver-facts","declarationPath":symbol.path,"invalidation":"source-and-project-snapshot"});
+                        {
+                            let mut answer = json!({"locations":[self.location(&target)?],"completeness":"exact","source":self.mode.name()});
+                            if symbol.member {
+                                answer["proof"] = json!({"kind":"nominal-receiver-facts","declarationPath":symbol.path,"invalidation":"source-and-project-snapshot"});
+                            }
+                            answer
+                        } else {
+                            self.empty(false, "Declaration-to-contract routing is not proven")
                         }
-                        answer
                     } else {
                         self.references(
                             &symbol,
@@ -1704,6 +2254,12 @@ impl Workspace {
                 };
                 self.empty(hover, &reason)
             };
+            if self.mode == Mode::Indexed
+                && self.background.raw_model
+                && value["completeness"] == "exact"
+            {
+                value = self.empty(hover, "Background project membership is provisional; no exact project-wide proof is available");
+            }
             if self.type_proofs.metadata_used {
                 value["metadataDependent"] = json!(true);
             }
@@ -1761,6 +2317,33 @@ impl Workspace {
                 )? {
                     result = answer;
                 }
+            }
+        }
+        if method == "navigation/definition"
+            && self.mode != Mode::Semantic
+            && result.get("completeness").and_then(Value::as_str) != Some("exact")
+        {
+            let origin = self.candidate_parsed(&path)?;
+            if let Some((name, hint)) = self.candidate_query(&path, &origin, line, col)? {
+                self.request_definition_can_progress = true;
+                if hint.physical_conditional() {
+                    result["candidateOrigin"] = json!("physical-conditional-source");
+                }
+                let (candidates, truncated, ranking) =
+                    self.possible_definitions(&path, &name, Some(&hint))?;
+                if truncated {
+                    result["candidateTruncated"] = json!(true);
+                    result["candidateTruncationReason"] = json!("Candidate search reached its bounded path, row, or location limit; additional plausible targets may exist");
+                }
+                if !candidates.is_empty() {
+                    // Never promote even a singleton spelling match to an exact answer.
+                    ranking.apply(&mut result);
+                    result["candidates"] = json!(candidates);
+                    result["candidateKind"] = json!("same-name-declarations");
+                    result["candidateCompleteness"] = json!("incomplete");
+                }
+            } else {
+                self.request_definition_can_progress = false;
             }
         }
         result["projectContextId"] = json!(self.source_context(&path).map(|c| c.id.clone()));
@@ -2410,6 +2993,7 @@ impl Workspace {
         self.helper = None;
         let value = result?;
         self.model = Model::from_evaluated(&self.root, &value)?;
+        self.background.raw_model = false;
         for path in self.model.files.clone() {
             self.refresh_file(&path, false)?;
         }
@@ -2417,6 +3001,19 @@ impl Workspace {
         self.refresh_snapshot()?;
         Ok(self.model.tree())
     }
+    pub fn document_update_trace(&self) -> Option<&Value> {
+        self.document_update_trace.as_ref()
+    }
+
+    /// Diagnostic identity only; a local proof can succeed before transport cancellation.
+    pub fn local_proof_attempt_count(&self) -> u64 {
+        self.document_navigation.attempt_count()
+    }
+
+    pub fn last_local_proof_attempt(&self) -> Value {
+        self.document_navigation.last_attempt()
+    }
+
     pub fn stats(&self) -> Result<Value> {
         let mut stats = serde_json::to_value(&self.index.counters)?;
         self.document_navigation.stats(&mut stats);
@@ -2460,6 +3057,7 @@ impl Workspace {
             json!(self.builtin_environment.as_ref().map(|e| &e.fingerprint));
         stats["memoryPolicy"] = json!({"indexCacheMb":self.index_cache_mb,"maxFileBytes":self.index.max_file_bytes,"overlayBudgetBytes":self.overlay_budget,"helperMemoryLimitMb":self.helper_limit_mb,"helperEnforcement":"sampled process-tree RSS; kill on overrun during requests","nativeHardRssCap":false});
         stats["indexErrors"] = json!(self.index_errors);
+        stats["background"] = self.background.status();
         stats["watcherActive"] = json!(self._watcher.is_some());
         stats["watcherReliable"] = json!(self.watcher_reliable);
         Ok(stats)
@@ -2488,6 +3086,1030 @@ mod integration_tests {
         (path, ws)
     }
     #[test]
+    fn document_update_trace_is_opt_in_current_and_does_not_parse_or_reuse_stale_proofs() {
+        let (root, mut ws) = fixture();
+        ws.trace_updates = false;
+        let path = root.join("Main.fs");
+        let text = "module Consumer\nlet mapped = List.map (fun local -> local + 1) [1]\n";
+        let query =
+            |version, shift| json!({"path":path,"line":1,"character":36+shift,"version":version});
+        ws.dispatch(
+            "document/open",
+            &json!({"path":path,"text":text,"version":1}),
+        )
+        .unwrap();
+        assert!(ws.document_update_trace().is_none());
+        let first = ws.dispatch("navigation/definition", &query(1, 0)).unwrap();
+        assert_eq!(first["proofScope"], "document", "{first}");
+        ws.trace_updates = true;
+        let parsed_before = ws.index.counters.files_parsed;
+        ws.dispatch(
+            "document/change",
+            &json!({"path":path,"text":text,"version":2}),
+        )
+        .unwrap();
+        let unchanged = ws.document_update_trace().unwrap().clone();
+        assert_eq!(unchanged["changed"], false);
+        assert_eq!(unchanged["namesCount"], 0);
+        for phase in [
+            "transactionBeginMicros",
+            "postingsDeleteMicros",
+            "nameScanMicros",
+            "namesInsertMicros",
+            "commitMicros",
+        ] {
+            assert_eq!(unchanged[phase], 0, "unchanged contents must skip {phase}");
+        }
+        assert!(unchanged["proofCacheEvicted"].as_u64().unwrap() > 0);
+        assert_eq!(unchanged["version"], 2);
+        assert_eq!(
+            unchanged["sourceHash"],
+            blake3::hash(text.as_bytes()).to_hex().as_str()
+        );
+        assert_eq!(
+            ws.index.counters.files_parsed, parsed_before,
+            "overlay acknowledgement must not construct an AST"
+        );
+        let second = ws.dispatch("navigation/definition", &query(2, 0)).unwrap();
+        assert_eq!(second["locations"], first["locations"]);
+        assert_eq!(second["documentVersion"], 2);
+        assert_ne!(second["documentProofId"], first["documentProofId"]);
+        assert!(
+            ws.document_update_trace().is_none(),
+            "never expose the prior request trace"
+        );
+        let edited = text.replace("let mapped", " let mapped");
+        ws.dispatch(
+            "document/change",
+            &json!({"path":path,"text":edited,"version":3}),
+        )
+        .unwrap();
+        let changed = ws.document_update_trace().unwrap().clone();
+        assert_eq!(changed["changed"], true);
+        assert!(changed["namesCount"].as_u64().unwrap() > 0);
+        assert_ne!(changed["sourceHash"], unchanged["sourceHash"]);
+        assert_eq!(changed["documentKey"], unchanged["documentKey"]);
+        assert_eq!(changed["bytes"], edited.len());
+        assert!(
+            changed["totalMicros"].as_u64().unwrap()
+                >= changed["indexUpdateMicros"].as_u64().unwrap()
+        );
+        assert!(
+            changed["indexUpdateMicros"].as_u64().unwrap()
+                >= changed["hashMicros"].as_u64().unwrap()
+                    + changed["nameScanMicros"].as_u64().unwrap()
+                    + changed["lookupMicros"].as_u64().unwrap()
+                    + changed["transactionBeginMicros"].as_u64().unwrap()
+                    + changed["postingsDeleteMicros"].as_u64().unwrap()
+                    + changed["namesInsertMicros"].as_u64().unwrap()
+                    + changed["stateWriteMicros"].as_u64().unwrap()
+                    + changed["commitMicros"].as_u64().unwrap()
+        );
+        assert_eq!(ws.index.counters.files_parsed, parsed_before);
+        let current = ws.dispatch("navigation/definition", &query(3, 1)).unwrap();
+        assert_eq!(current["proofScope"], "document");
+        assert_eq!(current["documentVersion"], 3);
+        assert_eq!(
+            current["locations"][0]["range"]["start"]["character"]
+                .as_u64()
+                .unwrap(),
+            first["locations"][0]["range"]["start"]["character"]
+                .as_u64()
+                .unwrap()
+                + 1
+        );
+        assert!(ws
+            .dispatch(
+                "document/change",
+                &json!({"path":path,"text":text,"version":2})
+            )
+            .is_err());
+        assert!(ws.document_update_trace().is_none());
+        ws.trace_updates = false;
+        ws.dispatch(
+            "document/change",
+            &json!({"path":path,"text":edited,"version":4}),
+        )
+        .unwrap();
+        assert!(ws.document_update_trace().is_none());
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn conditional_origin_candidates_keep_competing_targets_and_context_guards() {
+        let (root, mut ws) = fixture();
+        let path = root.join("Main.fs");
+        let text="module Consumer\nmodule LibraryA = LibraryB\n#if UNKNOWN\nlet result = LibraryA.value\n#else\nlet result = LibraryB.value\n#endif\n";
+        fs::write(&path, text).unwrap();
+        ws.dispatch("workspace/index", &json!({})).unwrap();
+        for line in [3, 5] {
+            let column = text.lines().nth(line).unwrap().find("value").unwrap();
+            let params = json!({"path":path,"line":line,"character":column});
+            let answer = ws.dispatch("navigation/definition", &params).unwrap();
+            assert_ne!(answer["completeness"], "exact", "{answer}");
+            assert_eq!(answer["locations"], json!([]));
+            assert_eq!(answer["candidateOrigin"], "physical-conditional-source");
+            assert_eq!(answer["candidateCompleteness"], "incomplete");
+            let values = answer["candidates"].as_array().unwrap();
+            for target in ["/A.fs", "/B.fs"] {
+                assert!(
+                    values
+                        .iter()
+                        .any(|v| v["uri"].as_str().unwrap().ends_with(target)),
+                    "{answer}"
+                );
+            }
+            assert_ne!(
+                ws.dispatch("navigation/references", &params).unwrap()["completeness"],
+                "exact"
+            );
+            let mut invalid = params.clone();
+            invalid["projectPath"] = json!(root.join("Missing.fsproj"));
+            let rejected = ws.dispatch("navigation/definition", &invalid).unwrap();
+            assert!(rejected.get("candidates").is_none());
+        }
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn conditional_origin_candidates_refuse_literal_comments_malformed_and_oversized_sources() {
+        let (root, mut ws) = fixture();
+        let path = root.join("Main.fs");
+        for (version, text, line) in [
+            (
+                1,
+                "module Consumer\n#if X\nlet text = \"LibraryA.value\"\n#endif\n",
+                2,
+            ),
+            (2, "module Consumer\n#if X\n// LibraryA.value\n#endif\n", 2),
+            (
+                3,
+                "module Consumer\n#if X\nlet text = \"LibraryA.value\n#endif\n",
+                2,
+            ),
+            (
+                4,
+                "module Consumer\n#nowarn \"40\"\n#if X\nlet result = LibraryA.value\n#endif\n",
+                3,
+            ),
+        ] {
+            ws.dispatch(
+                "document/open",
+                &json!({"path":path,"version":version,"text":text}),
+            )
+            .unwrap();
+            let prefix = ws.raw_candidate_parsed(&normalize(&path)).unwrap();
+            let column = text.lines().nth(line).unwrap().find("value").unwrap() as u32;
+            assert!(
+                ws.candidate_query(&normalize(&path), &prefix, line as u32, column)
+                    .unwrap()
+                    .is_none(),
+                "{text}"
+            );
+        }
+        let oversized = format!(
+            "module Consumer\n#if X\nlet result = LibraryA.value\n#endif\n// {}",
+            "x".repeat(1024 * 1024)
+        );
+        ws.dispatch(
+            "document/open",
+            &json!({"path":path,"version":5,"text":oversized}),
+        )
+        .unwrap();
+        let prefix = ws.raw_candidate_parsed(&normalize(&path)).unwrap();
+        let before = ws.index.counters.files_parsed;
+        assert!(ws
+            .candidate_query(&normalize(&path), &prefix, 2, 22)
+            .unwrap()
+            .is_none());
+        assert_eq!(ws.index.counters.files_parsed, before);
+        let cancelled = cancellation::CancellationToken::new();
+        cancelled.cancel();
+        ws.set_cancellation(cancelled);
+        assert!(ws
+            .candidate_query(&normalize(&path), &prefix, 2, 22)
+            .err()
+            .unwrap()
+            .is::<cancellation::Cancelled>());
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn conditional_origin_pending_queries_keep_continuation_and_dirty_identity() {
+        let (root, original) = fixture();
+        drop(original);
+        let noise = root.join("noise");
+        fs::create_dir(&noise).unwrap();
+        for n in 0..700 {
+            fs::write(noise.join(format!("{n}.txt")), "noise").unwrap();
+        }
+        let path = root.join("Main.fs");
+        let text = "module Consumer\n#if X\nlet result = LibraryA.value\n#endif\n";
+        let mut ws = Workspace::open(&json!({"root":root,"mode":"indexed"})).unwrap();
+        ws.dispatch(
+            "document/open",
+            &json!({"path":path,"version":1,"text":text}),
+        )
+        .unwrap();
+        let params = json!({"path":path,"line":2,"character":22,"version":1});
+        ws.dispatch("navigation/definition", &params).unwrap();
+        assert_eq!(ws.background.phase, "scanning");
+        let pending = ws.dispatch("navigation/definition", &params).unwrap();
+        assert_eq!(pending["indexing"]["phase"], "scanning", "{pending}");
+        let changed = text.replace("value", "other");
+        ws.dispatch(
+            "document/change",
+            &json!({"path":path,"version":2,"text":changed}),
+        )
+        .unwrap();
+        assert!(ws.dispatch("navigation/definition", &params).is_err());
+        ws.dispatch("document/open",&json!({"path":root.join("A.fs"),"version":3,"text":"module LibraryA\nlet other = 1\n"})).unwrap();
+        ws.dispatch("workspace/index", &json!({})).unwrap();
+        let mut current = params;
+        current["version"] = json!(2);
+        let answer = ws.dispatch("navigation/definition", &current).unwrap();
+        assert_eq!(answer["documentVersion"], 2);
+        assert_eq!(answer["candidateCompleteness"], "incomplete");
+        assert!(answer["candidates"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|v| v["uri"].as_str().unwrap().ends_with("A.fs")));
+        assert_ne!(answer["completeness"], "exact");
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn candidate_compile_order_requires_an_unshared_certified_signature_free_project() {
+        let (root, mut ws) = fixture();
+        let origin = normalize(root.join("Main.fs"));
+        let earlier = normalize(root.join("A.fs"));
+        let later = normalize(root.join("B.fs"));
+        fs::write(&origin, "module Consumer\nlet value = 0\n").unwrap();
+        ws.ensure_model().unwrap();
+        ws.select_project(Some(ws.model.projects[0].path.clone()));
+        ws.model.projects[0].files = vec![earlier.clone(), origin.clone(), later.clone()];
+        assert!(
+            ws.later_candidate_files(&origin).is_empty(),
+            "Provisional XML order"
+        );
+        for path in ws.model.files.clone() {
+            ws.refresh_file(&path, false).unwrap();
+        }
+        assert_eq!(
+            ws.possible_definitions(&origin, "value", None)
+                .unwrap()
+                .0
+                .len(),
+            3
+        );
+        let project = &mut ws.model.projects[0];
+        project.evaluation = "design-time-fsc-arguments".into();
+        project.membership_reusable = Some(true);
+        project.compiler_args = project.files.clone();
+        let trusted = project.clone();
+        assert_eq!(
+            ws.later_candidate_files(&origin),
+            HashSet::from([later.clone()])
+        );
+        let narrowed = ws.possible_definitions(&origin, "value", None).unwrap().0;
+        assert_eq!(narrowed.len(), 2);
+        for path in [&earlier, &origin] {
+            assert!(narrowed.iter().any(|location| location["uri"] == uri(path)));
+        }
+        // Each missing premise restores all suggestions, never an empty exact result.
+        for guard in [
+            "inexact",
+            "unevaluated",
+            "membership",
+            "arguments",
+            "signature",
+            "script",
+            "duplicate",
+            "reference",
+            "shared",
+        ] {
+            ws.model.projects = vec![trusted.clone()];
+            match guard {
+                "inexact" => ws.model.projects[0].exact = false,
+                "unevaluated" => ws.model.projects[0].evaluation.clear(),
+                "membership" => ws.model.projects[0].membership_reusable = None,
+                "arguments" => ws.model.projects[0].compiler_args.clear(),
+                "signature" => ws.model.projects[0]
+                    .files
+                    .push(normalize(root.join("Contract.FsI"))),
+                "script" => ws.model.projects[0]
+                    .files
+                    .push(normalize(root.join("Loaded.fsx"))),
+                "duplicate" => ws.model.projects[0].files.push(later.clone()),
+                "reference" => ws.model.projects[0]
+                    .references
+                    .push(normalize(root.join("Other.fsproj"))),
+                "shared" => {
+                    let mut other = trusted.clone();
+                    other.path = normalize(root.join("Other.fsproj"));
+                    ws.model.projects.push(other);
+                }
+                _ => unreachable!(),
+            }
+            assert!(ws.later_candidate_files(&origin).is_empty(), "{guard}");
+        }
+        ws.model.projects = vec![trusted];
+        assert!(ws
+            .later_candidate_files(&normalize(root.join("Missing.fs")))
+            .is_empty());
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn unresolved_definitions_offer_current_candidates_without_promoting_singletons() {
+        let (root, mut ws) = fixture();
+        let main = root.join("Main.fs");
+        let text = "module Consumer\nlet result x = x.value\n";
+        ws.dispatch(
+            "document/open",
+            &json!({"path":main,"version":1,"text":text}),
+        )
+        .unwrap();
+        let request = json!({"path":main,"line":1,"character":18,"version":1});
+        let answer = ws.dispatch("navigation/definition", &request).unwrap();
+        assert_ne!(answer["completeness"], "exact", "{answer}");
+        assert_eq!(answer["locations"], json!([]));
+        assert_eq!(answer["candidateCompleteness"], "incomplete");
+        let candidates = answer["candidates"].as_array().unwrap();
+        assert_eq!(candidates.len(), 2, "{answer}");
+        for file in ["/A.fs", "/B.fs"] {
+            assert!(candidates
+                .iter()
+                .any(|location| location["uri"].as_str().unwrap().ends_with(file)));
+        }
+        // Rename one declaration without saving and move the other in an overlay.
+        ws.dispatch("document/open", &json!({"path":root.join("A.fs"),"version":1,"text":"module LibraryA\nlet other = 1\n"})).unwrap();
+        ws.dispatch("document/open", &json!({"path":root.join("B.fs"),"version":1,"text":"module LibraryB\n\nlet value = 2\n"})).unwrap();
+        let current = ws.dispatch("navigation/definition", &request).unwrap();
+        assert_ne!(current["completeness"], "exact", "{current}");
+        let candidates = current["candidates"].as_array().unwrap();
+        assert_eq!(candidates.len(), 1, "{current}");
+        assert!(candidates[0]["uri"].as_str().unwrap().ends_with("/B.fs"));
+        assert_eq!(candidates[0]["range"]["start"]["line"], 2);
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn unresolved_record_projection_includes_both_field_declarations() {
+        let (root, mut ws) = fixture();
+        let main = root.join("Main.fs");
+        let text = "module Consumer\ntype Person = { Name: string }\ntype Company = { Name: string }\nlet read (people: Person list) = (List.head people).Name\n";
+        ws.dispatch(
+            "document/open",
+            &json!({"path":main,"version":1,"text":text}),
+        )
+        .unwrap();
+        let request = json!({"path":main,"line":3,"character":text.lines().nth(3).unwrap().rfind("Name").unwrap(),"version":1});
+        let answer = ws.dispatch("navigation/definition", &request).unwrap();
+        assert_ne!(answer["completeness"], "exact", "{answer}");
+        assert_eq!(answer["locations"], json!([]));
+        let candidates = answer["candidates"].as_array().unwrap();
+        assert_eq!(candidates.len(), 2, "{answer}");
+        // The first record is the known target; the second is an explicit extra candidate.
+        assert!(candidates
+            .iter()
+            .any(|location| location["range"]["start"]["line"] == 1));
+        assert!(candidates
+            .iter()
+            .any(|location| location["range"]["start"]["line"] == 2));
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        let cancelled = cancellation::CancellationToken::new();
+        cancelled.cancel();
+        ws.set_cancellation(cancelled);
+        assert!(ws
+            .dispatch("navigation/definition", &request)
+            .unwrap_err()
+            .is::<cancellation::Cancelled>());
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn alias_rhs_tier_keeps_field_and_ambiguous_case_alternatives_in_the_union() {
+        let (root, mut ws) = fixture();
+        fs::write(root.join("A.fs"), "module Types\ntype Payload = string\n").unwrap();
+        fs::write(
+            root.join("B.fs"),
+            "module Other\ntype Holder = { Payload: string }\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("Main.fs"),
+            "module Consumer\nopen Types\ntype Wrapper = Payload\n",
+        )
+        .unwrap();
+        ws.dispatch("workspace/index", &json!({})).unwrap();
+        ws.background.raw_model = true;
+        let result = ws
+            .dispatch(
+                "navigation/definition",
+                &json!({"path":root.join("Main.fs"),"line":2,"character":16}),
+            )
+            .unwrap();
+        assert_eq!(result["completeness"], "unavailable", "{result}");
+        assert_eq!(result["locations"], json!([]));
+        assert_eq!(
+            result["candidates"].as_array().unwrap().len(),
+            3,
+            "{result}"
+        );
+        for file in ["A.fs", "B.fs", "Main.fs"] {
+            assert!(result["candidates"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|location| location["uri"] == uri(root.join(file).to_str().unwrap())));
+        }
+        assert_eq!(result["likelyCandidates"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            result["likelyCandidates"][0]["uri"],
+            uri(root.join("A.fs").to_str().unwrap())
+        );
+        assert!(result["candidateEvidence"][0]["evidence"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("alias-rhs-declaration-shape")));
+        assert_eq!(result["candidateCompleteness"], "incomplete");
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn heuristic_qualifier_can_be_wrong_but_other_tier_keeps_the_alias_target() {
+        let (root, mut ws) = fixture();
+        fs::write(root.join("A.fs"), "module Chosen\nlet target = 1\n").unwrap();
+        fs::write(root.join("B.fs"), "module Other\nlet target = 2\n").unwrap();
+        fs::write(
+            root.join("Main.fs"),
+            "module Consumer\nmodule Chosen = Other\nlet x = Chosen.target\n",
+        )
+        .unwrap();
+        ws.dispatch("workspace/index", &json!({})).unwrap();
+        ws.background.raw_model = true;
+        let result = ws
+            .dispatch(
+                "navigation/definition",
+                &json!({"path":root.join("Main.fs"),"line":2,"character":17}),
+            )
+            .unwrap();
+        assert_ne!(result["completeness"], "exact");
+        assert_eq!(
+            result["candidates"].as_array().unwrap().len(),
+            2,
+            "{result}"
+        );
+        assert!(result["candidates"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|location| location["uri"] == uri(root.join("B.fs").to_str().unwrap())));
+        assert_eq!(
+            result["likelyCandidates"][0]["uri"],
+            uri(root.join("A.fs").to_str().unwrap())
+        );
+        // Ready-model punctuation cannot become usable merely by indexing more files.
+        ws.background.requested = true;
+        ws.background.phase = "indexing";
+        let punctuation = ws
+            .dispatch(
+                "navigation/definition",
+                &json!({"path":root.join("Main.fs"),"line":2,"character":6}),
+            )
+            .unwrap();
+        assert!(punctuation.get("indexing").is_none(), "{punctuation}");
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn same_source_tier_ties_keep_every_collected_candidate_available() {
+        let (root, mut ws) = fixture();
+        ws.background.requested = true;
+        ws.background.phase = "scanning";
+        let mut source = String::from("module Consumer\n");
+        for n in 0..7 {
+            source.push_str(&format!("type T{n} = {{ Name: string }}\n"));
+        }
+        source.push_str("let read x = x.Name\n");
+        let path = root.join("Main.fs");
+        ws.dispatch(
+            "document/open",
+            &json!({"path":path,"version":1,"text":source}),
+        )
+        .unwrap();
+        let result = ws
+            .dispatch(
+                "navigation/definition",
+                &json!({"path":path,"line":8,"character":16,"version":1}),
+            )
+            .unwrap();
+        assert_eq!(
+            result["candidates"].as_array().unwrap().len(),
+            7,
+            "{result}"
+        );
+        assert_eq!(result["likelyCandidates"].as_array().unwrap().len(), 5);
+        assert_eq!(result["likelyCandidateTotal"], 7);
+        assert_eq!(result["candidateCompleteness"], "incomplete");
+        assert_eq!(result["completeness"], "unavailable");
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn pending_candidates_rerank_dirty_annotations_without_losing_the_union() {
+        let (root, mut ws) = fixture();
+        ws.background.requested = true;
+        ws.background.phase = "scanning";
+        let path = root.join("Main.fs");
+        let source = "module Consumer\ntype Person = { Name: string }\ntype Company = { Name: string }\nlet read (x: Person) = x.Name\n";
+        for (version, source, expected_line) in [
+            (1, source.to_string(), 1),
+            (2, source.replace("x: Person", "x: Company"), 2),
+        ] {
+            let column = source.lines().nth(3).unwrap().find("Name").unwrap();
+            ws.dispatch(
+                "document/open",
+                &json!({"path":path,"version":version,"text":source}),
+            )
+            .unwrap();
+            let result = ws
+                .dispatch(
+                    "navigation/definition",
+                    &json!({"path":path,"line":3,"character":column,"version":version}),
+                )
+                .unwrap();
+            assert_eq!(result["completeness"], "unavailable", "{result}");
+            assert_eq!(result["locations"], json!([]));
+            assert_eq!(result["candidates"].as_array().unwrap().len(), 2);
+            assert_eq!(result["likelyCandidates"].as_array().unwrap().len(), 1);
+            assert_eq!(
+                result["likelyCandidates"][0]["range"]["start"]["line"],
+                expected_line
+            );
+            assert!(
+                result.get("indexing").is_none(),
+                "Positive suggestions must not wait: {result}"
+            );
+        }
+        let missing = json!({"path":path,"line":3,"character":0,"version":2});
+        assert!(ws
+            .dispatch("navigation/definition", &missing)
+            .unwrap()
+            .get("indexing")
+            .is_none());
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn pending_source_alias_and_unconditional_crossfile_candidates_stay_incomplete_and_current() {
+        let (root, mut ws) = fixture();
+        let noise = root.join("noise");
+        fs::create_dir(&noise).unwrap();
+        for n in 0..700 {
+            fs::write(noise.join(format!("{n}.txt")), "noise").unwrap();
+        }
+        let main = root.join("Main.fs");
+        let source = "module Consumer\ntype Hash = string\nlet useHash (value: Hash) = value\nlet call value = LibraryA.serialize value\nlet branch = LibraryA.hidden\n";
+        let dependency = root.join("A.fs");
+        fs::write(
+            &dependency,
+            "module LibraryA\nlet serialize value = value\n#if DEBUG\nlet hidden = 1\n#endif\n",
+        )
+        .unwrap();
+        ws.dispatch(
+            "document/open",
+            &json!({"path":main,"version":1,"text":source}),
+        )
+        .unwrap();
+        let alias_request = json!({"path":main,"line":2,"character":21,"version":1});
+        let first = ws
+            .dispatch("navigation/definition", &alias_request)
+            .unwrap();
+        assert_eq!(first["completeness"], "unavailable");
+        assert!(!ws.model_loaded);
+        let early = ws
+            .dispatch("navigation/definition", &alias_request)
+            .unwrap();
+        assert_eq!(
+            early["candidateKind"], "same-source-declarations",
+            "{early}"
+        );
+        assert_eq!(early["candidateCompleteness"], "incomplete");
+        assert_eq!(early["locations"], json!([]));
+        assert_eq!(early["candidates"][0]["range"]["start"]["line"], 1);
+        let pending = ws
+            .dispatch("navigation/definition", &alias_request)
+            .unwrap();
+        assert_eq!(pending["candidates"], early["candidates"]);
+        assert!(!ws.model_loaded);
+        for _ in 0..2000 {
+            ws.background_step(cancellation::CancellationToken::new())
+                .unwrap();
+            if !ws.background_pending() {
+                break;
+            }
+        }
+        assert_eq!(ws.background.phase, "ready");
+        let request = json!({"path":main,"line":3,"character":29,"version":1});
+        let answer = ws.dispatch("navigation/definition", &request).unwrap();
+        assert_eq!(answer["completeness"], "unavailable", "{answer}");
+        assert_eq!(answer["candidateCompleteness"], "incomplete");
+        assert!(answer["candidates"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(
+                |location| location["uri"] == uri(dependency.to_str().unwrap())
+                    && location["range"]["start"]["line"] == 1
+            ));
+        let hidden = ws
+            .dispatch(
+                "navigation/definition",
+                &json!({"path":main,"line":4,"character":24,"version":1}),
+            )
+            .unwrap();
+        assert!(
+            hidden.get("candidates").is_none(),
+            "conditional branch must not be guessed: {hidden}"
+        );
+        ws.dispatch("document/open", &json!({"path":dependency,"version":1,"text":"module LibraryA\nlet renamed value = value\n#if DEBUG\nlet hidden = 1\n#endif\n"})).unwrap();
+        let edited = ws.dispatch("navigation/definition", &request).unwrap();
+        assert!(
+            edited.get("candidates").is_none(),
+            "stale declaration must disappear: {edited}"
+        );
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn explicit_index_rebuilds_a_completed_provisional_model_before_exact_navigation() {
+        let (root, mut ws) = fixture();
+        let noise = root.join("noise");
+        fs::create_dir(&noise).unwrap();
+        for n in 0..700 {
+            fs::write(noise.join(format!("{n}.txt")), "noise").unwrap();
+        }
+        let path = root.join("A.fs");
+        ws.dispatch(
+            "document/open",
+            &json!({"path":path,"version":1,"text":fs::read_to_string(&path).unwrap()}),
+        )
+        .unwrap();
+        let request = json!({"path":path,"line":1,"character":5,"version":1});
+        ws.dispatch("navigation/definition", &request).unwrap();
+        for _ in 0..2000 {
+            ws.background_step(cancellation::CancellationToken::new())
+                .unwrap();
+            if !ws.background_pending() {
+                break;
+            }
+        }
+        assert_eq!(ws.background.phase, "ready");
+        assert!(ws.background.raw_model);
+        assert_ne!(
+            ws.dispatch("navigation/definition", &request).unwrap()["completeness"],
+            "exact"
+        );
+        ws.dispatch("workspace/index", &json!({})).unwrap();
+        let answer = ws.dispatch("navigation/definition", &request).unwrap();
+        assert_eq!(answer["completeness"], "exact", "{answer}");
+        assert_eq!(
+            answer["locations"],
+            json!([{"uri":uri(path.to_str().unwrap()),"range":{"start":{"line":1,"character":4},"end":{"line":1,"character":9}}}])
+        );
+        assert!(!ws.background.raw_model);
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn explicit_provisional_rebuild_keeps_cancellation_and_unknown_imports_guarded() {
+        let (root, mut ws) = fixture();
+        ws.ensure_model().unwrap();
+        ws.background.raw_model = true;
+        ws.background.requested = true;
+        ws.background.phase = "ready";
+        for project in &mut ws.model.projects {
+            project.exact = false;
+        }
+        let cancelled = cancellation::CancellationToken::new();
+        cancelled.cancel();
+        ws.set_cancellation(cancelled.clone());
+        {
+            let _scope = cancelled.enter();
+            let error = ws.prepare_explicit_index_model().unwrap_err();
+            assert!(error.is::<cancellation::Cancelled>());
+        }
+        assert!(!ws.model_loaded);
+        assert!(ws.background.raw_model);
+        assert_eq!(ws.background.phase, "scanning");
+        ws.set_cancellation(cancellation::CancellationToken::new());
+        let project = root.join("Test.fsproj");
+        fs::write(
+            &project,
+            fs::read_to_string(&project).unwrap().replace(
+                "</Project>",
+                r#"<Import Project="Unknown.targets" /></Project>"#,
+            ),
+        )
+        .unwrap();
+        ws.prepare_explicit_index_model().unwrap();
+        assert!(!ws.background.raw_model);
+        assert!(ws.model.projects.iter().all(|project| !project.exact));
+        assert!(!ws.context_exact(root.join("A.fs").to_str().unwrap()));
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn small_raw_discovery_observes_empty_directories_and_rescans_new_projects() {
+        let (root, mut ws) = fixture();
+        let empty = root.join("nested/empty.v1");
+        fs::create_dir_all(&empty).unwrap();
+        ws.ensure_model().unwrap();
+        assert!(ws.discovery_directories.contains(&empty));
+        let exact_before = ws.model.projects[0].exact;
+        ws.background.requested = true;
+        for _ in 0..20 {
+            ws.background_step(cancellation::CancellationToken::new())
+                .unwrap();
+        }
+        assert_eq!(ws.model.projects[0].exact, exact_before);
+        assert!(!ws.background.raw_model);
+        let (tx, rx) = mpsc::channel();
+        ws.events = rx;
+        tx.send(Ok(notify::Event::new(notify::EventKind::Create(
+            notify::event::CreateKind::File,
+        ))
+        .add_path(empty.join("Injected.fsproj"))))
+            .unwrap();
+        let first = ws
+            .dispatch(
+                "navigation/definition",
+                &json!({"path":root.join("Main.fs"),"line":3,"character":13}),
+            )
+            .unwrap();
+        assert_eq!(first["completeness"], "unavailable", "{first}");
+        assert!(!ws.model_loaded);
+        let tree = ws.dispatch("workspace/tree", &json!({})).unwrap();
+        assert_eq!(tree["completeness"], "unavailable");
+        assert!(tree["projects"].as_array().unwrap().is_empty());
+        // Restore the original foreground model and its actual watchers.
+        ws.background = Default::default();
+        ws.ensure_model().unwrap();
+        fs::write(
+            empty.join("New.fsproj"),
+            r#"<Project><ItemGroup><Compile Include="New.fs" /></ItemGroup></Project>"#,
+        )
+        .unwrap();
+        fs::write(empty.join("New.fs"), "module New\nlet added = 1\n").unwrap();
+        // Observe the real nonrecursive watcher, not a fabricated notification.
+        for _ in 0..100 {
+            ws.background_step(cancellation::CancellationToken::new())
+                .unwrap();
+            if !ws.model_loaded || ws.background.raw_model {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        assert!(
+            !ws.model_loaded,
+            "new project in previously empty directory must invalidate"
+        );
+        assert_eq!(ws.background.phase, "scanning");
+        for _ in 0..100 {
+            ws.background_step(cancellation::CancellationToken::new())
+                .unwrap();
+            if !ws.background_pending() {
+                break;
+            }
+        }
+        assert_eq!(ws.background.phase, "ready");
+        assert_eq!(ws.model.projects.len(), 2);
+        assert!(ws.model.projects.iter().all(|project| !project.exact));
+        ws.dispatch(
+            "workspace/filesChanged",
+            &json!({"paths":[empty.join("Later.fsproj")]}),
+        )
+        .unwrap();
+        assert!(!ws.model_loaded);
+        assert_eq!(ws.background.phase, "scanning");
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn progressive_discovery_preserves_local_proofs_and_revalidates_restart_rows() {
+        let (root, original) = fixture();
+        drop(original);
+        let noise = root.join("noise");
+        fs::create_dir(&noise).unwrap();
+        for n in 0..700 {
+            fs::write(noise.join(format!("{n}.txt")), "noise").unwrap();
+        }
+        let main = root.join("Main.fs");
+        let text = fs::read_to_string(&main).unwrap()
+            + "let mapped = List.map (fun local -> local + 1) [1]\n";
+        fs::write(&main, &text).unwrap();
+        let request = json!({"path":main,"line":3,"character":13});
+        for restart in [false, true] {
+            let mut ws = Workspace::open(&json!({"root":root,"mode":"indexed"})).unwrap();
+            let cold = ws.dispatch("navigation/definition", &request).unwrap();
+            assert_eq!(cold["completeness"], "unavailable");
+            assert_eq!(ws.background.phase, "scanning");
+            ws.dispatch(
+                "document/open",
+                &json!({"path":main,"text":text,"version":1}),
+            )
+            .unwrap();
+            let local = ws
+                .dispatch(
+                    "navigation/definition",
+                    &json!({"path":main,"line":10,"character":37,"version":1}),
+                )
+                .unwrap();
+            assert_eq!(local["completeness"], "exact", "{local}");
+            assert_eq!(local["proofScope"], "document");
+            let cancelled = cancellation::CancellationToken::new();
+            cancelled.cancel();
+            ws.background_step(cancelled).unwrap();
+            assert_eq!(ws.background.phase, "scanning");
+            for _ in 0..2000 {
+                if !ws.background_pending() {
+                    break;
+                }
+                ws.background_step(cancellation::CancellationToken::new())
+                    .unwrap();
+                if ws.background.phase == "scanning" {
+                    assert!(!ws.model_loaded);
+                }
+            }
+            let stats = ws.stats().unwrap();
+            assert_eq!(stats["background"]["phase"], "ready", "{stats}");
+            assert!(stats["background"]["entriesVisited"].as_u64().unwrap() > 512);
+            assert!(ws.model.projects.iter().all(|p| !p.exact));
+            let result = ws.dispatch("navigation/definition", &request).unwrap();
+            assert_ne!(result["completeness"], "exact", "{result}");
+            assert!(
+                result["candidates"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|v| v["uri"].as_str().unwrap().ends_with("/B.fs")),
+                "{result}"
+            );
+            assert_eq!(ws.index.counters.helper_starts, 0);
+            if restart {
+                assert!(stats["background"]["filesReused"].as_u64().unwrap() >= 2);
+            }
+            drop(ws);
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn local_proof_survives_cancelled_discovery_and_new_overlay_generations() {
+        let (root, original) = fixture();
+        drop(original);
+        let noise = root.join("noise");
+        fs::create_dir(&noise).unwrap();
+        for n in 0..700 {
+            fs::write(noise.join(format!("{n}.txt")), "noise").unwrap();
+        }
+        let path = root.join("Main.fs");
+        let text = "module Main\nlet mapped = List.map (fun local -> local + 1) [1]\n";
+        fs::write(&path, text).unwrap();
+        let mut ws = Workspace::open(&json!({"root":root,"mode":"indexed"})).unwrap();
+        ws.dispatch(
+            "navigation/definition",
+            &json!({"path":path,"line":0,"character":8}),
+        )
+        .unwrap();
+        assert_eq!(ws.background.phase, "scanning");
+        for version in 1..=4 {
+            let padding = " ".repeat(version as usize - 1);
+            let dirty = text.replace("let mapped", &format!("{padding}let mapped"));
+            let line = dirty.lines().nth(1).unwrap();
+            let declaration = line.find("local ->").unwrap();
+            ws.set_cancellation(cancellation::CancellationToken::new());
+            ws.dispatch(
+                if version == 1 {
+                    "document/open"
+                } else {
+                    "document/change"
+                },
+                &json!({"path":path,"text":dirty,"version":version}),
+            )
+            .unwrap();
+            let params = json!({"path":path,"line":1,"character":declaration+9,"version":version});
+            let cancelled = cancellation::CancellationToken::new();
+            cancelled.cancel();
+            ws.set_cancellation(cancelled);
+            assert!(ws
+                .dispatch("navigation/definition", &params)
+                .unwrap_err()
+                .is::<cancellation::Cancelled>());
+            ws.set_cancellation(cancellation::CancellationToken::new());
+            let answer = ws.dispatch("navigation/definition", &params).unwrap();
+            assert_eq!(answer["proofScope"], "document", "{answer}");
+            assert_eq!(answer["documentVersion"], version);
+            assert_eq!(
+                answer["locations"][0]["range"]["start"]["character"],
+                declaration
+            );
+            assert_eq!(
+                answer["sourceHash"],
+                blake3::hash(dirty.as_bytes()).to_hex().as_str()
+            );
+            let before_snapshot = ws.snapshot.clone();
+            let before_loaded = ws.model_loaded;
+            let preempted = cancellation::CancellationToken::new();
+            preempted.cancel();
+            ws.background_step(preempted).unwrap();
+            for _ in 0..40 {
+                ws.background_step(cancellation::CancellationToken::new())
+                    .unwrap();
+            }
+            if version == 1 {
+                assert!(!before_loaded);
+                assert!(
+                    ws.model_loaded,
+                    "the test must exercise atomic publication after a local proof"
+                );
+                assert_ne!(ws.snapshot, before_snapshot);
+            }
+            ws.set_cancellation(cancellation::CancellationToken::new());
+            let after = ws.dispatch("navigation/definition", &params).unwrap();
+            assert_eq!(after["locations"], answer["locations"]);
+            assert_eq!(after["sourceHash"], answer["sourceHash"]);
+            assert_eq!(
+                ws.stats().unwrap()["localProofLastAttempt"]["outcome"],
+                "cache-hit"
+            );
+            if version > 1 {
+                let mut stale = params.clone();
+                stale["version"] = json!(version - 1);
+                assert!(ws.dispatch("navigation/definition", &stale).is_err());
+            }
+        }
+        assert_eq!(ws.background.phase, "ready");
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn background_mode_changes_stop_work_and_terminal_queries_do_not_restart_it() {
+        let (root, mut ws) = fixture();
+        ws.background.requested = true;
+        ws.background.raw_model = true;
+        ws.background.phase = "scanning";
+        ws.dispatch("workspace/mode", &json!({"mode":"semantic"}))
+            .unwrap();
+        assert!(!ws.background_pending());
+        ws.background_step(cancellation::CancellationToken::new())
+            .unwrap();
+        assert!(!ws.model_loaded);
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        ws.dispatch("workspace/mode", &json!({"mode":"indexed"}))
+            .unwrap();
+        assert!(ws.background_pending());
+        ws.background.phase = "limited";
+        ws.background.reason = Some("depth limit".into());
+        let response = ws
+            .dispatch(
+                "navigation/definition",
+                &json!({"path":root.join("Main.fs"),"line":3,"character":13}),
+            )
+            .unwrap();
+        assert_eq!(response["completeness"], "unavailable");
+        assert!(response["reason"]
+            .as_str()
+            .unwrap()
+            .contains("stopped: depth limit"));
+        assert_eq!(ws.background.phase, "limited");
+        assert_eq!(ws.background.slices, 0);
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
     fn bounded_discovery_and_cold_reads_recover_after_explicit_index() {
         let (root, initial) = fixture();
         drop(initial);
@@ -2513,8 +4135,13 @@ mod integration_tests {
         let query = |ws: &mut Workspace| ws.dispatch("navigation/definition", &cursor).unwrap();
         let cold = query(&mut ws);
         assert_eq!(cold["completeness"], "unavailable", "{cold}");
+        assert_eq!(cold["indexing"]["phase"], "scanning");
         assert!(!ws.model_loaded);
         assert_eq!(ws.index.counters.files_read, 0);
+        let pending_tree = ws.dispatch("workspace/tree", &json!({})).unwrap();
+        assert_eq!(pending_tree["completeness"], "unavailable");
+        assert_eq!(pending_tree["nodes"], json!([]));
+        ws.dispatch("workspace/index", &json!({})).unwrap();
         let tree = ws.dispatch("workspace/tree", &json!({})).unwrap();
         assert_eq!(tree["completeness"], "approximate");
         assert_eq!(tree["nodes"].as_array().unwrap().len(), 2);
@@ -2535,13 +4162,7 @@ mod integration_tests {
                 .all(|project| project.items.is_empty()),
             "Plain compile items only need their ordered physical path"
         );
-        let partial = query(&mut ws);
-        assert_eq!(partial["completeness"], "unavailable", "{partial}");
-        assert!(partial["reason"].as_str().unwrap().contains("foreground"));
-        assert!(!ws.covered_names.contains("value"));
-        assert!(ws.index.counters.files_read <= foreground::MAX_READS as u64);
         assert!(ws.index_errors.is_empty());
-        ws.dispatch("workspace/index", &json!({})).unwrap();
         let reads = ws.index.counters.files_read;
         let result = query(&mut ws);
         assert_eq!(result["completeness"], "exact", "{result}");

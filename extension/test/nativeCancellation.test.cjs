@@ -114,7 +114,7 @@ test('native cancellation interrupts a running index and retry completes without
   await record('daemon-index', { kind: 'actual-native-daemon', foregroundMs, cancelledResponse: cancelled, partialFileCount: stats.indexFileCount, completedFileCount: retried.result.indexFileCount, limitations: 'Functional interruption/recovery test; timing is not a controlled benchmark.' });
 });
 
-test('explicit indexing enables navigation after cold workspace discovery is declined', async t => {
+test('explicit indexing remains available while cold background discovery is pending', async t => {
   const input = await fixture(t);
   const editor = await createEditor(input.workspace, binary);
   t.after(() => editor.dispose());
@@ -122,13 +122,29 @@ test('explicit indexing enables navigation after cold workspace discovery is dec
   const position = editor.position(document, 1, 'target');
   const definition = () => editor.providers.definition.provideDefinition(document, position, editor.uncancelled);
   assert.equal(await definition(), undefined);
-  assert.match(editor.api.lastResult.reason, /Index Workspace/);
-  assert.equal((await editor.api.stats())[0].filesRead, 0);
+  assert.notEqual(editor.api.lastResult.completeness, 'exact');
+  // One adapter invocation may now continue its pending native query. It must
+  // remain incomplete until explicit indexing establishes the exact path below.
+  const initial = editor.api.lastResult;
+  assert.match(initial.reason, /foreground work limit; background discovery\/indexing is in progress; retry navigation|Background project membership is provisional/);
+  if (initial.candidates?.length) {
+    assert.equal(initial.candidateCompleteness, 'incomplete');
+    assert.ok(initial.candidates.some(candidate => candidate.uri === document.uri.toString()
+      && candidate.range.start.line === 1 && candidate.range.start.character === 4
+      && candidate.range.end.line === 1 && candidate.range.end.character === 10), 'Incomplete union must retain Shared.target');
+  }
+  const pending = (await editor.api.stats())[0];
+  assert.ok(['scanning', 'indexing', 'ready'].includes(pending.background?.phase), JSON.stringify(pending.background));
+  assert.ok(pending.indexFileCount <= dependencyCount + 1);
+  for (const counter of ['helperStarts', 'compilerLaunches', 'decompilerStarts']) assert.equal(pending[counter], 0, counter);
   await editor.executeCommand('fsharpNavigator.indexWorkspace');
-  assert.equal((await definition())?.length, 1, JSON.stringify(editor.api.lastResult));
+  const indexedDefinition = await definition();
+  assert.equal(indexedDefinition?.length, 1, JSON.stringify(editor.api.lastResult));
+  assert.equal(indexedDefinition[0].uri.toString(), document.uri.toString());
+  assert.deepEqual([indexedDefinition[0].range.start.line, indexedDefinition[0].range.start.character, indexedDefinition[0].range.end.line, indexedDefinition[0].range.end.character], [1, 4, 1, 10]);
   const stats = (await editor.api.stats())[0];
   assert.equal(stats.indexFileCount, dependencyCount + 1);
-  assert.equal(stats.helperStarts, 0);
+  for (const counter of ['helperStarts', 'compilerLaunches', 'decompilerStarts']) assert.equal(stats[counter], 0, counter);
 });
 
 test('dirty dependency cancels native reference coverage and a fresh definition plus complete retry succeed', async t => {

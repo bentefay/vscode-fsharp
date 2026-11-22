@@ -1,7 +1,15 @@
 import { spawn, ChildProcessWithoutNullStreams } from 'node:child_process';
 import * as vscode from 'vscode';
+import { trace, traceEnabled } from './trace';
 
+interface DocumentUpdateTrace {
+  documentKey?: string; version?: number; sourceHash?: string; bytes?: number; changed?: boolean;
+  validationMicros?: number; indexUpdateMicros?: number; hashMicros?: number; nameScanMicros?: number;
+  lookupMicros?: number; transactionBeginMicros?: number; postingsDeleteMicros?: number; namesInsertMicros?: number; stateWriteMicros?: number; commitMicros?: number;
+  namesCount?: number; overlayStoreMicros?: number; proofCacheEvicted?: number; snapshotMicros?: number; totalMicros?: number;
+}
 interface Pending {
+  method: string;
   resolve(value: unknown): void;
   reject(reason: Error): void;
   timer: ReturnType<typeof setTimeout>;
@@ -30,7 +38,9 @@ export class Backend implements vscode.Disposable {
     this.maxPendingRequests = limits.maxPendingRequests ?? 64;
     this.maxQueuedBytes = limits.maxQueuedBytes ?? 16 * 1024 * 1024;
     this.maxMessageBytes = limits.maxMessageBytes ?? 12 * 1024 * 1024;
+    if (traceEnabled) trace('nativeSpawnStart');
     this.process = spawn(binary, ['daemon'], { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+    if (traceEnabled) trace('nativeSpawn', { pid: this.process.pid });
     this.process.stdout.setEncoding('utf8');
     this.process.stderr.setEncoding('utf8');
     this.process.stdin.on('drain', () => { this.blocked = false; this.pump(); });
@@ -55,6 +65,7 @@ export class Backend implements vscode.Disposable {
     if (token?.isCancellationRequested) return Promise.reject(new vscode.CancellationError());
     if (this.pending.size >= this.maxPendingRequests) return Promise.reject(new Error('F# Navigator request queue is full; no complete result is available.'));
     const id = this.nextId++;
+    if (traceEnabled) trace('transportRequest', { id, method, pid: this.process.pid });
     return new Promise<T>((resolve, reject) => {
       const finishWithError = (error: Error) => {
         const entry = this.pending.get(id);
@@ -70,7 +81,7 @@ export class Backend implements vscode.Disposable {
         reject(error);
       };
       const timer = setTimeout(() => finishWithError(new Error(`F# Navigator timed out during ${method}; no complete result is available.`)), timeoutMs);
-      const entry: Pending = { resolve: value => resolve(value as T), reject, timer };
+      const entry: Pending = { method, resolve: value => resolve(value as T), reject, timer };
       this.pending.set(id, entry);
       entry.cancellation = token?.onCancellationRequested(() => finishWithError(new vscode.CancellationError()));
       try { this.enqueue({ id, method, params }, id); }
@@ -102,6 +113,7 @@ export class Backend implements vscode.Disposable {
       this.queuedBytes -= item.bytes;
       if (item.id !== undefined && !this.pending.has(item.id)) continue;
       // write(false) means stop until drain; never keep feeding Node's internal buffer.
+      if (traceEnabled && item.id !== undefined) trace('transportWrite', { pid: this.process.pid, id: item.id, method: this.pending.get(item.id)?.method });
       this.blocked = !this.process.stdin.write(item.line, error => { if (error) this.fail(error); });
     }
   }
@@ -118,7 +130,7 @@ export class Backend implements vscode.Disposable {
       const line = this.buffer.slice(0, end).trim();
       this.buffer = this.buffer.slice(end + 1);
       if (!line) continue;
-      let message: { id?: number; result?: unknown; error?: { message?: string; code?: number | string } };
+      let message: { id?: number; result?: unknown; error?: { message?: string; code?: number | string }; nativeTiming?: { queueMs?: number; dispatchMs?: number }; documentUpdate?: DocumentUpdateTrace; localProofAttempt?: { attempt?: number; documentVersion?: number; outcome?: string; parseMicros?: number; totalMicros?: number; visitedNodes?: number; parsedBytes?: number } | null };
       try { message = JSON.parse(line); }
       catch {
         this.fail(new Error('F# Navigator engine emitted an invalid protocol response.'));
@@ -128,6 +140,37 @@ export class Backend implements vscode.Disposable {
       if (typeof message.id !== 'number') continue;
       const entry = this.pending.get(message.id);
       if (!entry) continue; // Cancelled or obsolete request.
+      if (traceEnabled) trace('transportResponse', {
+        pid: this.process.pid, id: message.id, method: entry.method,
+        queueMs: message.nativeTiming?.queueMs, dispatchMs: message.nativeTiming?.dispatchMs,
+        localProofAttempt: message.localProofAttempt?.attempt,
+        localProofVersion: message.localProofAttempt?.documentVersion,
+        localProofOutcome: message.localProofAttempt?.outcome,
+        localProofParseMicros: message.localProofAttempt?.parseMicros,
+        localProofTotalMicros: message.localProofAttempt?.totalMicros,
+        localProofVisitedNodes: message.localProofAttempt?.visitedNodes,
+        localProofParsedBytes: message.localProofAttempt?.parsedBytes,
+        updateDocumentKey: message.documentUpdate?.documentKey,
+        updateVersion: message.documentUpdate?.version,
+        updateSourceHash: message.documentUpdate?.sourceHash,
+        updateBytes: message.documentUpdate?.bytes,
+        updateChanged: message.documentUpdate?.changed,
+        updateValidationMicros: message.documentUpdate?.validationMicros,
+        updateIndexMicros: message.documentUpdate?.indexUpdateMicros,
+        updateHashMicros: message.documentUpdate?.hashMicros,
+        updateNameScanMicros: message.documentUpdate?.nameScanMicros,
+        updateLookupMicros: message.documentUpdate?.lookupMicros,
+        updateTransactionBeginMicros: message.documentUpdate?.transactionBeginMicros,
+        updatePostingsDeleteMicros: message.documentUpdate?.postingsDeleteMicros,
+        updateNamesInsertMicros: message.documentUpdate?.namesInsertMicros,
+        updateStateWriteMicros: message.documentUpdate?.stateWriteMicros,
+        updateCommitMicros: message.documentUpdate?.commitMicros,
+        updateNamesCount: message.documentUpdate?.namesCount,
+        updateOverlayStoreMicros: message.documentUpdate?.overlayStoreMicros,
+        updateProofCacheEvicted: message.documentUpdate?.proofCacheEvicted,
+        updateSnapshotMicros: message.documentUpdate?.snapshotMicros,
+        updateTotalMicros: message.documentUpdate?.totalMicros,
+      });
       this.pending.delete(message.id);
       clearTimeout(entry.timer);
       entry.cancellation?.dispose();

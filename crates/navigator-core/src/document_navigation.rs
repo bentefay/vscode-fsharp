@@ -7,7 +7,11 @@ use crate::{
 use anyhow::Result;
 use serde::Serialize;
 use serde_json::{json, Value};
-use std::{collections::VecDeque, io, mem::size_of};
+use std::{
+    collections::{BTreeMap, VecDeque},
+    io,
+    mem::size_of,
+};
 
 const MAX_ENTRIES: usize = 32;
 const MAX_BYTES: usize = 128 * 1024;
@@ -234,6 +238,21 @@ impl AnswerCache {
     }
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LastAttempt {
+    attempt: u64,
+    document_version: i64,
+    source_hash: String,
+    position: Position,
+    operation: &'static str,
+    outcome: &'static str,
+    parse_micros: u64,
+    total_micros: u64,
+    visited_nodes: usize,
+    parsed_bytes: usize,
+}
+
 #[derive(Default)]
 pub(super) struct DocumentNavigation {
     cache: AnswerCache,
@@ -244,6 +263,8 @@ pub(super) struct DocumentNavigation {
     visited_nodes: u64,
     parse_micros: u64,
     proof_micros: u64,
+    outcomes: BTreeMap<&'static str, u64>,
+    last_attempt: Option<LastAttempt>,
 }
 
 impl DocumentNavigation {
@@ -251,9 +272,48 @@ impl DocumentNavigation {
         self.cache.entries.clear();
     }
 
-    pub fn invalidate(&mut self, path: &str) {
+    pub fn invalidate(&mut self, path: &str) -> usize {
+        let before = self.cache.entries.len();
         let uri = project::uri(path);
         self.cache.entries.retain(|e| e.key.uri.as_ref() != uri);
+        before - self.cache.entries.len()
+    }
+
+    fn record_attempt(
+        &mut self,
+        overlay: &Overlay,
+        at: Position,
+        references: bool,
+        metrics: &local_lexical::Metrics,
+    ) {
+        let outcome = metrics.outcome.unwrap_or("unsupported");
+        *self.outcomes.entry(outcome).or_default() += 1;
+        let attempt = self.last_attempt.get_or_insert_with(|| LastAttempt {
+            attempt: 0,
+            document_version: 0,
+            source_hash: String::with_capacity(64),
+            position: at,
+            operation: "definition",
+            outcome,
+            parse_micros: 0,
+            total_micros: 0,
+            visited_nodes: 0,
+            parsed_bytes: 0,
+        });
+        attempt.attempt = self.attempts;
+        attempt.document_version = overlay.version;
+        attempt.source_hash.clone_from(&overlay.source_hash);
+        attempt.position = at;
+        attempt.operation = if references {
+            "references"
+        } else {
+            "definition"
+        };
+        attempt.outcome = outcome;
+        attempt.parse_micros = metrics.parse_elapsed_micros;
+        attempt.total_micros = metrics.elapsed_micros;
+        attempt.visited_nodes = metrics.visited_nodes;
+        attempt.parsed_bytes = metrics.parsed_bytes;
     }
 
     pub fn query(
@@ -279,6 +339,15 @@ impl DocumentNavigation {
             token.check()?;
             self.hits += 1;
             self.cache_hits += 1;
+            self.record_attempt(
+                overlay,
+                at,
+                references,
+                &local_lexical::Metrics {
+                    outcome: Some("cache-hit"),
+                    ..Default::default()
+                },
+            );
             return Ok(Some(answer));
         }
 
@@ -302,6 +371,7 @@ impl DocumentNavigation {
         self.visited_nodes += metrics.visited_nodes as u64;
         self.parse_micros += metrics.parse_elapsed_micros;
         self.proof_micros += metrics.elapsed_micros;
+        self.record_attempt(overlay, at, references, &metrics);
         let Some(answer) = answer? else {
             return Ok(None);
         };
@@ -322,6 +392,17 @@ impl DocumentNavigation {
         Ok(Some(result))
     }
 
+    pub fn attempt_count(&self) -> u64 {
+        self.attempts
+    }
+
+    pub fn last_attempt(&self) -> Value {
+        json!(self
+            .last_attempt
+            .as_ref()
+            .filter(|attempt| attempt.attempt == self.attempts))
+    }
+
     pub fn stats(&self, target: &mut Value) {
         target["localProofAttempts"] = json!(self.attempts);
         target["localProofHits"] = json!(self.hits);
@@ -332,6 +413,8 @@ impl DocumentNavigation {
         target["localProofVisitedNodes"] = json!(self.visited_nodes);
         target["localProofParseMicros"] = json!(self.parse_micros);
         target["localProofMicros"] = json!(self.proof_micros);
+        target["localProofOutcomes"] = json!(self.outcomes);
+        target["localProofLastAttempt"] = json!(self.last_attempt);
     }
 }
 

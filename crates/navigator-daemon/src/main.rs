@@ -20,7 +20,9 @@ type Output = Arc<Mutex<Box<dyn Write + Send>>>;
 struct Admission {
     bytes: usize,
     count: usize,
+    foreground_count: usize,
     tokens: HashMap<String, CancellationToken>,
+    background: Option<CancellationToken>,
 }
 struct Request {
     id: Option<Value>,
@@ -29,6 +31,7 @@ struct Request {
     token: CancellationToken,
     key: Option<String>,
     wire_bytes: usize,
+    admitted_at: Option<std::time::Instant>,
 }
 fn emit(output: &Output, value: Value) -> anyhow::Result<()> {
     let mut writer = output
@@ -97,6 +100,9 @@ fn release(admission: &Arc<Mutex<Admission>>, request: &Request) {
 fn release_locked(state: &mut Admission, request: &Request) {
     state.bytes -= request.wire_bytes;
     state.count -= 1;
+    if request.method != "workspace/stats" {
+        state.foreground_count -= 1;
+    }
     if let Some(key) = &request.key {
         state.tokens.remove(key);
     }
@@ -107,6 +113,7 @@ fn read_requests(
     admission: Arc<Mutex<Admission>>,
     output: Output,
 ) -> anyhow::Result<()> {
+    let trace_timing = std::env::var("FSHARP_NAVIGATOR_TRACE").as_deref() == Ok("1");
     while let Some(line) = read_line(&mut reader)? {
         let line = match line {
             Line::Data(line) if line.iter().all(u8::is_ascii_whitespace) => continue,
@@ -188,7 +195,17 @@ fn read_requests(
             )?;
             continue;
         }
+        // A new foreground request preempts only this idle quantum, never the
+        // resumable discovery operation. The request has its own cancellation.
+        if method != "workspace/stats" {
+            if let Some(background) = &state.background {
+                background.cancel();
+            }
+        }
         state.count += 1;
+        if method != "workspace/stats" {
+            state.foreground_count += 1;
+        }
         state.bytes += wire_bytes;
         if let Some(key) = &key {
             state.tokens.insert(key.clone(), token.clone());
@@ -201,6 +218,7 @@ fn read_requests(
             token,
             key,
             wire_bytes,
+            admitted_at: trace_timing.then(std::time::Instant::now),
         };
         // Blocking here would hide cancellation behind a saturated normal queue.
         if let Err(error) = sender.try_send(request) {
@@ -254,7 +272,47 @@ fn main() -> anyhow::Result<()> {
         }
     });
     let mut workspace: Option<Workspace> = None;
-    for request in receiver {
+    loop {
+        let request = match receiver.try_recv() {
+            Ok(request) => request,
+            Err(mpsc::TryRecvError::Disconnected) => break,
+            Err(mpsc::TryRecvError::Empty) => {
+                if let Some(ws) = workspace.as_mut() {
+                    let token = CancellationToken::new();
+                    admission.lock().unwrap().background = Some(token.clone());
+                    // A request may have arrived before the token was visible.
+                    if admission.lock().unwrap().foreground_count > 0 {
+                        token.cancel();
+                    }
+                    ws.background_step(token)?;
+                    admission.lock().unwrap().background = None;
+                }
+                let delay = if workspace
+                    .as_ref()
+                    .is_some_and(Workspace::background_pending)
+                {
+                    2
+                } else {
+                    100
+                };
+                if workspace.is_none() {
+                    match receiver.recv() {
+                        Ok(request) => request,
+                        Err(_) => break,
+                    }
+                } else {
+                    match receiver.recv_timeout(std::time::Duration::from_millis(delay)) {
+                        Ok(request) => request,
+                        Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                        Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                    }
+                }
+            }
+        };
+        let dispatch_started = request.admitted_at.map(|_| std::time::Instant::now());
+        let local_attempt_before = request
+            .admitted_at
+            .and_then(|_| workspace.as_ref().map(Workspace::local_proof_attempt_count));
         let _scope = request.token.enter();
         let result = request.token.check().and_then(|()| {
             if request.method == "workspace/open" {
@@ -284,12 +342,34 @@ fn main() -> anyhow::Result<()> {
             result
         };
         if let Some(id) = &request.id {
-            let response = match result {
+            let mut response = match result {
                 Ok(value) => json!({"id":id,"result":value}),
                 Err(error) => {
                     json!({"id":id,"error":{"code":if error.is::<Cancelled>() {"cancelled"} else {"requestFailed"},"message":format!("{error:#}")}})
                 }
             };
+            if let (Some(admitted), Some(started)) = (request.admitted_at, dispatch_started) {
+                if let (Some(before), Some(ws)) = (local_attempt_before, workspace.as_ref()) {
+                    if ws.local_proof_attempt_count() != before {
+                        // Correlated to this response ID; absence is not a refusal.
+                        response["localProofAttempt"] = ws.last_local_proof_attempt();
+                    }
+                }
+                if matches!(request.method.as_str(), "document/open" | "document/change")
+                    && response.get("result").is_some()
+                {
+                    if let Some(trace) = workspace
+                        .as_ref()
+                        .and_then(Workspace::document_update_trace)
+                    {
+                        response["documentUpdate"] = trace.clone();
+                    }
+                }
+                response["nativeTiming"] = json!({
+                    "queueMs": started.duration_since(admitted).as_secs_f64() * 1000.0,
+                    "dispatchMs": started.elapsed().as_secs_f64() * 1000.0,
+                });
+            }
             emit(&output, response)?;
         } else if let Err(error) = result {
             eprintln!("{}: {error:#}", request.method);
@@ -336,6 +416,47 @@ mod tests {
                 |line| serde_json::from_str::<Value>(line).unwrap()["error"]["code"] == "queueFull"
             ));
     }
+    #[test]
+    fn cancelled_request_id_does_not_poison_dirty_successor_admission() {
+        // Hold the worker queue until the complete admission/cancellation order
+        // is fixed. No sleeps or assumption about reader/worker scheduling.
+        let input = [
+            json!({"id":"old", "method":"navigation/definition", "params":{"version":1}}),
+            json!({"id":"cancel-old", "method":"$/cancelRequest", "params":{"id":"old"}}),
+            json!({"id":"edit", "method":"document/change", "params":{"version":2}}),
+            json!({"id":"new", "method":"navigation/definition", "params":{"version":2}}),
+        ]
+        .iter()
+        .map(|v| format!("{v}\n"))
+        .collect::<String>();
+        let (sender, receiver) = mpsc::sync_channel(MAX_ADMITTED_REQUESTS);
+        let admission = Arc::new(Mutex::new(Admission::default()));
+        let background = CancellationToken::new();
+        admission.lock().unwrap().background = Some(background.clone());
+        let capture = Capture::default();
+        let output: Output = Arc::new(Mutex::new(Box::new(capture.clone())));
+        read_requests(io::Cursor::new(input), sender, admission.clone(), output).unwrap();
+        assert!(background.is_cancelled());
+        let old = receiver.try_recv().unwrap();
+        let edit = receiver.try_recv().unwrap();
+        let new = receiver.try_recv().unwrap();
+        assert_eq!(old.id, Some(json!("old")));
+        assert!(old.token.is_cancelled());
+        assert_eq!(edit.id, Some(json!("edit")));
+        assert!(!edit.token.is_cancelled());
+        assert_eq!(new.id, Some(json!("new")));
+        assert!(!new.token.is_cancelled());
+        old.token.cancel();
+        assert!(!new.token.is_cancelled());
+        for request in [&old, &edit, &new] {
+            release(&admission, request);
+        }
+        assert_eq!(admission.lock().unwrap().count, 0);
+        let ack: Value = serde_json::from_slice(&capture.0.lock().unwrap()).unwrap();
+        assert_eq!(ack["id"], "cancel-old");
+        assert_eq!(ack["result"]["cancelled"], true);
+    }
+
     #[test]
     fn oversized_line_does_not_consume_the_following_request() {
         let mut bytes = vec![b'x'; MAX_REQUEST_BYTES + 1];

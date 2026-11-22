@@ -431,6 +431,53 @@ impl Lexer {
         Ok(())
     }
 }
+/// Candidate-only syntax may inspect the unconditional prefix without guessing
+/// effective compiler defines. This does not establish binding or visibility.
+pub(crate) fn unconditional_prefix<'a>(
+    source: &'a str,
+    token: &CancellationToken,
+) -> Result<&'a str> {
+    let mut lexer = Lexer::new();
+    let mut offset = 0;
+    for line in source.split_inclusive('\n') {
+        token.check()?;
+        let content = line.trim_end_matches(['\r', '\n']);
+        let content = if offset == 0 {
+            content.strip_prefix('\u{feff}').unwrap_or(content)
+        } else {
+            content
+        };
+        if lexer.code() && content.trim_start_matches([' ', '\t']).starts_with('#') {
+            return Ok(&source[..offset]);
+        }
+        lexer.line(line, token)?;
+        offset += line.len();
+    }
+    ensure!(
+        lexer.code(),
+        "Unterminated lexical construct in candidate source"
+    );
+    Ok(source)
+}
+
+/// Candidate-only whole physical source validation, without selecting branches.
+/// Reject uncertain literal boundaries before interpreting occurrence tokens.
+pub(crate) fn validate_candidate_lexical_source(
+    source: &str,
+    token: &CancellationToken,
+) -> Result<()> {
+    let mut lexer = Lexer::new();
+    for line in source.split_inclusive('\n') {
+        token.check()?;
+        lexer.line(line, token)?;
+    }
+    ensure!(
+        lexer.code(),
+        "Unterminated lexical construct in occurrence source"
+    );
+    Ok(())
+}
+
 #[derive(Clone, Copy)]
 struct Branch {
     parent: bool,
@@ -558,6 +605,23 @@ mod tests {
             true,
         )
     }
+    #[test]
+    fn candidate_prefix_ignores_quoted_directives_and_stops_before_actual_directive() {
+        let source = "module M\r\n(* #if COMMENT *)\r\nlet text = \"\"\"\n#if STRING\n\"\"\"\nlet before = 1\n#if REAL\nlet after = 2\n#endif\n";
+        let prefix = unconditional_prefix(source, &CancellationToken::new()).unwrap();
+        assert!(prefix.contains("let before = 1"));
+        assert!(!prefix.contains("let after = 2"));
+        assert_eq!(prefix.len(), source.find("#if REAL").unwrap());
+        assert!(
+            unconditional_prefix("let text = \"unterminated", &CancellationToken::new()).is_err()
+        );
+        assert!(unconditional_prefix(
+            "let text = $$\"\"\"extended\"\"\"",
+            &CancellationToken::new()
+        )
+        .is_err());
+    }
+
     #[test]
     fn projection_keeps_offsets_and_ignores_inactive_lexical_garbage() {
         let source="module M\r\n#if A\r\nlet α = \"🦀\"\r\n#else\r\n\"unterminated (*\r\n#if B\r\nbroken\r\n#endif\r\n#endif\r\nlet after = α\r\n";

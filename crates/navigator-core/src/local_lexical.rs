@@ -251,11 +251,47 @@ fn forbidden_context(mut n: Node<'_>) -> bool {
 }
 #[derive(Clone, Debug, Default, Serialize)]
 pub struct Metrics {
+    pub outcome: Option<&'static str>,
     pub parse_started: bool,
     pub parsed_bytes: usize,
     pub visited_nodes: usize,
     pub parse_elapsed_micros: u64,
     pub elapsed_micros: u64,
+}
+// Shared production decisions take explicit observations so boundary tests need
+// neither sleeps nor relaxed budgets. Labels diagnose refusal, never prove a result.
+fn parse_stop_reason(
+    cancelled: bool,
+    elapsed: Duration,
+    memory_exhausted: bool,
+) -> Option<&'static str> {
+    if cancelled {
+        Some("cancelled")
+    } else if elapsed > PARSE_TIME {
+        Some("parse-time-budget")
+    } else if memory_exhausted {
+        Some("parse-rss-budget")
+    } else {
+        None
+    }
+}
+fn work_stop_reason(
+    depth: usize,
+    nodes: usize,
+    cancelled: bool,
+    elapsed: Duration,
+) -> Option<&'static str> {
+    if depth > MAX_DEPTH {
+        Some("depth-budget")
+    } else if nodes > MAX_NODES {
+        Some("node-budget")
+    } else if cancelled {
+        Some("cancelled")
+    } else if elapsed > TOTAL_TIME {
+        Some("proof-time-budget")
+    } else {
+        None
+    }
 }
 struct Work<'a, 'm> {
     source: &'a str,
@@ -266,10 +302,16 @@ struct Work<'a, 'm> {
 impl Work<'_, '_> {
     fn step(&mut self, depth: usize) -> bool {
         self.metrics.visited_nodes += 1;
-        depth <= MAX_DEPTH
-            && self.metrics.visited_nodes <= MAX_NODES
-            && !self.token.is_cancelled()
-            && self.started.elapsed() <= TOTAL_TIME
+        let reason = work_stop_reason(
+            depth,
+            self.metrics.visited_nodes,
+            self.token.is_cancelled(),
+            self.started.elapsed(),
+        );
+        if let Some(reason) = reason {
+            self.metrics.outcome = Some(reason);
+        }
+        reason.is_none()
     }
     // Tree-sitter can associate M(x=not x) as an application whose callee
     // contains the equality. Once inside an argument, keep this guard for
@@ -308,6 +350,7 @@ impl Work<'_, '_> {
                     .is_some_and(|b| b.id == wanted)
                 {
                     if uses.len() == MAX_REFERENCES {
+                        self.metrics.outcome = Some("reference-budget");
                         return false;
                     }
                     uses.push((first.start_byte(), first.end_byte()));
@@ -535,6 +578,12 @@ pub fn query_with_metrics(
     let started = Instant::now();
     let result = query_impl(snapshot, at, operation, cancellation, metrics);
     metrics.elapsed_micros = started.elapsed().as_micros().min(u64::MAX as u128) as u64;
+    metrics.outcome = Some(match &result {
+        Ok(Some(_)) => "exact",
+        Err(error) if error.is::<crate::cancellation::Cancelled>() => "cancelled",
+        Err(_) => "error",
+        Ok(None) => metrics.outcome.unwrap_or("unsupported"),
+    });
     result
 }
 fn cursor_name(source: &str, offset: usize) -> Option<&str> {
@@ -591,9 +640,11 @@ fn query_impl(
             .lines()
             .any(|line| line.trim_start().starts_with('#'))
     {
+        metrics.outcome = Some("input-guard");
         return Ok(None);
     }
     let Some(offset) = byte_position(source, at) else {
+        metrics.outcome = Some("invalid-position");
         return Ok(None);
     };
     if cursor_name(source, offset).is_none() {
@@ -602,6 +653,7 @@ fn query_impl(
     let started = Instant::now();
     let initial_rss = rss_bytes();
     if initial_rss.is_some_and(|n| n > 96 * 1024 * 1024) {
+        metrics.outcome = Some("rss-budget");
         return Ok(None);
     }
     let mut parser = Parser::new();
@@ -609,6 +661,7 @@ fn query_impl(
         .set_language(&tree_sitter_fsharp::LANGUAGE_FSHARP.into())
         .expect("pinned F# grammar ABI");
     let mut checks = 0usize;
+    let mut parse_refusal = None;
     let mut progress = |_: &tree_sitter::ParseState| {
         checks += 1;
         let memory_exhausted = checks % 32 == 0
@@ -617,7 +670,12 @@ fn query_impl(
                     || initial_rss
                         .is_some_and(|initial| rss.saturating_sub(initial) > 16 * 1024 * 1024)
             });
-        if cancellation.is_cancelled() || started.elapsed() > PARSE_TIME || memory_exhausted {
+        if let Some(reason) = parse_stop_reason(
+            cancellation.is_cancelled(),
+            started.elapsed(),
+            memory_exhausted,
+        ) {
+            parse_refusal = Some(reason);
             ControlFlow::Break(())
         } else {
             ControlFlow::Continue(())
@@ -634,12 +692,15 @@ fn query_impl(
         Some(ParseOptions::new().progress_callback(&mut progress)),
     );
     metrics.parse_elapsed_micros = parse_started.elapsed().as_micros().min(u64::MAX as u128) as u64;
+    metrics.outcome = parse_refusal;
     cancellation.check()?;
     let Some(tree) = tree else {
+        metrics.outcome = Some(metrics.outcome.unwrap_or("parser-aborted"));
         return Ok(None);
     };
     let root = tree.root_node();
     if root.has_error() {
+        metrics.outcome = Some("syntax-error");
         return Ok(None);
     }
     let mut work = Work {
@@ -772,6 +833,7 @@ fn query_impl(
                 }
             };
             if spans.len().saturating_mul(snapshot.uri.len()) > MAX_LOCATION_URI_BYTES {
+                work.metrics.outcome = Some("location-budget");
                 return Ok(None);
             }
             spans.push((parameter.start_byte(), parameter.end_byte()));
@@ -809,6 +871,40 @@ fn query_impl(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn budget_diagnostics_use_production_boundaries_and_precedence() {
+        assert_eq!(parse_stop_reason(false, PARSE_TIME, false), None);
+        assert_eq!(
+            parse_stop_reason(false, PARSE_TIME + Duration::from_nanos(1), false),
+            Some("parse-time-budget")
+        );
+        assert_eq!(
+            parse_stop_reason(false, Duration::ZERO, true),
+            Some("parse-rss-budget")
+        );
+        assert_eq!(
+            parse_stop_reason(true, PARSE_TIME + Duration::from_secs(1), true),
+            Some("cancelled")
+        );
+        assert_eq!(
+            work_stop_reason(MAX_DEPTH, MAX_NODES, false, TOTAL_TIME),
+            None
+        );
+        assert_eq!(
+            work_stop_reason(0, 1, false, TOTAL_TIME + Duration::from_nanos(1)),
+            Some("proof-time-budget")
+        );
+        assert_eq!(
+            work_stop_reason(MAX_DEPTH + 1, MAX_NODES + 1, true, TOTAL_TIME),
+            Some("depth-budget")
+        );
+        assert_eq!(
+            work_stop_reason(0, MAX_NODES + 1, false, TOTAL_TIME),
+            Some("node-budget")
+        );
+        assert_eq!(work_stop_reason(0, 1, true, TOTAL_TIME), Some("cancelled"));
+    }
+
     const MARK: &str = "(*cursor*)";
     fn ask(marked: &str, operation: Operation) -> Option<LocalAnswer> {
         let offset = marked.find(MARK).expect("cursor marker");
