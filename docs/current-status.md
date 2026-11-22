@@ -15,6 +15,9 @@ observation gate without running a new timing cohort or changing runtime.
 The [subsequent opt-in observation](demand-switch-observation.md) passed the
 ordinary editor gate and recorded one stopped switch/control pair. It did not
 justify a scheduling change or a performance-improvement claim.
+The [held-state PSS qualification](held-state-pss.md) stopped before measurement:
+Solution-view initialization did not request background indexing. The +8 MiB
+precision guard remains unverified; runtime was unchanged.
 
 ## Fixed-corpus results
 
