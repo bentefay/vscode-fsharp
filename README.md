@@ -66,3 +66,7 @@ Semantic mode, project preparation, snapshot import and external declaration
 helpers are explicit experiments. They are not default-navigation fallbacks.
 The [protocol](docs/protocol.md) describes completeness, budgets and freshness.
 See [preview status](docs/preview-status.md) for current validation limits.
+
+For the immutable packaged-keyboard test slice and its explicit limits, see the
+[manifest-driven editor gate](extension/test/e2e/README.md). It is separate from
+the build-and-prepare integration suite.

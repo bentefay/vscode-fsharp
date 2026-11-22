@@ -1,0 +1,337 @@
+{
+  "schemaVersion": 1,
+  "suite": "packaged-definition-first-slice",
+  "fixtures": [
+    {
+      "id": "small-unprepared",
+      "project": "App.fsproj",
+      "files": {
+        "First.fs": "module First\nlet marker = 1\n",
+        "Second.fs": "module Second\nlet marker = 2\n",
+        "Opened.fs": "module Opened\nopen First\nopen Second\nlet answer = marker\n",
+        "Local.fs": "module Local\nlet nested = (fun value -> (fun value -> value) 2) 1\n",
+        "Records.fs": "module Records\ntype Person = { Name: string }\ntype Company = { Name: string }\nlet typed (person: Person) = person.Name\nlet ambiguous (people: Person list) = (List.head people).Name\nlet unsupported item = item.DoesNotExist\n",
+        "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"First.fs\" /><Compile Include=\"Second.fs\" /><Compile Include=\"Opened.fs\" /><Compile Include=\"Local.fs\" /><Compile Include=\"Records.fs\" /></ItemGroup></Project>\n"
+      }
+    },
+    {
+      "id": "conditional-unprepared",
+      "project": "Conditional.fsproj",
+      "files": {
+        "Conditional.fs": "module Conditional\ntype Person = { Label: string }\ntype Company = { Label: string }\n#if FEATURE\nlet inspect item = item.Label\n#else\nlet inspect item = item.Label\n#endif\n",
+        "Conditional.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Conditional.fs\" /></ItemGroup></Project>\n"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "nested-shadow",
+      "ruleId": "lexical.nested-shadow",
+      "fixture": "small-unprepared",
+      "query": {
+        "file": "Local.fs",
+        "line": 1,
+        "character": 41,
+        "token": "value"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Local.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 32
+            },
+            "end": {
+              "line": 1,
+              "character": 37
+            }
+          }
+        },
+        "forbidden": [
+          {
+            "file": "Local.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 18
+              },
+              "end": {
+                "line": 1,
+                "character": 23
+              }
+            }
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-language-rule",
+        "explanation": "The use is inside the inner lambda and binds its parameter, not the outer same-named parameter.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/let-bindings"
+      }
+    },
+    {
+      "id": "ordered-open",
+      "ruleId": "module.ordered-open",
+      "fixture": "small-unprepared",
+      "query": {
+        "file": "Opened.fs",
+        "line": 3,
+        "character": 13,
+        "token": "marker"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Second.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 4
+            },
+            "end": {
+              "line": 1,
+              "character": 10
+            }
+          }
+        },
+        "forbidden": [
+          {
+            "file": "First.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 4
+              },
+              "end": {
+                "line": 1,
+                "character": 10
+              }
+            }
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-language-rule",
+        "explanation": "Second is opened after First; both source modules export marker and Second.marker shadows First.marker.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/import-declarations-the-open-keyword"
+      }
+    },
+    {
+      "id": "typed-record-label",
+      "ruleId": "record.typed-receiver",
+      "fixture": "small-unprepared",
+      "query": {
+        "file": "Records.fs",
+        "line": 3,
+        "character": 36,
+        "token": "Name"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Records.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 16
+            },
+            "end": {
+              "line": 1,
+              "character": 20
+            }
+          }
+        },
+        "forbidden": [
+          {
+            "file": "Records.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 17
+              },
+              "end": {
+                "line": 2,
+                "character": 21
+              }
+            }
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-language-rule",
+        "explanation": "Explicit Person receiver fixes the Name field owner; Company.Name is not that binding.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records"
+      }
+    },
+    {
+      "id": "library-result-receiver-choices",
+      "ruleId": "record.library-result-receiver",
+      "fixture": "small-unprepared",
+      "query": {
+        "file": "Records.fs",
+        "line": 4,
+        "character": 57,
+        "token": "Name"
+      },
+      "expected": {
+        "kind": "candidates",
+        "required": [
+          {
+            "file": "Records.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 16
+              },
+              "end": {
+                "line": 1,
+                "character": 20
+              }
+            }
+          },
+          {
+            "file": "Records.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 17
+              },
+              "end": {
+                "line": 2,
+                "character": 21
+              }
+            }
+          }
+        ],
+        "target": {
+          "file": "Records.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 16
+            },
+            "end": {
+              "line": 1,
+              "character": 20
+            }
+          }
+        }
+      },
+      "oracle": {
+        "kind": "authored-candidate-safety-contract",
+        "explanation": "List.head returns the element type of its input list, so the language target is Person.Name. Without a certified library catalog the indexed engine cannot assume that external function identity/type. Require both current same-label candidates as incomplete suggestions, no forced jump, then deliberate selection of Person.Name.",
+        "source": "https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-listmodule.html#head"
+      },
+      "cancelPicker": true
+    },
+    {
+      "id": "unknown-member",
+      "ruleId": "member.unresolved",
+      "fixture": "small-unprepared",
+      "query": {
+        "file": "Records.fs",
+        "line": 5,
+        "character": 28,
+        "token": "DoesNotExist"
+      },
+      "expected": {
+        "kind": "unavailable",
+        "forbidden": [
+          {
+            "file": "Records.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 16
+              },
+              "end": {
+                "line": 1,
+                "character": 20
+              }
+            }
+          },
+          {
+            "file": "Records.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 17
+              },
+              "end": {
+                "line": 2,
+                "character": 21
+              }
+            }
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-unsupported-safety-contract",
+        "explanation": "No declaration with this member exists in the authored fixture. An unconstrained receiver supplies no proof; expected safe UI is unavailable with no jump. The member access is intentionally ill-typed; this is not a complete-reference oracle.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records"
+      }
+    },
+    {
+      "id": "conditional-origin",
+      "ruleId": "conditional.unknown-active-origin",
+      "fixture": "conditional-unprepared",
+      "query": {
+        "file": "Conditional.fs",
+        "line": 4,
+        "character": 24,
+        "token": "Label"
+      },
+      "expected": {
+        "kind": "candidates",
+        "required": [
+          {
+            "file": "Conditional.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 16
+              },
+              "end": {
+                "line": 1,
+                "character": 21
+              }
+            }
+          },
+          {
+            "file": "Conditional.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 17
+              },
+              "end": {
+                "line": 2,
+                "character": 22
+              }
+            }
+          }
+        ],
+        "target": {
+          "file": "Conditional.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 16
+            },
+            "end": {
+              "line": 1,
+              "character": 21
+            }
+          }
+        }
+      },
+      "oracle": {
+        "kind": "authored-candidate-safety-contract",
+        "explanation": "The query is physically inside a conditional branch with an untyped receiver. Current prefix declarations are plausible candidates only; the test does not certify branch activity or exact binding.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-directives"
+      }
+    }
+  ]
+}

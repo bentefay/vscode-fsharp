@@ -42,7 +42,7 @@ export async function buildDecompiler({ readyToRun = false, rid } = {}) {
 }
 export async function check() {
   await exec('python3', ['scripts/test_normalize_vsix.py']);
-  await exec('node', ['--test', 'scripts/restore-parser-sources.test.mjs', 'scripts/package-output.test.mjs', 'scripts/isolated-install.test.mjs']);
+  await exec('node', ['--test', 'scripts/restore-parser-sources.test.mjs', 'scripts/package-output.test.mjs', 'scripts/isolated-install.test.mjs', 'extension/test/e2e/manifest.test.cjs']);
   await exec('node',['node_modules/typescript/bin/tsc','-p','extension/tsconfig.json','--noEmit']);
   await exec('cargo',['fmt','--all','--','--check']);
   await exec('cargo',['test','--workspace','--locked']);
@@ -85,6 +85,13 @@ export class TestCommand extends Command {
   layer=Option.String();
   async execute(){
     if(this.layer==='installer') { await exec('node',['--test','scripts/isolated-install.test.mjs']); return; }
+    if(this.layer==='e2e') {
+      for (const key of ['FSHARP_E2E_CODE', 'FSHARP_E2E_VSIX', 'FSHARP_E2E_OUTPUT']) if (!process.env[key]) throw new Error(`${key} is required for the immutable packaged editor gate.`);
+      await exec('extension/test/with-display.sh', ['python3', 'extension/test/e2e/run.py',
+        '--code', process.env.FSHARP_E2E_CODE, '--vsix', process.env.FSHARP_E2E_VSIX,
+        '--manifest', path.join(root, 'extension/test/e2e/manifest.json'), '--output', process.env.FSHARP_E2E_OUTPUT], { timeout: 240000 });
+      return;
+    }
     if(this.layer==='unit') return check();
     if (this.layer === 'adapter') {
       await build();
@@ -96,7 +103,7 @@ export class TestCommand extends Command {
     }
     if(this.layer==='integration'){await build();return testHost(false);}
     if(this.layer==='ui'){await build();return testHost(true);}
-    throw new Error('Expected unit, installer, adapter (mocked editor API with real Rust), integration, or ui.');
+    throw new Error('Expected unit, installer, e2e, adapter (mocked editor API with real Rust), integration, or ui.');
   }
 }
 export class VerifyCommand extends Command {
