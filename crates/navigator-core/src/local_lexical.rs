@@ -1,4 +1,4 @@
-//! A source-local parameter proof. No workspace, project, index or library reads.
+//! Source-local parameter and narrow match-binder proofs. No workspace, project, index or library reads.
 //! Unsupported roles return None; this is not the general lexical fallback.
 use crate::cancellation::CancellationToken;
 use serde::Serialize;
@@ -8,7 +8,7 @@ use std::{
 };
 use tree_sitter::{Node, ParseOptions, Parser};
 
-pub const PROOF_VERSION: &str = "document-local-parameter-v2";
+pub const PROOF_VERSION: &str = "document-local-lexical-binder-v3";
 pub const PARSER_FINGERPRINT: &str = "tree-sitter-fsharp-0.3.13:00943a441bd59446ed9d321f3e0e09402ec3069c623890fc0b1893717d001302:abi15";
 const MAX_SOURCE_BYTES: usize = 256 * 1024;
 const MAX_NODES: usize = 50_000;
@@ -151,6 +151,7 @@ struct Candidate<'a> {
     body: Node<'a>,
     parameters: Vec<Node<'a>>,
     local_refs: bool,
+    match_arm: bool,
 }
 fn function<'a>(n: Node<'a>, s: &str) -> Option<(Node<'a>, Node<'a>, Vec<Node<'a>>)> {
     if n.kind() != "function_or_value_defn"
@@ -186,6 +187,53 @@ fn lambda<'a>(n: Node<'a>, s: &str) -> Option<(Node<'a>, Vec<Node<'a>>)> {
         return None;
     }
     Some((cs[1], parameters(cs[0], s)?))
+}
+// References only: one unguarded ordinary match arm, never a generic pattern
+// binder or a computation-expression rule. The whole RHS must still pass Work.
+fn singleton_array_rule<'a>(n: Node<'a>, s: &str) -> Option<(Node<'a>, Node<'a>)> {
+    if n.kind() != "rule" || n.has_error() || n.child_by_field_name("guard").is_some() {
+        return None;
+    }
+    let rules = n.parent()?;
+    let owner = rules.parent()?;
+    if rules.kind() != "rules" || owner.kind() != "match_expression" || token(owner, "match!") {
+        return None;
+    }
+    let pat = n.child_by_field_name("pattern")?;
+    let body = n.child_by_field_name("block")?;
+    let cs = children(n);
+    if cs.len() != 2
+        || cs[0].id() != pat.id()
+        || cs[1].id() != body.id()
+        || pat.kind() != "array_pattern"
+    {
+        return None;
+    }
+    let elements = children(pat);
+    if elements.len() != 1 {
+        return None;
+    }
+    let mut binder = elements[0];
+    for _ in 0..8 {
+        if binder.has_error() || binder.is_missing() {
+            return None;
+        }
+        if binder.kind() == "identifier" {
+            return ordinary_name(raw(binder, s)).then_some((body, binder));
+        }
+        if !matches!(
+            binder.kind(),
+            "identifier_pattern" | "long_identifier_or_op" | "long_identifier"
+        ) {
+            return None;
+        }
+        let nested = children(binder);
+        if nested.len() != 1 {
+            return None;
+        }
+        binder = nested[0];
+    }
+    None
 }
 fn local_function(n: Node<'_>) -> bool {
     let mut child = n;
@@ -298,6 +346,7 @@ struct Work<'a, 'm> {
     token: &'a CancellationToken,
     started: Instant,
     metrics: &'m mut Metrics,
+    reject_case_separators: bool,
 }
 impl Work<'_, '_> {
     fn step(&mut self, depth: usize) -> bool {
@@ -392,7 +441,11 @@ impl Work<'_, '_> {
                     return false;
                 }
                 let op = raw(cs[1], self.source);
-                if op == "?" || op == "?<-" || (in_call_argument && op == "=") {
+                if op == "?" || op == "?<-" || (in_call_argument && op == "=")
+                    // The pinned grammar can fold an inline sibling rule into
+                    // this RHS. Never certify its names as this arm's uses.
+                    || (self.reject_case_separators && matches!(op, "|" | "->"))
+                {
                     return false;
                 }
                 self.expr(cs[0], env, wanted, uses, depth + 1, in_call_argument)
@@ -708,6 +761,7 @@ fn query_impl(
         token: cancellation,
         started,
         metrics,
+        reject_case_separators: false,
     };
     let leaf = (offset < source.len())
         .then(|| {
@@ -741,6 +795,7 @@ fn query_impl(
                     body,
                     parameters: params,
                     local_refs: local_function(n),
+                    match_arm: false,
                 });
             } else if let Some((body, params)) = lambda(n, source) {
                 candidates.push(Candidate {
@@ -748,7 +803,18 @@ fn query_impl(
                     body,
                     parameters: params,
                     local_refs: argument_lambda(n),
+                    match_arm: false,
                 });
+            } else if matches!(operation, Operation::References { .. }) {
+                if let Some((body, binder)) = singleton_array_rule(n, source) {
+                    candidates.push(Candidate {
+                        node: n,
+                        body,
+                        parameters: vec![binder],
+                        local_refs: true,
+                        match_arm: true,
+                    });
+                }
             }
         }
         ancestor = n.parent();
@@ -776,6 +842,7 @@ fn query_impl(
                 })
                 .collect();
             let mut uses = Vec::new();
+            work.reject_case_separators = candidate.match_arm;
             if !work.expr(
                 candidate.body,
                 &env,
@@ -927,6 +994,118 @@ mod tests {
     const REFS: Operation = Operation::References {
         include_declaration: true,
     };
+    #[test]
+    fn singleton_array_references_close_only_the_selected_arm() {
+        for (body, use_column) in [
+            ("part + 1", 20),
+            ("(fun part -> part) part", 39),
+            ("(let part = part in part)", 32),
+        ] {
+            let source = format!("module M\nlet read items =\n    match items with\n    | [| (*cursor*)part |] -> {body}\n    | _ -> let part = 9 in part\n");
+            let answer = ask(&source, REFS).unwrap();
+            assert_eq!(answer.locations.len(), 2, "{body}");
+            assert_eq!(
+                answer.declaration,
+                Range {
+                    start: Position {
+                        line: 3,
+                        character: 9
+                    },
+                    end: Position {
+                        line: 3,
+                        character: 13
+                    }
+                }
+            );
+            assert_eq!(
+                answer.locations,
+                vec![
+                    Location {
+                        uri: "file:///Main.fs".into(),
+                        range: answer.declaration.clone()
+                    },
+                    Location {
+                        uri: "file:///Main.fs".into(),
+                        range: Range {
+                            start: Position {
+                                line: 3,
+                                character: use_column
+                            },
+                            end: Position {
+                                line: 3,
+                                character: use_column + 4
+                            }
+                        }
+                    },
+                ]
+            );
+            let uses = ask(
+                &source,
+                Operation::References {
+                    include_declaration: false,
+                },
+            )
+            .unwrap();
+            assert_eq!(uses.locations, answer.locations[1..]);
+            assert!(ask(&source, Operation::Definition).is_none());
+        }
+        let utf16 = "module M\r\nlet read items =\r\n    match items with\r\n    | [| item |] -> (\"😀\", (*cursor*)item)\r\n    | _ -> (\"\", 0)\r\n";
+        let answer = ask(utf16, REFS).unwrap();
+        assert_eq!(answer.locations.len(), 2);
+        assert_eq!(
+            answer.locations[1].range,
+            Range {
+                start: Position {
+                    line: 3,
+                    character: 27
+                },
+                end: Position {
+                    line: 3,
+                    character: 31
+                }
+            }
+        );
+    }
+
+    #[test]
+    fn singleton_array_references_refuse_unclosed_patterns_and_bodies() {
+        for rule in [
+            "[| part |] when part > 0 -> part",
+            "[| part |] | [| part; _ |] -> part",
+            "[| Some part |] -> part",
+            "[| { Label = part } |] -> part",
+            "[| (part:int) |] -> part",
+            "[| ``part`` |] -> part",
+            "[| part; other |] -> part",
+            "[| part |] as parts -> part",
+            "[| part |] -> match part with Some part -> part | None -> 0",
+            "[| part |] -> C.M(part=1)",
+            "[| part |] -> <@ part @>",
+            "[| part |] -> $\"{part}\"",
+            "[| part |] -> seq { yield part }",
+            "[| part |] -> part | _ -> part",
+        ] {
+            let use_at = rule.rfind("part").unwrap();
+            let marked = format!("{}(*cursor*){}", &rule[..use_at], &rule[use_at..]);
+            let source =
+                format!("module M\nlet read items =\n    match items with\n    | {marked}\n");
+            assert!(ask(&source, REFS).is_none(), "{rule}");
+        }
+        for marked in [
+            "[| (*cursor*)part |] -> part | _ -> part",
+            "[| part |] -> (*cursor*)part | _ -> part",
+        ] {
+            let source = format!("module M\nlet f items = match items with {marked}\n");
+            assert!(ask(&source, REFS).is_none(), "{marked}");
+        }
+        for prefix in ["#if FLAG\n", "#nowarn \"40\"\n"] {
+            let source = format!(
+                "module M\n{prefix}let f items = match items with [| part |] -> (*cursor*)part\n"
+            );
+            assert!(ask(&source, REFS).is_none());
+        }
+    }
+
     #[test]
     fn real_grace_and_fable_lambda_bodies_are_local_without_receiver_types() {
         let grace="module M\nlet selected ranges=ranges |> Array.sortBy (fun range -> range.OrdinalStart, (*cursor*)range.PhysicalOffset, range.PhysicalLength)\n";

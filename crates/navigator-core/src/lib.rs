@@ -4909,6 +4909,7 @@ mod integration_tests {
         let (root, mut ws) = fixture();
         let path = root.join("Main.fs");
         let source = "module Cases\nlet read (items:int[]) =\n    match items with\n    | [| part |] -> part + 1\n    | _ -> let part = 9 in part\n";
+        fs::write(&path, source).unwrap();
         for i in 0..520 {
             fs::write(root.join(format!("padding{i}.txt")), "").unwrap();
         }
@@ -4932,8 +4933,88 @@ mod integration_tests {
             assert_eq!(result["documentVersion"], 1);
         }
         assert!(!ws.model_loaded);
+        let query = |line, version| json!({"path":path,"line":line,"character":9,"version":version,"includeDeclaration":true});
+        let shifted = format!("// shifted\n{source}");
+        ws.dispatch(
+            "document/change",
+            &json!({"path":path,"text":shifted,"version":2}),
+        )
+        .unwrap();
+        let current = ws.dispatch("navigation/references", &query(4, 2)).unwrap();
+        let mut shifted_declaration = declaration.clone();
+        let mut shifted_usage = usage.clone();
+        for location in [&mut shifted_declaration, &mut shifted_usage] {
+            location["range"]["start"]["line"] = json!(4);
+            location["range"]["end"]["line"] = json!(4);
+        }
+        assert_eq!(
+            current["locations"],
+            json!([shifted_declaration, shifted_usage])
+        );
+        assert!(ws.dispatch("navigation/references", &query(3, 1)).is_err());
+        let rebound = source.replace("part + 1", "(let part = part in part)");
+        ws.dispatch(
+            "document/change",
+            &json!({"path":path,"text":rebound,"version":3}),
+        )
+        .unwrap();
+        let rebound_result = ws.dispatch("navigation/references", &query(3, 3)).unwrap();
+        let rebound_usage = json!({"uri":uri(path.to_str().unwrap()),"range":{"start":{"line":3,"character":32},"end":{"line":3,"character":36}}});
+        assert_eq!(
+            rebound_result["locations"],
+            json!([declaration, rebound_usage])
+        );
+        assert_eq!(rebound_result["completeness"], "exact");
+        assert_ne!(rebound_result["sourceHash"], current["sourceHash"]);
+        let renamed = source.replace("part", "entry");
+        ws.dispatch(
+            "document/change",
+            &json!({"path":path,"text":renamed,"version":4}),
+        )
+        .unwrap();
+        let renamed_result = ws.dispatch("navigation/references", &query(3, 4)).unwrap();
+        let renamed_declaration = json!({"uri":uri(path.to_str().unwrap()),"range":{"start":{"line":3,"character":9},"end":{"line":3,"character":14}}});
+        let renamed_usage = json!({"uri":uri(path.to_str().unwrap()),"range":{"start":{"line":3,"character":21},"end":{"line":3,"character":26}}});
+        assert_eq!(
+            renamed_result["locations"],
+            json!([renamed_declaration, renamed_usage])
+        );
+        assert_eq!(
+            renamed_result["sourceHash"],
+            blake3::hash(renamed.as_bytes()).to_hex().to_string()
+        );
+        let cancel = cancellation::CancellationToken::new();
+        cancel.cancel();
+        ws.set_cancellation(cancel);
+        assert!(ws.dispatch("navigation/references", &query(3, 4)).is_err());
+        ws.set_cancellation(cancellation::CancellationToken::new());
+        ws.dispatch("document/close", &json!({"path":path}))
+            .unwrap();
+        assert!(ws.dispatch("navigation/references", &query(3, 4)).is_err());
+        ws.dispatch(
+            "document/open",
+            &json!({"path":path,"text":source,"version":5}),
+        )
+        .unwrap();
+        assert_eq!(
+            ws.dispatch("navigation/references", &query(3, 5)).unwrap()["locations"],
+            json!([declaration, usage])
+        );
         assert_eq!(ws.index.counters.helper_starts, 0);
         drop(ws);
+        let mut reopened = Workspace::open(&json!({"root":root,"mode":"indexed"})).unwrap();
+        reopened
+            .dispatch(
+                "document/open",
+                &json!({"path":path,"text":source,"version":1}),
+            )
+            .unwrap();
+        let restarted = reopened
+            .dispatch("navigation/references", &query(3, 1))
+            .unwrap();
+        assert_eq!(restarted["locations"], json!([declaration, usage]));
+        assert_eq!(restarted["completeness"], "exact");
+        drop(reopened);
         fs::remove_dir_all(root).unwrap();
     }
 
