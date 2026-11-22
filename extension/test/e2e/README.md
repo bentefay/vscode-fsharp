@@ -7,9 +7,10 @@ passed **24 required scenarios** and reproduced
 the existing scoped signature failure separately. A second known defect—the
 qualified union case—remains a strict separately runnable regression, not a
 passing unavailable case. See [language-rule details](#language-rule-slice).
-The separate prepared hover suite remains **0/3 verified** from the preceding
-slice; it was not retried here. Positive rendered library documentation remains
-unverified. See [References details](#native-references-slice) for UI/range
+The original prepared hover generation remains **0/3 verified**. A separate
+fresh explicit-preparation qualification passed **2/3 once**, including rendered
+framework documentation, while List.map ownership remained unproven. That
+overall gate still failed; see the qualification note below. See [References details](#native-references-slice) for UI/range
 confidence boundaries.
 
 The preceding definition-only slice contained 12 scenarios. The first
@@ -316,3 +317,24 @@ Use the optional manifest flag above to run that still-failing regression; it
 has no expected-failure exemption and is not scored as a passing unavailable
 case. The default suite retains the other five additions and all original
 source context. The first failed report remains preserved.
+
+## Fresh-preparation qualification note
+
+One subsequent controlled run generated fresh genuine assets for the same
+reviewed fixture and kept the original three queries and expected outcomes.
+Framework `IsNullOrEmpty` documentation and exact workspace-homonym suppression
+passed. `List.map` returned fresh unavailable/unknown ownership and failed its
+strict exact assertion. This is **2/3 once, not a passing prepared suite**.
+
+Preparation and editor launch shared preallocated private environment paths;
+all certificate environment inputs were checked in the actual Extension Host
+and native process before hover. No certificate was edited. The temporary
+prepared-only runner overlay was restored after this instrumented run; the
+committed generic runner does not orchestrate this fresh-preparation workflow.
+The original manifest's path-bound asset pins remain unchanged. Do not merely
+substitute freshly generated paths into an old descriptor or claim an old
+certificate is current because its files still hash correctly.
+
+See the [qualification evidence boundary](../../../docs/e2e-coverage.md#fresh-explicit-prepared-hover-qualification)
+and [preparation requirements](../../../docs/prepared-metadata.md#environment-bound-preparation-and-editor-qualification).
+The ordinary 24-pass matrix and both known failures are unchanged.

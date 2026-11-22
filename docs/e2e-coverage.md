@@ -4,9 +4,10 @@ The current language-rule slice extends verified main
 `75080a75dec2533fab4baaf3ddf9ba25e7830322`: **24 required passes and one scoped
 signature failure across 25 default scenarios**. A second known failure,
 qualified union-case identity, is preserved as a separate strict regression.
-The prepared-hover **0/3 verified** result from the preceding slice is unchanged
-and was not retried. These counts do not include unimplemented matrix rows or
-turn known failures into passing features.
+The original prepared-hover generation remains **0/3 verified**. A separate
+fresh, explicitly prepared generation now has **2/3 passing checks in one run**;
+its overall gate remains failed. These counts do not include unimplemented
+matrix rows or turn known failures into passing features.
 
 The preceding References slice extends source checkpoint
 `70b00733090db4ddc239109c60622897b0bfa09e`. Its final pinned Code 1.108.0
@@ -133,8 +134,8 @@ runner's immutable input snapshot/hash set.
 | Possible References action | Same fixture, click warning action | Four reachable physical occurrences including unrelated homonyms; explicit full-range selection | Pass; not semantic completeness |
 | Repeats and currentness | `reference-edits`, linked edit/delete/rebind, repeated action | Deduplication, updated rows, stale rows cannot navigate | Pending |
 | Reference cancellation/restart | Same fixture, actual pending cancel/restart | No late stale publication/navigation | Pending; sidebar non-cancellable token differs from Shift+F12 |
-| External library hover | Separate `hover-core-list-map` and `hover-framework-string-test`, Show Hover | Pinned name and discriminating signature/docs in actual widget | Blocked: 0/2 positive cases verified; see rendered slice below |
-| Hover suppression | `hover-local-parameter-suppressed`; `hover-unprepared-homonym-unavailable`; separate prepared framework homonym | Fresh exact workspace suppression versus explicit unknown/unavailable; no speculative widget | Ordinary two pass; prepared collision blocked; stale catalog pending |
+| External library hover | Separate `hover-core-list-map` and `hover-framework-string-test`, Show Hover | Pinned name and discriminating signature/docs in actual widget | Fresh prepared run: framework documentation passes; List.map owner proof fails. Original generation remains blocked |
+| Hover suppression | `hover-local-parameter-suppressed`; `hover-unprepared-homonym-unavailable`; separate prepared framework homonym | Fresh exact workspace suppression versus explicit unknown/unavailable; no speculative widget | Ordinary two pass; fresh prepared collision passes; stale catalog pending |
 | Hover restart | Same fixture, restart then hover | Current identity/content; no cached wrong owner | Pending |
 | Project compile order | `project-tree-compile-order-linked-path`, pointer expansion | Exact rendered nonalphabetic order, repeated folders and linked display path | Pass |
 | Tree file actions | Same fixture, click each of five rows | Each click changes to authored physical URI; no transient unrelated file | Pass for file opens; subsequent context-sensitive F12 pending |
@@ -285,9 +286,9 @@ contracts remain opt-in and fail on these setup outcomes; they are neither
 expected failures nor passing E2E coverage. No additional setup or runtime
 changes were made to obtain a green result.
 
-The next separable decision is to diagnose that prepared editor-child context
-and obtain the first rendered positive library hover without changing the
-certificate boundary. References edits/cancellation/restart and selected tree
+The subsequent diagnostic identified query-time TEMP certificate rejection,
+and the fresh-preparation qualification below separates that setup failure
+from a remaining ownership-proof gap. References edits/cancellation/restart and selected tree
 context remain separate gaps. The later language-rule slice reaches the 24-passing-case planning floor;
 scenario counts do not measure completeness.
 
@@ -343,8 +344,58 @@ actual keyboard/caret evidence.
 
 Inventory accounting at this checkpoint: 24 passing default scenarios, two
 known failing scenarios (one scoped in the default run, one separate), and
-three previously attempted prepared-hover scenarios still unverified. The
+a separate fresh prepared-hover run with two passing checks and one failed
+ownership proof. The original three prepared-generation scenarios remain unverified. The
 matrix also lists 18 wholly pending rows: 13 definition behaviors and five
 public-feature behaviors. Partially covered rows retain their narrower gaps,
 such as union payloads, mutual recursion and dirty hover. These row counts are
 an inventory, not a fixed denominator for F# support or a coverage percentage.
+
+## Fresh explicit prepared-hover qualification
+
+At source `eb4c69d6a86ef6064f6a3a5c95f796e348fdc9e8`, one new instrumented
+Code 1.108.0 run used the unchanged `128140…` evaluation VSIX and fresh genuine
+preparation outputs. **Two of three strict checks passed; the suite remained
+failed.** The original queries and expected outcomes were unchanged.
+
+| Check | Observed result | Boundary |
+| --- | --- | --- |
+| Framework `System.String.IsNullOrEmpty` | Exact external ownership; visible expected name, string-to-bool signature and XML documentation | Rendered positive library hover |
+| Workspace framework homonym | Exact workspace ownership; null hover and no widget | Proven suppression in this prepared context |
+| FSharp.Core `List.map` | Fresh unavailable/unknown ownership; no widget | Strict exact requirement failed; catalog contains documentation, but use ownership was not proven |
+
+The earlier diagnostic had observed successful workspace open and overlays,
+then query-time `TEMP` environment-certificate rejection. It did not establish
+a rendering defect. This qualification generated new certificates rather than
+editing those rejected certificates or weakening validation.
+
+The existing fixture materializer produced the reviewed three-project fixture.
+An explicit offline restore used only the pinned SDK-local FSharp.Core package;
+`cli/bin/run prepare` used the reviewed existing helper, selected FSharp.Core
+and framework assemblies, and exported the complete builtin inventory. No
+semantic snapshot or source build was requested. All three project certificates
+were reusable. Preparation was separate from the editor's navigation requests.
+
+Private temporary directories were allocated before preparation and retained
+for the editor session. A private, temporary test overlay checked all 1,908
+distinct environment inputs, including missing values, against both the actual
+Extension Host and native process before hover. All matched; all hover requests
+used that same native PID. The contributed Solution view established the
+session first. Model, catalog and builtin inventory loads were observed, and
+editor compiler/helper/decompiler counters stayed zero.
+
+Independent review checked the producer and genuine DLL/XML provenance, source
+snapshots, rendered results and all before/after witnesses: 365 file hashes,
+90 missing paths and 14 directories. Fresh library provenance differs from the
+original generation; no claim is made that the original path-bound assets now
+work. Both temporary harness files were restored exactly. The public runner
+and its original prepared asset pins are unchanged; this was not a new generic
+fresh-preparation runner interface. Raw logs, generated assets and the private
+overlay remain local.
+
+There was no repeat, cold-start measurement or uninstrumented performance
+comparison. Ordinary 24-pass coverage is retained from its earlier runs, not
+rerun here. Normal-sandbox Ubuntu qualification, dirty/restart hover, union
+precision and the signature failure remain open. The next narrow hover decision
+is to diagnose why the validated inventory/catalog still cannot prove this
+`List.map` use's owner, preserving workspace exclusion and all strict oracles.

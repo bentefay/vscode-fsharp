@@ -79,3 +79,37 @@ whole helper/native process trees. Moving import work to explicit preparation is
 scheduling, not eliminating its cost. See `metadata-cold-start-design.md` for the
 frozen JSON-import baseline and `review/preparation-cost-audit.md` for further
 helper-cost hypotheses.
+
+## Environment-bound preparation and editor qualification
+
+Explicit preparation certifies the observed environment as well as file inputs.
+A certificate that recorded `TEMP` as absent correctly rejects a later process
+where it is present. Matching SDK binaries or file hashes does not repair that
+mismatch. Never edit a generated certificate, omit a fingerprint input or
+disable rejection to make an editor test pass.
+
+A controlled qualification at `eb4c69d6a86ef6064f6a3a5c95f796e348fdc9e8` used
+this boundary: review the existing fixture and SDK/import closure; allocate
+private temporary/cache directories before preparation; perform the explicit
+local-feed restore and supported `cli/bin/run prepare` with the pinned helper;
+then retain that intended environment for the disposable editor. Before hover,
+compare every generated certificate environment entry, including absent values,
+with the actual Extension Host and native child. Stop on any mismatch. The
+preparation command remains explicit; it must not become a provider fallback.
+
+That single instrumented run passed framework documentation and workspace
+homonym suppression, but failed the strict List.map ownership requirement
+(**2/3; overall failed**). It used a private test overlay, not a committed
+general setup command, and was preactivated through the Solution view. It is
+not normal-sandbox desktop qualification, unprepared behavior or a timing
+comparison. See [the coverage report](e2e-coverage.md#fresh-explicit-prepared-hover-qualification).
+
+The evaluated model and builtin environment have different roles. The model
+certifies selected source order and references. The existing separate builtin
+environment records complete `typeNames`, `scopeNames`, `termNames` and
+`assemblyAutoOpens` domains for selected references. Once all currentness and
+reference-closure checks pass, these can support conservative absence checks
+for external competitors. A raw model or positive catalog alone cannot do so.
+Neither inventory presence nor completeness proves source `.fsi` applicability,
+lexical binding, conditional context or linked-project selection. No new
+certificate design or union/signature implementation was made in this step.
