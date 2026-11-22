@@ -18,6 +18,23 @@ They do not replace real graphical acceptance or a matched performance benchmark
 Historical controlled editor testing is not a normal-sandbox Ubuntu qualification.
 No general speed advantage or daily-use readiness is claimed.
 
+## Daily-use acceptance checklist
+
+| Gate | Current evidence / remaining requirement |
+| --- | --- |
+| Real-project Definition | Pinned Grace, FsCheck and compiler engine gate checks authored targets, raw readiness, dirty/close and restart. This small subset is not whole-project coverage; signature-policy and unsupported cases remain explicit. |
+| Currentness | Engine version/range and candidate safeguards are tested. Natural in-flight UI cancellation and all linked/rebind interleavings are not implied by those tests. |
+| References / Hover | Complete native references must remain distinct from opt-in incomplete possibilities. Cross-file completeness, native References stale-row behavior and prepared List.map ownership remain open; unavailable hover is not positive documentation coverage. |
+| Speed / memory | Prioritize cold first useful Definition/References and first current result after edit. Warm behavior is a guardrail. Native-only timings/RSS/PSS are not editor overhead; no orders-of-magnitude gain is established. |
+| Packaged acceptance | An exact package hash must pass clean install, activation, real gestures, edit/cancel, uninstall/reinstall in official Code with its normal sandbox. This gate is still unverified; historical controlled runs do not replace it. |
+| Delivery | Public source is available; no downloadable, newly qualified daily-use binary is published. Build/package from the pinned source using the protected toolchain, record its hash, then follow the isolated acceptance procedure. |
+
+Use [the engine gate](../evaluation/engine-corpus/README.md) before publishing
+navigation changes. For package installation and rollback, follow
+[isolated installation](isolated-installation.md); it never launches Code
+implicitly. Do not substitute a normal profile or disable the sandbox to complete
+acceptance. Packaging a new build alone does not qualify it for daily use.
+
 Before a private Ubuntu desktop preview, verify a clean install, actual native
 activation, exact F12, ambiguous offer and explicit selection, cancellation/edit
 freshness, references messaging, project tree and reinstall in an isolated official

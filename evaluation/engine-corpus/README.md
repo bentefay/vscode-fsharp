@@ -25,10 +25,11 @@ Do not treat a subset result as the all-corpus gate.
   must reach its known full-range target as exact or labelled incomplete choices.
 - FsCheck: tuple-pattern `res` and recursive `loop` must remain exact; qualified
   `Common.takeWhilePlusLast` must reach its known target.
-- Compiler: the closed array-pattern `part` must reach its known target. Current
-  historical refusal is a failing required obligation, not a weakened oracle.
+- Compiler: the closed array-pattern `part` and tuple-pattern `idx` must each reach their
+  known targets. Historical refusal is a failing required obligation, not a
+  weakened oracle. Both retain independent dirty/close/restart controls.
 
-These six definitions reuse source-inspected/frozen historical oracles. They are
+These seven definitions reuse source-inspected/frozen historical oracles. They are
 not a general compiler-correctness suite. Exact means the **full singleton URI and
 range**, with no candidate mixing. Useful means exact, or empty exact locations
 plus explicitly incomplete candidates containing the known full-range target.
@@ -80,3 +81,10 @@ once per process, be scored, and satisfy currentness/safety checks; they may
 remain unavailable. All eight known-failure probes must remain observed and
 reported separately, even though their useful-target failures are not required
 passes. Omitting their evidence cannot make a protocol-complete report.
+
+The tuple `idx` promotion adds one required source site (six to seven) without
+changing its frozen range or removing its historical probe. All eight original
+compiler probes remain visible; the promoted tuple appears in both roles and
+must not be counted as two independent source sites. Required useful-result
+observations increase from 18 to 22; total initial/demand/required observations
+increase from 28 to 32. The original compiler `part` lifecycle is not replaced.

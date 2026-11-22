@@ -736,6 +736,8 @@ for (const change of ['edit', 'caret', 'pane']) {
     const next = editor.providers.definition.provideDefinition(doc, position, editor.uncancelled);
     assert.deepEqual(await Promise.all([first, joined]), [undefined, undefined]);
     assert.equal((await next).length, 1);
+    // The response and diagnostic marker travel on independent stdout/stderr pipes.
+    await editor.waitForOutput('NAVIGATION_2');
     assert.equal(editor.output.join('').match(/NAVIGATION_\d+/g).length, 2);
   });
 }

@@ -18,7 +18,7 @@ KNOWN = HERE / 'engine-corpus/known-failures.json'
 REQUIRED_CONTRACTS = {
     'grace': {'closed-lambda-range': 'exact', 'module_value_use_26_serialize': 'useful'},
     'fscheck': {'crossfile-common-takeWhilePlusLast': 'useful', 'local-tuple-match-res': 'exact', 'local-recursive-loop': 'exact'},
-    'compiler': {'local-array-pattern-part': 'useful'},
+    'compiler': {'local-array-pattern-part': 'useful', 'tuple-match-idx': 'useful'},
 }
 
 
@@ -117,6 +117,10 @@ def score(response, expected, requirement, forbidden=(), expected_version=None):
 
 
 
+def lifecycle_controls(suite):
+    return [suite['lifecycle'], *suite.get('additionalLifecycle', [])]
+
+
 def validate_contract(manifest):
     suites = manifest.get('suites', [])
     ids = [s.get('id') for s in suites]
@@ -129,9 +133,13 @@ def validate_contract(manifest):
             raise Blocked(suite['id'] + ': required case IDs/strength differ from frozen contract')
         if any(s.get('operation') != 'navigation/definition' for s in cases):
             raise Blocked('Required definition operation changed')
-        control = suite.get('lifecycle', {})
-        if control.get('site') not in actual or control.get('lines') != 8 or control.get('prefix', '').count('\n') != 8:
-            raise Blocked('Missing or changed dirty/close/restart control')
+        controls = lifecycle_controls(suite)
+        expected_controls = {'grace': ['module_value_use_26_serialize'], 'fscheck': ['local-tuple-match-res'], 'compiler': ['local-array-pattern-part', 'tuple-match-idx']}[suite['id']]
+        if [c.get('site') for c in controls] != expected_controls:
+            raise Blocked('Missing, duplicated, or replaced lifecycle control')
+        for control in controls:
+            if control.get('site') not in actual or control.get('lines') != 8 or control.get('prefix', '').count('\n') != 8:
+                raise Blocked('Missing or changed dirty/close/restart control')
 
 
 def validate_known_contract(known):
@@ -162,15 +170,17 @@ def audit_obligations(report, root, suite):
             expected[(epoch, 'discovery-trigger', trigger['id'])] = copy.deepcopy(trigger)
         for site in suite['required']:
             expected[(epoch, 'ready', site['id'])] = copy.deepcopy(site)
-    control = suite['lifecycle']
-    original = next(s for s in suite['required'] if s['id'] == control['site'])
-    shifted = copy.deepcopy(original)
-    shifted['expected']['range']['start']['line'] += control['lines']
-    shifted['expected']['range']['end']['line'] += control['lines']
-    if shifted['query']['path'] == original['expected']['path']:
-        shifted['query']['line'] += control['lines']
-    expected[('fresh', 'dirty', original['id'])] = shifted
-    expected[('fresh', 'closed-restored', original['id'])] = original
+    shifted_controls = {}
+    for control in lifecycle_controls(suite):
+        original = next(s for s in suite['required'] if s['id'] == control['site'])
+        shifted = copy.deepcopy(original)
+        shifted['expected']['range']['start']['line'] += control['lines']
+        shifted['expected']['range']['end']['line'] += control['lines']
+        if shifted['query']['path'] == original['expected']['path']:
+            shifted['query']['line'] += control['lines']
+        expected[('fresh', 'dirty', original['id'])] = shifted
+        expected[('fresh', 'closed-restored', original['id'])] = original
+        shifted_controls[original['id']] = (original, shifted)
     observed = {}; failures = []; versions = {}; ready = set()
     for row in report.get('rows', []):
         epoch = row.get('epoch'); method = row.get('method'); params = row.get('params') or {}
@@ -196,7 +206,8 @@ def audit_obligations(report, root, suite):
         if method != site['operation'] or params.get('path') != str(safe_path(root, q['path'])) or params.get('line') != q['line'] or params.get('character') != q['character'] or version is None or params.get('documentVersion') != version:
             failures.append('Required request/origin acknowledgement differs: ' + str(key))
         forbidden = []
-        if site['id'] == original['id']:
+        if site['id'] in shifted_controls:
+            original, shifted = shifted_controls[site['id']]
             if row['phase'] == 'dirty':
                 forbidden = [location(root, original['expected'])]
             elif row['phase'] == 'closed-restored' or epoch == 'restart':
@@ -285,28 +296,30 @@ def run_suite(binary, root, suite, cache, known, timeout):
                 time.sleep(.1)
             for site in suite['required']:
                 forbidden = []
-                if epoch == 'restart' and site['id'] == suite['lifecycle']['site']:
+                control = next((c for c in lifecycle_controls(suite) if c['site'] == site['id']), None)
+                if epoch == 'restart' and control:
                     previous = copy.deepcopy(site['expected'])
-                    previous['range']['start']['line'] += suite['lifecycle']['lines']
-                    previous['range']['end']['line'] += suite['lifecycle']['lines']
+                    previous['range']['start']['line'] += control['lines']
+                    previous['range']['end']['line'] += control['lines']
                     forbidden = [location(root, previous)]
                 query(site, 'ready', forbidden)
             if epoch == 'fresh':
                 for site in known:
                     outcome = query(site, 'known-failure-probe', required=False)
                     report['knownFailures'].append({'id': site['id'], 'observed': outcome, 'gateStatus': 'not-a-required-pass'})
-                control = suite['lifecycle']; original = next(s for s in suite['required'] if s['id'] == control['site'])
-                provider = safe_path(root, original['expected']['path']); opened(provider)
-                clean = provider.read_text(encoding='utf-8-sig'); changed = control['prefix'] + clean
-                versions[provider] += 1
-                call('document/change', {'path': str(provider), 'version': versions[provider], 'text': changed})
-                shifted = copy.deepcopy(original)
-                shifted['expected']['range']['start']['line'] += control['lines']; shifted['expected']['range']['end']['line'] += control['lines']
-                if shifted['query']['path'] == original['expected']['path']:
-                    shifted['query']['line'] += control['lines']
-                query(shifted, 'dirty', [location(root, original['expected'])])
-                call('document/close', {'path': str(provider)}); versions.pop(provider)
-                query(original, 'closed-restored', [location(root, shifted['expected'])])
+                for control in lifecycle_controls(suite):
+                    original = next(s for s in suite['required'] if s['id'] == control['site'])
+                    provider = safe_path(root, original['expected']['path']); opened(provider)
+                    clean = provider.read_text(encoding='utf-8-sig'); changed = control['prefix'] + clean
+                    versions[provider] += 1
+                    call('document/change', {'path': str(provider), 'version': versions[provider], 'text': changed})
+                    shifted = copy.deepcopy(original)
+                    shifted['expected']['range']['start']['line'] += control['lines']; shifted['expected']['range']['end']['line'] += control['lines']
+                    if shifted['query']['path'] == original['expected']['path']:
+                        shifted['query']['line'] += control['lines']
+                    query(shifted, 'dirty', [location(root, original['expected'])])
+                    call('document/close', {'path': str(provider)}); versions.pop(provider)
+                    query(original, 'closed-restored', [location(root, shifted['expected'])])
             stats = call('workspace/stats')['result']
             for key in ['compilerLaunches', 'helperStarts', 'decompilerStarts']:
                 if stats.get(key) != 0:

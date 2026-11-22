@@ -8,7 +8,7 @@ import unittest
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from unittest.mock import patch
-from engine_corpus_gate import Blocked, inventory, safe_path, score, main, validate, validate_contract, report_set_errors, finalize_reports, location, validate_known_contract
+from engine_corpus_gate import Blocked, inventory, safe_path, score, main, validate, validate_contract, report_set_errors, finalize_reports, location, validate_known_contract, lifecycle_controls
 
 GOLD = {'uri': 'file:///source/A.fs', 'range': {'start': {'line': 1, 'character': 4}, 'end': {'line': 1, 'character': 7}}}
 OLD = {'uri': 'file:///source/A.fs', 'range': {'start': {'line': 0, 'character': 4}, 'end': {'line': 0, 'character': 7}}}
@@ -106,7 +106,7 @@ class PinTests(unittest.TestCase):
     def test_manifest_denominators_and_required_contracts(self):
         data = json.loads((Path(__file__).parent/'engine-corpus/manifest.json').read_text())
         self.assertEqual([s['id'] for s in data['suites']], ['grace', 'fscheck', 'compiler'])
-        self.assertEqual([len(s['required']) for s in data['suites']], [2, 3, 1])
+        self.assertEqual([len(s['required']) for s in data['suites']], [2, 3, 2])
         self.assertEqual(data['suites'][2]['required'][0]['require'], 'useful')
         self.assertTrue(all(s['lifecycle']['lines'] == 8 for s in data['suites']))
 
@@ -118,19 +118,25 @@ class ObligationTests(unittest.TestCase):
         self.root = Path('/portable-source')
 
     def report(self):
-        site = self.suite['required'][0]; control = self.suite['lifecycle']; path = str(self.root/site['query']['path'])
+        first = self.suite['required'][0]
         rows = []
         for epoch in ['fresh', 'restart']:
-            for initial, initial_site in [('first-response', site), ('discovery-trigger', self.suite['discoveryTrigger'])]:
+            for initial, initial_site in [('first-response', first), ('discovery-trigger', self.suite['discoveryTrigger'])]:
                 q = initial_site['query']; origin = str(self.root/q['path'])
                 rows.append({'epoch': epoch, 'method': 'document/open', 'params': {'path': origin, 'version': 1}, 'response': {'result': {}}})
                 rows.append({'epoch': epoch, 'method': 'navigation/definition', 'phase': initial, 'site': initial_site['id'], 'params': {'path': origin, 'line': q['line'], 'character': q['character'], 'documentVersion': 1}, 'response': {'result': {'completeness': 'unavailable', 'locations': [], 'version': 1}}, 'scoring': {'passed': False}})
             rows.append({'epoch': epoch, 'method': 'workspace/stats', 'response': {'result': {'background': {'phase': 'ready', 'discoveryComplete': True, 'indexComplete': True}}}})
-            for phase in (['ready', 'dirty', 'closed-restored'] if epoch == 'fresh' else ['ready']):
+            phases = [('ready', site, None) for site in self.suite['required']]
+            if epoch == 'fresh':
+                for control in lifecycle_controls(self.suite):
+                    site = next(s for s in self.suite['required'] if s['id'] == control['site'])
+                    phases += [('dirty', site, control), ('closed-restored', site, control)]
+            for phase, site, control in phases:
                 shifted = copy.deepcopy(site); version = 2 if phase == 'dirty' else 1
                 if phase == 'dirty':
                     shifted['query']['line'] += control['lines']
                     for point in ['start', 'end']: shifted['expected']['range'][point]['line'] += control['lines']
+                path = str(self.root/site['query']['path'])
                 rows.append({'epoch': epoch, 'method': 'document/open', 'params': {'path': path, 'version': version}, 'response': {'result': {}}})
                 q = shifted['query']; result = {'completeness': 'exact', 'locations': [location(self.root, shifted['expected'])], 'version': version}
                 rows.append({'epoch': epoch, 'method': 'navigation/definition', 'phase': phase, 'site': site['id'], 'params': {'path': path, 'line': q['line'], 'character': q['character'], 'documentVersion': version}, 'response': {'result': result}, 'scoring': {'passed': True}})
@@ -163,7 +169,7 @@ class ObligationTests(unittest.TestCase):
         with self.assertRaises(Blocked): validate_known_contract(data)
 
     def test_complete_obligations_pass(self):
-        report = self.report(); self.assertTrue(self.finalize(report)); self.assertEqual(report['obligationAudit']['observed'], 8); self.assertEqual(report['obligationAudit']['requiredResultObserved'], 4)
+        report = self.report(); self.assertTrue(self.finalize(report)); self.assertEqual(report['obligationAudit']['observed'], 12); self.assertEqual(report['obligationAudit']['requiredResultObserved'], 8)
 
     def test_missing_phase_cannot_be_offset_by_extra_success(self):
         report = self.report(); report['rows'] = [r for r in report['rows'] if r.get('phase') != 'dirty']
@@ -184,6 +190,25 @@ class ObligationTests(unittest.TestCase):
     def test_forged_success_flag_cannot_hide_wrong_target(self):
         report = self.report(); row = next(r for r in report['rows'] if r.get('phase') == 'ready'); row['response']['result']['locations'] = [OLD]
         self.assertTrue(row['scoring']['passed']); self.assertFalse(self.finalize(report))
+
+    def test_each_compiler_lifecycle_remains_individually_required(self):
+        for site in ['local-array-pattern-part', 'tuple-match-idx']:
+            for phase in ['dirty', 'closed-restored', 'ready']:
+                report = self.report()
+                report['rows'] = [r for r in report['rows'] if not (r.get('site') == site and r.get('phase') == phase)]
+                self.assertFalse(self.finalize(report))
+
+    def test_promotion_preserves_known_tuple_oracle_and_both_controls(self):
+        known = json.loads((Path(__file__).parent/'engine-corpus/known-failures.json').read_text())
+        old = next(s for s in known['compiler']['cases'] if s['id'] == 'tuple-match-idx')
+        new = next(s for s in self.suite['required'] if s['id'] == 'tuple-match-idx')
+        self.assertEqual({k: old[k] for k in new}, new)
+        self.assertEqual([c['site'] for c in lifecycle_controls(self.suite)], ['local-array-pattern-part', 'tuple-match-idx'])
+        for index in [0, 1]:
+            broken = copy.deepcopy(self.manifest)
+            if index == 0: broken['suites'][2]['lifecycle'] = broken['suites'][2]['additionalLifecycle'][0]
+            else: broken['suites'][2]['additionalLifecycle'] = []
+            with self.assertRaises(Blocked): validate_contract(broken)
 
     def test_missing_initial_or_demand_response_fails(self):
         for phase in ['first-response', 'discovery-trigger']:

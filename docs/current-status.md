@@ -6,6 +6,13 @@ labels and complete cross-file reference sets still require explicit compiler
 preparation. The default indexed providers expose only answers for which the
 engine can establish a binding and the requested reference domain.
 
+The [post-conditional candidate repair](post-conditional-candidates.md) reuses an
+existing validated physical parse to recover the compiler's frozen tuple binder
+after `#endif`. This is incomplete candidate recall, not exact binding or active
+configuration proof. Conditional-branch binders remain a named unresolved test;
+the original stronger oracle is retained. The headless gate now preserves seven
+required source sites, with separate lifecycle checks for both compiler targets.
+
 The [readiness candidate repair](readiness-candidate-repair.md) preserves current
 same-document incomplete Definition candidates when broader contextual work hits
 its foreground limit after indexing. A deterministic red/green regression and

@@ -338,6 +338,31 @@
             "text": "part"
           },
           "require": "useful"
+        },
+        {
+          "id": "tuple-match-idx",
+          "operation": "navigation/definition",
+          "query": {
+            "path": "src/Compiler/Utilities/range.fs",
+            "line": 197,
+            "character": 23,
+            "token": "idx"
+          },
+          "expected": {
+            "path": "src/Compiler/Utilities/range.fs",
+            "range": {
+              "start": {
+                "line": 197,
+                "character": 16
+              },
+              "end": {
+                "line": 197,
+                "character": 19
+              }
+            },
+            "text": "idx"
+          },
+          "require": "useful"
         }
       ],
       "lifecycle": {
@@ -372,7 +397,15 @@
         "require": "useful",
         "reason": "Historical raw-source coverage gap; NOT a required pass or counted success.",
         "implementationDeclaration": null
-      }
+      },
+      "additionalLifecycle": [
+        {
+          "site": "tuple-match-idx",
+          "prefix": "// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n",
+          "lines": 8,
+          "scope": "unsaved layout-only prefix; no semantic-rebind claim; close must restore disk target; process restart revalidates original disk inputs"
+        }
+      ]
     }
   ]
 }
