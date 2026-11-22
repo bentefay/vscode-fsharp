@@ -6,6 +6,14 @@ labels and complete cross-file reference sets still require explicit compiler
 preparation. The default indexed providers expose only answers for which the
 engine can establish a binding and the requested reference domain.
 
+The [document-only availability qualification](foreign-buffer-membership.md#bounded-document-only-availability-rescue)
+restores proven local parameter Definition jumps when an unrelated dirty external
+buffer would otherwise trigger the membership refusal. Unsupported/cross-file
+queries retain that guard. All 34 ordinary editor scenarios plus the signature
+XFAIL passed again; six pinned Grace clean/dirty/reverted controls also passed.
+This is an availability fix, not a measured speed improvement or broader exact
+coverage claim. Normal-sandbox platform acceptance remains pending.
+
 The [22 November pinned Navigator A/A measurement](performance-aa.md) records
 actual keyboard-to-choice/jump timing, unsaved-edit freshness and whole-editor
 PSS on unprepared Grace and a scoped FsToolkit holdout. It is a separate

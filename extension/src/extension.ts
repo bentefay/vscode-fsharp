@@ -30,7 +30,24 @@ interface QueryResult {
   reason?: string;
   version?: number;
   projectContextId?: string;
+  proofScope?: string;
+  documentVersion?: number;
+  sourceHash?: string;
+  documentProofId?: string;
 }
+class ForeignMembershipUnknown extends Error {}
+
+// This contract never accepts contextual exact answers or candidate output.
+function documentDefinition(result: QueryResult, document: vscode.TextDocument, version: number): boolean {
+  return result.completeness === 'exact' && result.source === 'local-lexical'
+    && result.proofScope === 'document' && result.version === version && result.documentVersion === version
+    && typeof result.sourceHash === 'string' && /^[a-f0-9]{64}$/.test(result.sourceHash)
+    && typeof result.documentProofId === 'string' && /^[a-f0-9]{64}$/.test(result.documentProofId)
+    && !result.candidates?.length && !result.likelyCandidates?.length && !result.indexing
+    && !result.documents?.length && result.locations?.length === 1
+    && locationUri(result.locations[0]).toString() === document.uri.toString();
+}
+
 interface TreeNode { id: string; label: string; kind: string; path?: string; uri?: string; children?: TreeNode[]; projectPath?: string; workspaceUri?: string }
 interface TreeResult { nodes: TreeNode[]; projects?: { files: string[] }[]; completeness?: string; diagnostics?: string[] }
 interface Session { backend: Backend; ready: Promise<unknown>; folder: vscode.WorkspaceFolder; overlays: OverlayQueue; sourceFiles: Set<string> }
@@ -493,7 +510,7 @@ class Navigator implements vscode.Disposable {
       session.sourceFiles = sourceFiles;
       if (foreign.some(open => !session.sourceFiles.has(open.uri.toString())) &&
           (tree.completeness !== 'exact' || !tree.projects)) {
-        throw new Error('Cannot exclude a dirty external F# buffer from the current project. Navigation is unavailable until project membership is known.');
+        throw new ForeignMembershipUnknown('Cannot exclude a dirty external F# buffer from the current project. Navigation is unavailable until project membership is known.');
       }
     }
     for (const open of documents) {
@@ -595,7 +612,27 @@ class Navigator implements vscode.Disposable {
     try {
       if (cancellation.token.isCancellationRequested) return undefined;
       const session = await cancellable(this.session(folder), cancellation.token);
-      await cancellable(this.synchronize(session, document), cancellation.token);
+      let documentResult: QueryResult | undefined;
+      try {
+        await cancellable(this.synchronize(session, document), cancellation.token);
+      } catch (error) {
+        // Only rescue the specific membership refusal, never transport, overlay
+        // or project errors. Ordinary navigation incurs no extra RPC or parse.
+        if (!(error instanceof ForeignMembershipUnknown) || definitionRequest === undefined || mode(folder.uri) !== 'indexed') throw error;
+        if (cancellation.token.isCancellationRequested || document.isClosed || document.version !== version
+          || epoch !== this.epoch || definitionRequest !== this.definitionRequest) return undefined;
+        session.overlays.schedule(document.uri.fsPath, document);
+        await cancellable(session.overlays.flush(), cancellation.token);
+        if (cancellation.token.isCancellationRequested || document.isClosed || document.version !== version
+          || epoch !== this.epoch || definitionRequest !== this.definitionRequest) return undefined;
+        const local = await cancellable(session.backend.request<QueryResult>('navigation/documentDefinition', {
+          path: document.uri.fsPath, line: position.line, character: position.character, version,
+        }, cancellation.token, 30_000, definitionRequest), cancellation.token);
+        if (cancellation.token.isCancellationRequested || document.isClosed || document.version !== version
+          || epoch !== this.epoch || definitionRequest !== this.definitionRequest) return undefined;
+        if (!documentDefinition(local, document, version)) throw error;
+        documentResult = local;
+      }
       if (traceEnabled) trace('overlaysReady', { requestId: definitionRequest, method });
       if (cancellation.token.isCancellationRequested || document.isClosed || document.version !== version || epoch !== this.epoch) return undefined;
       const params = {
@@ -603,7 +640,7 @@ class Navigator implements vscode.Disposable {
         version, includeDeclaration, projectPath: this.selectedProjects.get(document.uri.toString())?.projectPath,
         ...(demandTraceConfig && definitionRequest !== undefined ? { diagnosticWatchSlot: demandTraceConfig.watchSlot } : undefined),
       };
-      let result = await cancellable(session.backend.request<QueryResult>(method, params,
+      let result = documentResult ?? await cancellable(session.backend.request<QueryResult>(method, params,
         cancellation.token, mode(folder.uri) === 'semantic' ? 120_000 : 30_000, definitionRequest), cancellation.token);
       while (definitionRequest !== undefined && mode(folder.uri) === 'indexed' && result.completeness !== 'exact'
         && !result.candidates?.length && (result.indexing?.phase === 'scanning' || result.indexing?.phase === 'indexing')) {

@@ -1234,6 +1234,7 @@ impl Workspace {
                     json!({"occurrences":count,"snapshotId":self.snapshot,"invalidation":"All imported results invalid after any source/context edit; no semantic early cutoff claimed"}),
                 )
             }
+            "navigation/documentDefinition" => self.document_definition(p),
             "navigation/possibleReferences" => self.possible_references(p),
             "navigation/definition" | "navigation/references" | "navigation/hover" => {
                 if self.mode != Mode::Indexed {
@@ -2156,6 +2157,56 @@ impl Workspace {
             return None;
         }
         Some(parsed.tokens[selected.token].clone())
+    }
+    /// Strict document-only ABI. A miss must never start contextual navigation.
+    fn document_definition(&mut self, p: &Value) -> Result<Value> {
+        anyhow::ensure!(
+            self.mode == Mode::Indexed,
+            "Document definitions require indexed mode"
+        );
+        let path = path_param(p)?;
+        let overlay = self
+            .overlays
+            .get(&path)
+            .context("Document definition requires an acknowledged document")?;
+        let mut version_supplied = false;
+        for value in [p.get("documentVersion"), p.get("version")]
+            .into_iter()
+            .flatten()
+        {
+            let version = value
+                .as_i64()
+                .context("Document definition requires an integer document version")?;
+            anyhow::ensure!(
+                version == overlay.version,
+                "Stale document definition version"
+            );
+            version_supplied = true;
+        }
+        anyhow::ensure!(
+            version_supplied,
+            "Document definition requires a document version"
+        );
+        let position = |key: &str| -> Result<u32> {
+            let value = p
+                .get(key)
+                .or_else(|| p.get("position").and_then(|position| position.get(key)))
+                .and_then(Value::as_u64)
+                .with_context(|| format!("Invalid document definition {key}"))?;
+            u32::try_from(value).with_context(|| format!("Document definition {key} exceeds u32"))
+        };
+        let at = local_lexical::Position {
+            line: position("line")?,
+            character: position("character")?,
+        };
+        let mut result=self.document_navigation.query(overlay,at,false,false,&self.cancellation)?
+            .unwrap_or_else(||json!({"locations":[],"completeness":"unavailable","source":"local-lexical",
+                "documentProofMiss":true,"documentVersion":overlay.version,"version":overlay.version,
+                "reason":"No document-local definition proof is available"}));
+        result["snapshot"] = json!(self.epoch);
+        result["snapshotId"] = json!(self.snapshot);
+        self.cancellation.check()?;
+        Ok(result)
     }
     fn navigation(&mut self, method: &str, p: &Value) -> Result<Value> {
         let started = Instant::now();
@@ -5702,5 +5753,119 @@ mod integration_tests {
             drop(ws);
             fs::remove_dir_all(root).unwrap();
         }
+    }
+    #[test]
+    fn document_definition_rpc_requires_current_acknowledgement_and_never_falls_back() {
+        let (root, mut ws) = fixture();
+        let path = root.join("Main.fs");
+        let source="module Main\nlet mapped = List.map (fun value -> value) [1]\nlet exposed value = value\n";
+        let line = source.lines().nth(1).unwrap();
+        let use_col = line.rfind("value").unwrap();
+        let declaration_col = line.find("value").unwrap();
+        let request = json!({"path":path,"line":1,"character":use_col,"version":1});
+        assert!(ws
+            .dispatch("navigation/documentDefinition", &request)
+            .is_err());
+        ws.dispatch(
+            "document/open",
+            &json!({"path":path,"text":source,"version":1}),
+        )
+        .unwrap();
+        let before_reads = ws.index.counters.files_read;
+        for invalid in [
+            json!({}),
+            json!({"version":null}),
+            json!({"version":"1"}),
+            json!({"version":0}),
+            json!({"version":1,"documentVersion":2}),
+            json!({"version":1,"documentVersion":null}),
+        ] {
+            let mut p = json!({"path":path,"line":1,"character":use_col});
+            p.as_object_mut()
+                .unwrap()
+                .extend(invalid.as_object().unwrap().clone());
+            assert!(
+                ws.dispatch("navigation/documentDefinition", &p).is_err(),
+                "{p}"
+            );
+        }
+        let exact = ws
+            .dispatch("navigation/documentDefinition", &request)
+            .unwrap();
+        assert_eq!(exact["completeness"], "exact", "{exact}");
+        assert_eq!(exact["proofScope"], "document");
+        assert_eq!(
+            exact["sourceHash"],
+            ws.overlays[&normalize(&path)].source_hash
+        );
+        assert_eq!(exact["version"], 1);
+        assert_eq!(
+            exact["locations"],
+            json!([{"uri":uri(&normalize(&path)),"range":{"start":{"line":1,"character":declaration_col},"end":{"line":1,"character":declaration_col+5}}}])
+        );
+        let mut aliases = request.clone();
+        aliases["documentVersion"] = json!(1);
+        assert_eq!(
+            ws.dispatch("navigation/documentDefinition", &aliases)
+                .unwrap()["documentProofId"],
+            exact["documentProofId"]
+        );
+        // An ordinary public formal may require signature routing. Explicit miss,
+        // with no attempt to prepare a model, find candidates or consult context.
+        let miss = ws
+            .dispatch(
+                "navigation/documentDefinition",
+                &json!({"path":path,"position":{"line":2,"character":22},"documentVersion":1}),
+            )
+            .unwrap();
+        assert_eq!(miss["documentProofMiss"], true, "{miss}");
+        assert_eq!(miss["completeness"], "unavailable");
+        assert_eq!(miss["locations"], json!([]));
+        assert!(miss.get("candidates").is_none());
+        assert!(miss.get("indexing").is_none());
+        assert!(!ws.model_loaded);
+        assert!(!ws.background.requested);
+        assert_eq!(ws.index.counters.query_count, 0);
+        assert_eq!(ws.index.counters.files_read, before_reads);
+        assert_eq!(ws.index.counters.files_parsed, 0);
+        let cancelled = cancellation::CancellationToken::new();
+        cancelled.cancel();
+        ws.set_cancellation(cancelled);
+        assert!(ws
+            .dispatch("navigation/documentDefinition", &request)
+            .unwrap_err()
+            .is::<cancellation::Cancelled>());
+        ws.set_cancellation(cancellation::CancellationToken::new());
+        let changed = source.replace("value", "other");
+        ws.dispatch(
+            "document/change",
+            &json!({"path":path,"text":changed,"version":2}),
+        )
+        .unwrap();
+        assert!(ws
+            .dispatch("navigation/documentDefinition", &request)
+            .is_err());
+        let mut current = request.clone();
+        current["version"] = json!(2);
+        let fresh = ws
+            .dispatch("navigation/documentDefinition", &current)
+            .unwrap();
+        assert_eq!(fresh["completeness"], "exact");
+        assert_eq!(fresh["version"], 2);
+        assert_ne!(fresh["sourceHash"], exact["sourceHash"]);
+        assert_ne!(fresh["documentProofId"], exact["documentProofId"]);
+        assert_eq!(fresh["locations"], exact["locations"]);
+        ws.mode = Mode::Lexical;
+        assert!(ws
+            .dispatch("navigation/documentDefinition", &current)
+            .is_err());
+        ws.mode = Mode::Indexed;
+        ws.dispatch("document/close", &json!({"path":path}))
+            .unwrap();
+        assert!(ws
+            .dispatch("navigation/documentDefinition", &current)
+            .is_err());
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
     }
 }

@@ -162,3 +162,40 @@ for (const [name, source, token] of [
     assert.equal(stats.helperStarts, 0);
   });
 }
+
+test('foreign dirty refusal admits only current document definitions through the real daemon', async t => {
+  const parent = process.env.TMPDIR || path.resolve(__dirname, '../../.cache/test-tmp');
+  await fs.mkdir(parent, { recursive: true });
+  const temporary = await fs.mkdtemp(path.join(parent, 'fsnav-foreign-local-'));
+  const directory = path.join(temporary, 'App');
+  await fs.mkdir(directory);
+  await fs.writeFile(path.join(directory, 'Main.fs'), initial);
+  await fs.writeFile(path.join(directory, 'App.fsproj'), '<Project Sdk="Microsoft.NET.Sdk"><ItemGroup><Compile Include="Main.fs" /></ItemGroup></Project>');
+  await fs.writeFile(path.join(temporary, 'Foreign.fs'), 'module Foreign\nlet value = 1\n');
+  const editor = await createEditor(directory, binary);
+  t.after(async () => { editor.dispose(); await fs.rm(temporary, { recursive: true, force: true }); });
+  let document = await editor.open('Main.fs');
+  const foreign = await editor.open('../Foreign.fs');
+  const query = () => editor.providers.definition.provideDefinition(document, position(document, 'x)'), editor.uncancelled);
+  assert.deepEqual(ranges(await query()), [[1, 27, 1, 28]]);
+  const clean = proof(editor, document);
+  editor.edit(foreign, 'module Foreign\nlet value = 2\n');
+  assert.deepEqual(ranges(await query()), [[1, 27, 1, 28]]);
+  assert.deepEqual(proof(editor, document), clean);
+  editor.edit(document, '\n' + initial);
+  assert.deepEqual(ranges(await query()), [[2, 27, 2, 28]]);
+  assert.notEqual(proof(editor, document).sourceHash, clean.sourceHash);
+  editor.close(document);
+  document = await editor.open('Main.fs');
+  assert.equal(document.version, 1);
+  assert.deepEqual(ranges(await query()), [[1, 27, 1, 28]]);
+  assert.deepEqual(proof(editor, document), clean);
+  const unsupported = await editor.providers.definition.provideDefinition(document, position(document, 'List.map'), editor.uncancelled);
+  assert.equal(unsupported, undefined);
+  assert.ok(editor.output.join('').includes('Cannot exclude a dirty external F# buffer'));
+  assert.equal(await editor.providers.references.provideReferences(document, position(document, 'x)'), { includeDeclaration: true }, editor.uncancelled), undefined);
+  editor.save(foreign);
+  assert.deepEqual(ranges(await query()), [[1, 27, 1, 28]]);
+  const [stats] = await editor.api.stats();
+  for (const key of ['compilerLaunches', 'helperStarts', 'decompilerStarts']) assert.equal(stats[key], 0);
+});

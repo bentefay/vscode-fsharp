@@ -84,3 +84,74 @@ Both independent reviewers confirmed the clocks and outcome distinction.
 The ordinary packaged suite was not rerun in this docs-only checkpoint; its
 34 required passes and signature XFAIL remain prior results. Raw traces, private
 harness/profile files and binaries are not published.
+
+## Bounded document-only availability rescue
+
+The follow-up based on `6e50f09fd7c727769f35ce6644c033e84dbb248a` adds an
+indexed Definition-only rescue at this refusal boundary. The tree lookup and
+membership guard remain. Only a successful existing document-local lexical proof
+may return an exact same-document target; a miss retains the original refusal.
+The dedicated `navigation/documentDefinition` RPC never falls through to generic
+navigation. See [the protocol contract](protocol.md). This does not make raw
+project membership exact or repair the signature or qualified-union proof gaps.
+
+Two independent source reviewers found no blocking issue. Native and adapter
+regressions cover required acknowledged versions, invalid provenance, explicit
+miss, cancellation, supersession, edits, close/reopen, caret, workspace/restart
+invalidation, and no rescue for References or non-indexed modes. The deliberately
+held adapter responses are contract tests, not real-editor in-flight cancellation
+proof. A real-daemon adapter test separately exercises edit and close/reopen
+version reset with the foreign buffer still dirty.
+
+### Packaged actual-editor qualification
+
+The fresh private VSIX SHA-256 was
+`b341a620d6d4b208fe659edca6eb876d67f31c0251d415debe5f862fdacf3a4c`;
+its native SHA-256 was
+`56b6effbc0bf44a2c2a123e4743fdc278f165be00802db9d93e27497af32c082`.
+The same pinned Code and untouched Grace revision above were used. No generated
+semantic inputs, compiler, build, restore or manual indexing was used.
+
+One fixed session issued six trusted, editor-focused F12 gestures:
+
+1. Local clean: `ContentBlockMetadata.Types.fs` at zero-based `420:49` (`range`)
+   jumped to its lambda binder `420:40–45`.
+2. Cross-file clean: the original `serialize` site exposed the known target and
+   deliberate selection reached its full range.
+3. Local foreign-dirty: the identical binder was reached with document-scoped
+   exact provenance; one tree lookup and one document-only RPC, no generic query.
+4. Cross-file foreign-dirty: the original membership message remained visibly
+   present, with no offer or jump; the document-only RPC returned a miss.
+5. Local reverted: the original exact binder was reached again.
+6. Cross-file reverted: the known labelled choice and deliberate selection worked.
+
+Local exact checks assert the active URI/caret and native full UTF-16 range;
+choice checks assert the rendered actionable row and actual full-range selection.
+The consumer text/version and pinned source copies were unchanged throughout.
+Clean and reverted controls made zero document-only RPCs. Tracing did not saturate
+and compiler/helper/decompiler counters stayed zero. An independent oracle/UI
+review confirmed all six controls.
+
+The unchanged ordinary packaged gate also passed **34 required scenarios plus
+one scoped signature XFAIL** (36 passing phases plus one XFAIL). These six Grace
+interactions are additional qualification controls, not six new language rules.
+The controlled disposable route is still not normal-sandbox platform acceptance.
+
+### Cost and verification limits
+
+The instrumented dirty-local request was a warm document-proof cache hit: its
+additional RPC took 1.417 ms host write-to-response, including 0.113 ms native
+dispatch. The dirty-cross-file miss added 2.173 ms host write-to-response,
+including 1.740 ms native dispatch (1.103 ms parsing). Actual host key dispatch
+to observed jump/refusal was 32.600 / 36.076 ms, respectively. Those are single
+samples, with possible aggregate-test contention. They are not paired regressions,
+percentiles or speedup evidence. Clocks were not subtracted across domains.
+Ordinary clean/reverted requests add no RPC or parse by routing and trace checks;
+small latency regressions have not been measured. Memory is unmeasured. Shared
+overlay flushing and existing dispatch watcher polling remain.
+
+Verification on the outgoing source: protected aggregate check passed 3 Python,
+51 CLI/manifest Node, 329 Rust core and 4 daemon tests (5 Rust tests ignored),
+TypeScript/format checks and 132 transport/adapter Node tests. Protected real-native
+adapter tests passed 21/21. Raw traces, profiles, source copies and packages remain
+private; only source, regression tests and this sanitized record are published.

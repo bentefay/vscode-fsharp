@@ -260,7 +260,7 @@ test('settled offers are revoked by caret and same-document pane changes',async 
 
 // Independent membership/transport controls: the consumer stays unchanged while
 // a shared physical dependency lives outside both workspace roots.
-async function linkedMembershipSetup(t, initialMode = 'include') {
+async function linkedMembershipSetup(t, initialMode = 'include', localMode = 'miss', configuration = {}) {
   const tempRoot = process.env.TMPDIR || path.resolve(__dirname, '../../.cache/test-tmp');
   await fs.mkdir(tempRoot, { recursive: true });
   const root = await fs.mkdtemp(path.join(tempRoot, 'fsnav-linked-membership-'));
@@ -295,6 +295,18 @@ readline.createInterface({input:process.stdin}).on('line', line => {
   }
   if(method === 'document/open' || method === 'document/change') overlays.set(params.path,params.text);
   if(method === 'document/close') overlays.delete(params.path);
+  if(method === 'navigation/documentDefinition') {
+    const mode=${JSON.stringify(localMode)};
+    const result={completeness:'exact',source:'local-lexical',proofScope:'document',version:params.version,documentVersion:params.version,sourceHash:'a'.repeat(64),documentProofId:'b'.repeat(64),locations:[{path:params.path,range:{start:{line:1,character:4},end:{line:1,character:10}}}]};
+    if(mode==='miss') {result.completeness='unavailable';result.locations=[];}
+    if(mode==='contextual') result.proofScope='project';
+    if(mode==='version') result.documentVersion--;
+    if(mode==='foreign') result.locations[0].path=linked;
+    if(mode==='candidates') result.candidates=result.locations;
+    if(mode==='hash') result.sourceHash='invalid';
+    if(mode==='held') {const timer=setInterval(()=>{if(fs.existsSync(${JSON.stringify(path.join(root, 'release-local'))})){clearInterval(timer);send(result);}},5);return;}
+    send(result);return;
+  }
   if(method === 'navigation/definition') {
     const text=overlays.get(linked)||fs.readFileSync(linked,'utf8');
     const column=text.indexOf('value');
@@ -303,13 +315,13 @@ readline.createInterface({input:process.stdin}).on('line', line => {
   send({version:params?.version});
 });
 `, { mode: 0o755 });
-  const editor = await createEditor(root, binary, { workspaceDirectories: roots });
+  const editor = await createEditor(root, binary, { workspaceDirectories: roots, ...configuration });
   t.after(async () => { editor.dispose(); await fs.rm(root, { recursive: true, force: true }); });
   const consumer = await editor.open('A/Main.fs');
   const dependency = await editor.open('Shared.fs');
   const query = (document = consumer) => editor.providers.definition.provideDefinition(document, editor.position(document, 1, 'value'), editor.uncancelled);
   const requests = async () => (await fs.readFile(logFile, 'utf8')).trim().split('\n').filter(Boolean).map(JSON.parse);
-  return { editor, consumer, dependency, linked, roots, query, requests, mode: value => fs.writeFile(modeFile, value) };
+  return { editor, consumer, dependency, linked, roots, query, requests, releaseLocal: () => fs.writeFile(path.join(root, 'release-local'), ''), mode: value => fs.writeFile(modeFile, value) };
 }
 
 test('local navigation stays lazy and uncached foreign exclusions are refreshed', async t => {
@@ -331,6 +343,98 @@ for (const membership of ['exclude-approximate', 'fail']) {
     fixture.editor.edit(fixture.dependency, 'let  value = 2\n');
     assert.equal(await fixture.query(), undefined);
     assert.equal(fixture.editor.api.lastResult, undefined);
+    assert.equal((await fixture.requests()).filter(row => row.method === 'navigation/definition').length, 0);
+    assert.equal((await fixture.requests()).filter(row => row.method === 'navigation/documentDefinition').length, membership === 'fail' ? 0 : 1);
+  });
+}
+
+test('membership rescue is absent from ordinary navigation and accepts only a current document proof', async t => {
+  const fixture = await linkedMembershipSetup(t, 'exclude-approximate', 'success');
+  await fixture.query();
+  assert.equal((await fixture.requests()).filter(row => row.method === 'navigation/documentDefinition').length, 0);
+  fixture.editor.edit(fixture.dependency, 'let value = 2\n');
+  const answer = await fixture.query();
+  assert.equal(answer.length, 1);
+  assert.equal(answer[0].uri.toString(), fixture.consumer.uri.toString());
+  const requests = await fixture.requests();
+  const local = requests.findIndex(row => row.method === 'navigation/documentDefinition');
+  assert.ok(local > 0);
+  assert.ok(requests.slice(0, local).some(row => row.method === 'document/open' && row.params.path === fixture.consumer.uri.fsPath));
+  assert.equal(requests.filter(row => row.method === 'navigation/definition').length, 1, 'Only ordinary invocation uses contextual RPC');
+});
+
+for (const mode of ['miss', 'contextual', 'version', 'foreign', 'candidates', 'hash']) {
+  test(`document rescue rejects ${mode} without contextual fallback`, async t => {
+    const fixture = await linkedMembershipSetup(t, 'exclude-approximate', mode);
+    fixture.editor.edit(fixture.dependency, 'let value = 2\n');
+    assert.equal(await fixture.query(), undefined);
+    assert.equal(fixture.editor.api.lastResult, undefined);
+    assert.equal((await fixture.requests()).filter(row => row.method === 'navigation/definition').length, 0);
+  });
+}
+
+for (const action of ['cancel', 'edit', 'close', 'caret', 'workspace', 'restart']) {
+  test(`held document rescue cannot publish after ${action}`, async t => {
+    const fixture = await linkedMembershipSetup(t, 'exclude-approximate', 'held');
+    fixture.editor.edit(fixture.dependency, 'let value = 2\n');
+    const position = fixture.editor.position(fixture.consumer, 1, 'value');
+    fixture.editor.focus(fixture.consumer, position);
+    const cancellation = fixture.editor.cancellationSource();
+    const pending = fixture.editor.providers.definition.provideDefinition(fixture.consumer, position, cancellation.token);
+    let seen = false;
+    for (let i = 0; i < 200; i++) {
+      try { seen = (await fixture.requests()).some(row => row.method === 'navigation/documentDefinition'); } catch {}
+      if (seen) break;
+      await settle(5);
+    }
+    assert.ok(seen, 'Held local RPC admitted');
+    if (action === 'cancel') cancellation.cancel();
+    if (action === 'edit') fixture.editor.edit(fixture.consumer, 'module Main\nlet result = other\n');
+    if (action === 'close') fixture.editor.close(fixture.consumer);
+    if (action === 'caret') fixture.editor.move({line:0,character:0,isEqual:()=>false});
+    if (action === 'workspace') fixture.editor.changeFolders();
+    if (action === 'restart') fixture.editor.api.restart();
+    await fixture.releaseLocal();
+    assert.equal(await pending, undefined);
+    await settle(20);
+    assert.equal(fixture.editor.api.lastResult, undefined);
+    assert.equal(fixture.editor.openedUris.length, 0);
+    assert.equal((await fixture.requests()).filter(row => row.method === 'navigation/definition').length, 0);
+  });
+}
+
+test('a newer held document rescue supersedes the older request without reviving it', async t => {
+  const fixture = await linkedMembershipSetup(t, 'exclude-approximate', 'held');
+  fixture.editor.edit(fixture.dependency, 'let value = 2\n');
+  const waitLocal = async count => {
+    for (let i = 0; i < 200; i++) {
+      try { if ((await fixture.requests()).filter(row => row.method === 'navigation/documentDefinition').length >= count) return; } catch {}
+      await settle(5);
+    }
+    assert.fail('Expected held local request');
+  };
+  const older = fixture.query();
+  await waitLocal(1);
+  const fresh = fixture.query();
+  await waitLocal(2);
+  assert.equal(await older, undefined);
+  await fixture.releaseLocal();
+  const result = await fresh;
+  assert.equal(result.length, 1);
+  assert.equal(result[0].uri.toString(), fixture.consumer.uri.toString());
+  assert.equal(fixture.editor.openedUris.length, 0, 'Provider result is not an automatic navigation command');
+  assert.equal((await fixture.requests()).filter(row => row.method === 'navigation/definition').length, 0);
+});
+
+for (const operation of ['references', 'lexical-definition', 'semantic-definition']) {
+  test(`${operation} never invokes document rescue`, async t => {
+    const mode = operation === 'lexical-definition' ? 'lexical' : operation === 'semantic-definition' ? 'semantic' : 'indexed';
+    const fixture = await linkedMembershipSetup(t, 'exclude-approximate', 'success', {mode});
+    fixture.editor.edit(fixture.dependency, 'let value = 2\n');
+    const result = operation === 'references'
+      ? await fixture.editor.providers.references.provideReferences(fixture.consumer, fixture.editor.position(fixture.consumer, 1, 'value'), {includeDeclaration:true}, fixture.editor.uncancelled)
+      : await fixture.query();
+    assert.equal(result, undefined);
     assert.equal((await fixture.requests()).filter(row => row.method.startsWith('navigation/')).length, 0);
   });
 }

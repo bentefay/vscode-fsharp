@@ -98,6 +98,7 @@ on every query.
 | `document/open`, `document/change` | `path`, complete `text`, monotonically increasing integer `version` |
 | `document/close` | `path` |
 | `navigation/definition`, `navigation/references` | `path`, `line`, `character`; references optionally `includeDeclaration` |
+| `navigation/documentDefinition` | Indexed-only; `path`, `line`, `character`, mandatory current overlay `version`/`documentVersion`; document proof or explicit miss |
 | `navigation/possibleReferences` | `path`, `line`, `character`; optional current overlay `version`/`documentVersion`, `expectedSourceText` |
 | `navigation/hover` | `path`, `line`, `character` |
 | `shutdown` | none; reply then exit |
@@ -278,6 +279,26 @@ callback lambda and nested function parameters return `source: "local-lexical"`,
 identities, algorithm version, UTF-16 declaration range and half-open body
 byte offsets. Document-scoped results omit `projectContextId` and carry the
 workspace snapshot current at dispatch. A stale version is a request error.
+
+`navigation/documentDefinition` is a separate indexed-only exact-or-miss ABI.
+It requires `path`, `line`, `character` (or `position`), and a matching acknowledged
+`version` or `documentVersion`; every supplied version alias must match and may
+not be null. It invokes only the document-local Definition proof above. A miss
+returns `completeness: "unavailable"`, `documentProofMiss: true`, no locations,
+and no candidates or indexing continuation. It never falls through to contextual
+navigation, model preparation, or a general answer cache. Shared dispatch watcher
+polling still applies; this is not a zero-I/O guarantee.
+
+The adapter uses this ABI only after an indexed Definition's membership lookup
+would reject an unknown dirty external buffer. It acknowledges the current origin
+through the existing overlay queue, including close/reopen barriers, then accepts
+only an exact same-document result with document provenance and matching version.
+Existing cancellation, request, editor/caret, document-lifetime and workspace epoch
+checks still gate publication. A miss preserves the original membership refusal;
+ordinary navigation, project selection, References and hover retain their existing
+synchronization. Normal F12 incurs no extra RPC or parse. The shared queue can
+still wait for other queued overlays, so this availability rescue makes no latency
+claim and does not remove the membership lookup.
 
 The process-local cache retains positive serialized answers for up to 32
 distinct requests within 128 KiB of accounted storage. An acknowledged edit or
