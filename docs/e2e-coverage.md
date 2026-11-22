@@ -685,3 +685,14 @@ Protocol SHA-256:
 Private 263-file evidence inventory SHA-256:
 `9e28646c15d18183e9f8c89625a0617e3ba076e1fc52a6ebb421c50315199739`.
 No binaries, profiles or raw reports are published.
+
+## Native References isolation follow-up
+
+The [single paired isolation checkpoint](native-references-isolation.md) from
+`4cabef8c452d71b40c3a43ba82c27546e69ebc04` reproduced the strict stale activation
+with Navigator and an independent public reference provider without Navigator
+installed. This adds no passing coverage. The correct provider return does not
+expose the selected tree item's captured command generation; the exact editor
+publication boundary and persistence remain unproven. Both failures and the
+unchanged no-clear oracle are retained. No further passive diagnostic loop or
+product change is justified without a specific separately testable remedy.

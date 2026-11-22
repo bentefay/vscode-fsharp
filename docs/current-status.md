@@ -31,6 +31,10 @@ subsequently passed four fixed isolated/full-order runs with fresh stable-row
 targeting and trusted same-row click delivery. Only that interaction is now
 required, bringing the default gate to 25 passes plus the signature known
 failure; native References currentness remains open.
+A [single native References isolation pair](native-references-isolation.md)
+then reproduced the stale activation with a public-API control provider and
+Navigator absent. The exact workbench publication boundary remains unproven;
+no product workaround or runtime fix was made.
 
 ## Fixed-corpus results
 
