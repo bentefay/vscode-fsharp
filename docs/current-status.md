@@ -10,6 +10,8 @@ The [22 November pinned Navigator A/A measurement](performance-aa.md) records
 actual keyboard-to-choice/jump timing, unsaved-edit freshness and whole-editor
 PSS on unprepared Grace and a scoped FsToolkit holdout. It is a separate
 measurement-only checkpoint, not an updated coverage score or competitor claim.
+The [demand-switch follow-up](demand-switch-diagnostic.md) stopped at its causal
+observation gate without running a new timing cohort or changing runtime.
 
 ## Fixed-corpus results
 

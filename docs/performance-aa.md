@@ -143,6 +143,10 @@ These measurements cannot be reduced to a precise native-index memory cost.
 
 ### Decision and preserved gates
 
+The subsequent [demand-switch preflight](demand-switch-diagnostic.md) stopped
+before new runs: the unchanged package lacks a request-correlated pending-target
+and foreground-seed witness. It does not establish the optimization case below.
+
 There is a usable exploratory median baseline for these sites, but no measured
 runtime improvement or identified scheduling bottleneck. The next bounded
 diagnostic should switch nonlocal demand to a second project while the initial
