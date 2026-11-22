@@ -1,7 +1,8 @@
 # Packaged editor coverage and remaining gates
 
-The current default gate has **30 required passing scenarios and one scoped
-signature failure**. The [single-partial active-pattern proof](#scoped-single-partial-active-pattern-definition-proof)
+The current default gate has **31 required passing scenarios and one scoped
+signature failure**. The [raw target certainty checkpoint](#raw-target-containing-project-certainty)
+adds a visible incomplete-choice contract for target-scoped compile items. The [single-partial active-pattern proof](#scoped-single-partial-active-pattern-definition-proof)
 adds one exact header/collision case and one later-open labelled-choices control. The [scoped operator proof](#scoped-additive-custom-operator-definition-proof)
 adds one exact operator case and one explicit later-open refusal control. The [three-family F12 slice](#active-pattern-operator-and-generic-record-slice)
 adds one generic record proof and initially preserved two strict qualification failures. The [Possible References pointer qualification](#possible-references-pointer-qualification)
@@ -102,6 +103,7 @@ needs an ambiguity or safe-refusal negative where proof is unavailable.
 | Unknown conditional origin | `conditional-origin`, F12 then choice | Exact two physical declarations, no active-branch claim | Pass |
 | Public signature boundary | `signature-public-consumer`, F12 | `.fsi` export, forbid implementation target | Pass |
 | Hidden signature implementation | `signature-hidden-consumer`, F12 | No inaccessible implementation suggestion | Known failure above |
+| Target-scoped compile certainty | `target-scoped-signature-keeps-unproven-choices`, actual F12 | No exact signature routing from target-only inventory; both physical candidates labelled; deliberate implementation selection | Pass; ordinary signature case preserved, hidden-signature XFAIL unchanged |
 | Unknown linked project/conditional context | `linked-conditional-context-unknown`, F12 | Refuse forced branch; forbid both branch targets | Pass; not selected-context coverage |
 | Dirty linked range movement | `dirty-linked-shift`, baseline F12, unsaved edit, F12 | Current shifted declaration; forbid old range | Both phases pass |
 | Dirty linked rebinding | `dirty-linked-rebind`, baseline F12, unsaved edit, F12 | Current wrapper; forbid old binding range | Both phases pass |
@@ -950,3 +952,78 @@ Private evidence inventory: 99 files, SHA-256
 `b37325137fb70d3be811bc11e06415be0bf908b7302e30461beb21dfaecd31b9`.
 Independent reviewers verified scope, unchanged oracles and actual editor
 evidence. Only sanitized source/tests/documentation are published.
+
+## Raw target-containing project certainty
+
+This proof-safety checkpoint starts from
+`df8caa37b738c098e4f51a48d2befb2af2882aed`. Independent semantic and code
+reviewers isolated raw discovery collecting `Compile` entries inside a target
+while still describing their project membership as exact. MSBuild processes
+target-contained items when that target executes; their XML presence does not
+establish compiler membership. See [official MSBuild processing rules](https://learn.microsoft.com/en-us/visualstudio/msbuild/build-process-overview).
+
+The matched counterexample puts `Wire.fsi` in a target before the ordinary
+`Wire.fs` and `Consumer.fs` items. In the explicitly uninvoked-target scenario,
+the signature does not constrain the implementation. The retained old package
+returned an exact `Wire.fsi` range after trusted F12. The strict candidate
+assertion aborted before a visible jump: this is an observed wrong exact
+response, not an observed wrong editor jump. Native paired controls separately
+showed the same signature route and false project certainty. Ordinary top-level
+signature items retained their prior exact behavior.
+
+The five-line production change marks raw projects containing any `Target`
+start/empty element as needing evaluation, including prefixed/case variants.
+It retains collected files, order, links and references as inventory for
+incomplete candidates. It neither decides whether a target runs nor executes
+MSBuild. Even an inert target conservatively prevents project-wide exact proof;
+this does not certify the remaining raw SDK/project subset as authoritative.
+No discovery budget, startup policy, scan or dependency is added. Existing
+source-local proofs can still answer, while project-dependent proofs withhold.
+The source fingerprint changes invalidate old cached answers.
+
+The new editor oracle requires both physical `render` declarations as labelled
+incomplete choices, no forced jump, and deliberate selection of `Wire.fs`.
+The scenario is explicitly uninvoked: a target without hooks can still run via
+explicit/default/imported invocation. The physical signature remains a plausible
+uncertain alternative, not a proven applicable contract. The existing hidden-
+signature XFAIL remains unchanged; this is not a signature visibility fix or a
+References change. No performance or normal-sandbox Ubuntu acceptance is claimed.
+
+Six targeted native tests passed after the fix. They cover matched ordinary
+items, target-only signature routing, retained candidates, dirty implementation
+rename and an independent exact local lambda binding. Parser controls cover
+empty, case-varied and prefixed target elements as conservative refusal checks,
+not as assertions that all those XML forms are executable MSBuild projects.
+Baseline red tests and intermediate development failures are retained privately.
+
+Protected aggregate checks passed: 3 Python, 51 Node tooling/manifest, 326 Rust
+core plus 4 daemon tests (5 ignored), 108 adapter/transport tests, TypeScript
+and formatting. The previous References assertion did not recur; no References
+repair or determinism claim is made. No quantitative readiness or speed gain
+is inferred from passing functional tests.
+
+The old-package isolated run and the single fresh full run used the unchanged
+independently authored fixture. The new package passed **31 required scenarios**
+plus the scoped signature XFAIL: 33 passing phase records and one XFAIL,
+including two dirty baselines that are not extra scenarios. All prior 30 required
+cases and their original fixture/oracle bytes remain unchanged.
+
+Actual trusted F12 in the new target-scoped case returned no exact locations,
+displayed both authored physical declarations as incomplete, binding-unverified
+choices and made no automatic jump. Deliberate selection reached `Wire.fs`
+with full range `1:4–10`. All 18 editor sessions reported zero helper/compiler/
+decompiler starts. This demonstrates retained candidate availability and safe
+withholding of the formerly exact response, not proof of target execution.
+
+Fresh private evaluation VSIX SHA-256:
+`fc6415a841fe26dff1bfbd14b2fb89ebf673c3cbab5bd27965b81d2982b99e27`.
+Embedded native SHA-256:
+`2497670da324f7250b3027271d6291a1d0dcea64cfb7b27692793058be513483`.
+All 111 recorded build inputs remained unchanged through package/editor checks.
+The previous candidate and older previews remain private and unchanged. No
+package, profile or raw log is published.
+
+The private 220-file evidence inventory SHA-256 is
+`efa3c21f071d04e6af267ee8e238e0c671e8a4d07d42fdd02f866dd00b64311c`.
+Independent reviews checked semantics, cache/currentness boundaries and actual
+editor evidence. Only reviewed source/tests and sanitized documentation ship.

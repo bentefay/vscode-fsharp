@@ -262,3 +262,17 @@ test('later-open active-pattern choices preserve one known semantic target', () 
  for(const t of c.expected.required)assertLiteralSpan(f.files[t.file].split('\n')[t.range.start.line],t.range.start.character,t.range.end.character,t.text,c.id);
  assert.equal(createHash('sha256').update(JSON.stringify({fixtures:[f],cases:[c]})).digest('hex'),'0f4cb6d50f1d6e250d10ce1e10ce2765970553e9c7b47c9930000a3d670af3fd');
 });
+
+test('prior thirty-one cases and seventeen fixtures remain frozen', () => {
+ assert.equal(createHash('sha256').update(JSON.stringify({...manifest,fixtures:manifest.fixtures.slice(0,17),cases:manifest.cases.slice(0,31)})).digest('hex'),'fd1cfd17356eb332d47db68fbb3c17b3f5f76462ccd49cf3a0750822d0d53e8b');
+});
+
+test('target-scoped signature fixture is a conservative physical-choice contract', () => {
+ const c=manifest.cases.find(c=>c.id==='target-scoped-signature-keeps-unproven-choices'),f=manifest.fixtures.find(f=>f.id===c.fixture);
+ assert.equal(c.expected.kind,'candidates');assert.equal(c.expected.candidateSet,'exact');assert.equal(c.expectedFailure,undefined);
+ assert.deepEqual(c.expected.target,c.oracle.semanticTargetForUninvokedTarget);
+ assert.deepEqual(c.expected.required,[c.oracle.semanticTargetForUninvokedTarget,c.oracle.uncertainPhysicalSignatureTarget]);
+ assert.equal(c.oracle.projectFacts.targetScopedCompile.invokedByControl,false);
+ assert.deepEqual(c.oracle.projectFacts.topLevelCompileOrder,['Wire.fs','Consumer.fs']);
+ assert.equal(createHash('sha256').update(JSON.stringify({fixtures:[f],cases:[c]})).digest('hex'),'859eccce79c10725a793a6777a68dad310161dbec148d73cdbe6a5dadb018cb9');
+});

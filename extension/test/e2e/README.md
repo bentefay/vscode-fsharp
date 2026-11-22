@@ -1,8 +1,8 @@
 # Immutable packaged-editor navigation gate
 
-The current ordinary manifest contains **22 definition scenarios, 5 References
+The current ordinary manifest contains **23 definition scenarios, 5 References
 route scenarios, 1 References currentness interaction, 2 hover safety scenarios
-and 1 project-tree scenario**: 30 required scenarios plus the scoped signature
+and 1 project-tree scenario**: 31 required scenarios plus the scoped signature
 failure. The generic-record slice adds one exact definition contract; the scoped
 operator slice adds one exact case and one explicit later-open refusal control.
 The single-partial active-pattern slice adds one exact case and one labelled
@@ -433,3 +433,12 @@ requires the exact two labelled physical choices, no forced jump, and deliberate
 selection of the one independently known semantic target. It does not claim
 both candidates are valid bindings. The gate now has 30 required passing
 scenarios plus the signature XFAIL. See [proof limits and retained evidence](../../../docs/e2e-coverage.md#scoped-single-partial-active-pattern-definition-proof).
+
+## Raw target-containing project certainty
+
+`target-scoped-signature-keeps-unproven-choices` retains both physical declarations
+as labelled incomplete choices, forbids an automatic exact signature jump, and
+selects the implementation deliberately. The old package returned a wrong exact
+signature response; no wrong visible jump was captured before assertion abort.
+The fresh package passed this case and all prior 30 required cases, with the
+signature XFAIL unchanged. See [counterexample, limits and evidence](../../../docs/e2e-coverage.md#raw-target-containing-project-certainty).

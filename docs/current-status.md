@@ -52,6 +52,12 @@ later-open labelled-choice control: 30 required scenarios plus the signature
 XFAIL passed in one fresh packaged run. This is Definition-only, with bounded
 syntax/scope evidence and conservative fallback; general active-pattern
 resolution and References are not expanded.
+The [raw target certainty checkpoint](e2e-coverage.md#raw-target-containing-project-certainty)
+now withholds project-dependent exact answers for target-containing raw projects
+while retaining their discovered files as incomplete candidates. A target-only
+signature counterexample no longer returns an exact contract location; the
+fresh editor gate passed 31 required cases plus the unchanged signature XFAIL.
+This does not evaluate targets or fix signature visibility.
 
 ## Fixed-corpus results
 

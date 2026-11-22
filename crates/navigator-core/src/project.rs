@@ -445,6 +445,11 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
         let empty = matches!(event, Event::Empty(_));
         match event {
             Event::Start(e) | Event::Empty(e) => {
+                // Target-time items and tasks are not evaluated by this preview.
+                // Retain their inventory, but never certify its compile context.
+                if e.local_name().as_ref().eq_ignore_ascii_case(b"Target") {
+                    exact = false;
+                }
                 let name = String::from_utf8_lossy(e.name().as_ref()).into_owned();
                 property = name.clone();
                 let mut include = None;
@@ -979,6 +984,30 @@ mod membership_model_tests {
             .contains("source-membership"));
         value["projects"][0]["membershipReusable"] = json!(false);
         assert!(Model::from_evaluated(&normalize(&root), &value).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn target_elements_require_evaluation_without_changing_literal_inventory() {
+        let root = fixture();
+        let path = root.join("Test.fsproj");
+        let item = "<ItemGroup><Compile Include=\"Main.fs\"/></ItemGroup>";
+        for target in [
+            "",
+            "<Target/>",
+            "<Target Name=\"Never\"></Target>",
+            "<target/>",
+            "<TaRgEt/>",
+            "<msb:Target/>",
+        ] {
+            fs::write(
+                &path,
+                format!("<Project xmlns:msb=\"urn:msbuild\">{target}{item}</Project>"),
+            )
+            .unwrap();
+            let (project, exact, _) = parse_project(&path).unwrap();
+            assert_eq!(exact, target.is_empty(), "{target}");
+            assert_eq!(project.files, vec![normalize(root.join("Main.fs"))]);
+        }
         fs::remove_dir_all(root).unwrap();
     }
 }

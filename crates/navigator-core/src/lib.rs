@@ -5539,4 +5539,153 @@ mod integration_tests {
         drop(ws);
         fs::remove_dir_all(root).unwrap();
     }
+    #[test]
+    fn target_scoped_compile_inventory_does_not_certify_definition_context() {
+        // The item text/order is identical; only evaluation-time versus target-time
+        // membership differs. No target or compiler is executed by this test.
+        for target_scoped in [false, true] {
+            let (root, mut ws) = fixture();
+            let path = root.join("Main.fs");
+            let source="module M\nlet (|Hit|_|) value = Some value\nlet classify value = match value with\n    | Hit captured -> captured\n    | _ -> 0\n";
+            fs::write(&path, source).unwrap();
+            let items = "<ItemGroup><Compile Include=\"Main.fs\"/></ItemGroup>";
+            let project = if target_scoped {
+                format!("<Project><Target Name=\"NeverInvoked\">{items}</Target></Project>")
+            } else {
+                format!("<Project>{items}</Project>")
+            };
+            fs::write(root.join("Test.fsproj"), project).unwrap();
+            let tree = ws.dispatch("workspace/tree", &json!({})).unwrap();
+            let definition = ws
+                .dispatch(
+                    "navigation/definition",
+                    &json!({"path":path,"line":3,"character":7}),
+                )
+                .unwrap();
+            assert_eq!(tree["projects"][0]["files"], json!([normalize(&path)]));
+            if target_scoped {
+                assert_eq!(
+                    tree["projects"][0]["exact"], false,
+                    "target tree={tree}; definition={definition}"
+                );
+                assert_ne!(definition["completeness"], "exact", "{definition}");
+                assert!(
+                    definition["candidates"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|candidate| candidate["range"]["start"]
+                            == json!({"line":1,"character":6})),
+                    "{definition}"
+                );
+            } else {
+                assert_eq!(tree["projects"][0]["exact"], true, "{tree}");
+                assert_eq!(definition["completeness"], "exact", "{definition}");
+                assert_eq!(
+                    definition["locations"][0]["range"]["start"],
+                    json!({"line":1,"character":6})
+                );
+            }
+            drop(ws);
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
+    #[test]
+    fn target_scoped_signature_does_not_route_consumer_to_uninvoked_contract() {
+        for target_scoped in [false, true] {
+            let (root, mut ws) = fixture();
+            fs::write(
+                root.join("Wire.fsi"),
+                "module Wire\nval render: text: string -> string\n",
+            )
+            .unwrap();
+            fs::write(
+                root.join("Wire.fs"),
+                "module Wire\nlet render text = text\nlet concealed = 99\n",
+            )
+            .unwrap();
+            fs::write(
+                root.join("Consumer.fs"),
+                "module Consumer\nopen Wire\nlet shown = render \"value\"\n",
+            )
+            .unwrap();
+            let signature = "<ItemGroup><Compile Include=\"Wire.fsi\"/></ItemGroup>";
+            let signature = if target_scoped {
+                format!("<Target Name=\"NeverInvoked\">{signature}</Target>")
+            } else {
+                signature.into()
+            };
+            fs::write(root.join("Test.fsproj"),format!("<Project>{signature}<ItemGroup><Compile Include=\"Wire.fs\"/><Compile Include=\"Consumer.fs\"/></ItemGroup></Project>")).unwrap();
+            let tree = ws.dispatch("workspace/tree", &json!({})).unwrap();
+            let definition = ws
+                .dispatch(
+                    "navigation/definition",
+                    &json!({"path":root.join("Consumer.fs"),"line":2,"character":13}),
+                )
+                .unwrap();
+            let is_signature = |location: &Value| {
+                location["uri"]
+                    .as_str()
+                    .is_some_and(|uri| uri.ends_with("Wire.fsi"))
+            };
+            if target_scoped {
+                // A NeverInvoked-only item is not an ordinary compile input.
+                // Retain candidates, but never claim its contract is the exact target.
+                assert!(
+                    !(definition["completeness"] == "exact"
+                        && definition["locations"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .any(is_signature)),
+                    "tree={tree}; definition={definition}"
+                );
+                assert_ne!(definition["completeness"], "exact", "{definition}");
+                assert!(
+                    definition["candidates"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|location| location["uri"].as_str().unwrap().ends_with("Wire.fs")),
+                    "{definition}"
+                );
+                assert_eq!(tree["projects"][0]["files"].as_array().unwrap().len(), 3);
+                let wire = root.join("Wire.fs");
+                ws.dispatch("document/change",&json!({"path":wire,"version":1,"text":"module Wire\nlet renamed text = text\n"})).unwrap();
+                let changed = ws
+                    .dispatch(
+                        "navigation/definition",
+                        &json!({"path":root.join("Consumer.fs"),"line":2,"character":13}),
+                    )
+                    .unwrap();
+                assert_ne!(changed["completeness"], "exact", "{changed}");
+                assert!(
+                    !changed["candidates"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|location| location["uri"].as_str().unwrap().ends_with("Wire.fs")),
+                    "{changed}"
+                );
+                let local = "module Consumer\nlet values = List.map (fun local -> local) [1]\n";
+                let col = local.lines().nth(1).unwrap().rfind("local").unwrap();
+                ws.dispatch(
+                    "document/open",
+                    &json!({"path":root.join("Consumer.fs"),"text":local,"version":1}),
+                )
+                .unwrap();
+                let local_answer=ws.dispatch("navigation/definition",&json!({"path":root.join("Consumer.fs"),"line":1,"character":col,"version":1})).unwrap();
+                assert_eq!(local_answer["completeness"], "exact", "{local_answer}");
+                assert_eq!(
+                    local_answer["locations"][0]["range"]["start"]["character"],
+                    27
+                );
+            } else {
+                assert_eq!(definition["completeness"], "exact", "{definition}");
+                assert!(is_signature(&definition["locations"][0]), "{definition}");
+            }
+            drop(ws);
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
 }
