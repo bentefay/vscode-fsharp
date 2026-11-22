@@ -22,6 +22,10 @@ The [References currentness qualification](e2e-coverage.md#references-currentnes
 retained the 24 ordinary passing contracts but added no qualified pass: a native
 sidebar click opened an old range, and an isolated Possible References success
 did not repeat in the full suite. Both strict tests remain separate regressions.
+The [bounded row/click diagnostic](e2e-coverage.md#bounded-rendered-row-and-click-witness)
+confirmed delivery of the native stale-row click and separately observed a
+Possible References pointer sequence crossing moving rows. Native command
+publication responsibility remains unresolved; runtime is unchanged.
 
 ## Fixed-corpus results
 

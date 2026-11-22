@@ -512,3 +512,93 @@ not launched a third time; its unchanged cases passed in both full attempts
 on the same test implementation, with the initial-clear correction in the
 second attempt. Private evidence inventory SHA-256:
 `6c381f7431868a37fa7424cf45d652098b031ad7c68cb2e3457414ae644af80e`.
+
+## Bounded rendered-row and click witness
+
+A separate diagnostic starts from
+`f9deba4edff9392ba5cdd9cfd2611bda5c343a44`. Before execution it fixed one
+Code 1.108.0 launch: the unchanged default 25 scenarios followed by the two
+unchanged strict currentness regressions, using the same `8c3b8d8b…` VSIX.
+There was no second launch, extra sleep, mid-query clear, target change, runtime
+change or product-dispatch interception. The no-clear native-repeat oracle
+remains strict. **All 24 required scenarios passed; the signature expected
+failure and both strict currentness failures reproduced.** The 29 phase records
+contain 26 passes, one scoped expected failure and two failures; dirty baselines
+are not additional scenarios.
+
+Set `FSHARP_E2E_ROW_WITNESS=1` only for diagnostic runs through the existing
+protected `test e2e` route. To reproduce the observed order, create a private
+manifest containing the default cases followed by the strict regression cases,
+with their unchanged shared fixtures; pass it via `FSHARP_E2E_MANIFEST` and use
+a fresh private output directory. This flag does not change the default test
+thresholds or click oracle. Reports contain fixture paths and must stay private.
+
+The test-side observer assigns WeakMap identities to DOM nodes, snapshots row
+attributes/rectangles, observes relevant subtree mutations, and records trusted
+`mousedown`, `mouseup` and `click` targets even outside reference panes. It reads
+existing Possible References row IDs/commands without invoking or replacing
+dispatch. Limits are 256 events per phase, 100 rows per pane, 20 mutations per
+batch, 10 added/removed nodes per mutation side and 2,048 characters per captured
+text/attribute value. Event, batch, row and node-list drop/truncation flags
+accompany records; text/attribute values have no separate truncation flags.
+All timestamps used for ordering are from the renderer clock; there is no cross-clock
+subtraction or user-facing latency claim. Observations and layout reads can
+influence timing. DOM identity is not provider command generation.
+
+### Native References: stale activation confirmed, persistence unresolved
+
+The first post-edit response again contained the correct version-2 ranges on
+line 3. The intended first row received trusted down, up and click events on
+the same DOM node and hit target. The editor then opened **old caret `2:34`**.
+Thus this occurrence was not a missed or displaced pointer action. Later row
+attribute/child updates were observed within the existing assertion window.
+The row nodes were reused and their labels were unchanged, so those updates
+do not expose the command's captured range or prove when it became current.
+No second click was made after that update. A transient refresh window versus
+a persistently stale command remains **unresolved**.
+
+Independent review of pinned VS Code's builtin References implementation found
+that each row command captures a returned location's range, while preview text
+is read separately from a document. The builtin does not assign an explicit
+generation ID or perform click-time native revalidation. The bundled source
+SHA-256 is `ce9546e5d5559e3670d7fc39866f3a3b1866cc883fcb479b2c6baf70e7cae749`.
+This explains why row labels cannot certify freshness, but it does not establish
+which publication/cache layer owns the observed stale command. No runtime fix
+is justified from this evidence alone.
+
+### Possible References: pointer sequence crossed moving rows
+
+At the pre-edit consumer selection, trusted mouse-down landed on the intended
+Consumer row. At the same screen coordinates, mouse-up landed on an Other row
+after the layout moved; the click event targeted their common list container,
+not a row. No editor selection event or navigation followed. This **positively
+localizes this attempt to an unstable pointer target during layout**, rather
+than proving a rejected current-row command or a freshness-validation defect.
+It does not retroactively prove the cause of the earlier unwitnessed failure.
+
+Navigator's Possible References rows have generation-qualified IDs and perform
+currentness validation before opening. The DOM snapshot did not expose the
+provider's generation ID, so it does not add command-dispatch proof. The
+smallest separately testable harness proposal is to require a fresh intended
+row/rectangle at dispatch and verify trusted down/up/click delivery to that row.
+A displaced gesture must remain a failed interaction, never silently retried
+or counted as successful selection. This proposal was not implemented or run
+after the fixed cohort; no product behavior was changed.
+
+### Stop and retained gates
+
+The failed native phase recorded 17 events and the failed Possible References
+phase 32, with zero dropped events and no row/node-list truncation. Each had
+one truncated mutation batch. Positive pointer/selection evidence remains
+usable; an exhaustive lifecycle or absence claim does not. The bounded
+diagnostic stops here, with **zero new required passes** and both original
+strict oracles intact. Genuine in-flight cancellation and the signature,
+qualified-union and prepared List.map gaps remain open.
+
+Protected aggregate checks passed: 3 Python, 43 Node tooling/manifest, 323 Rust
+(5 ignored), 108 adapter/transport, TypeScript and formatting. Independent
+review checked the oracle and event interpretation. The normal-sandbox Ubuntu
+acceptance gate remains separate; no performance or CI qualification is claimed.
+Protocol SHA-256: `6da052c987487a2104dd1c6f9d06747e8a0469654bd68d4305724a0dd7bbb2bb`.
+Private 73-file evidence inventory SHA-256:
+`a10a1f05dc57a9e3dd5e45ccabe9a0971b1ddcce5685b33999fbecb6d8902fd1`.

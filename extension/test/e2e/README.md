@@ -360,3 +360,14 @@ Neither interaction earns required-pass or cancellation credit. The command
 replay is not a stale-row pointer click, and a timeout is not cancellation.
 Both failed attempts and the isolated success remain private. See the
 [qualification and exact boundaries](../../../docs/e2e-coverage.md#references-currentness-qualification).
+
+### Optional row/click diagnostic
+
+`FSHARP_E2E_ROW_WITNESS=1` adds capped read-only DOM identity/mutation and trusted
+pointer-target observations to References phases. It leaves the strict
+selection oracle and waits unchanged. Use only the authorized disposable route
+and keep resulting reports private. DOM node identity is not command generation;
+truncation prevents exhaustive absence claims, and observer/layout work affects
+timing. See the [one-cohort results](../../../docs/e2e-coverage.md#bounded-rendered-row-and-click-witness):
+the native stale activation was confirmed, and a separate Possible References
+gesture crossed moving rows. Neither strict regression became a required pass.
