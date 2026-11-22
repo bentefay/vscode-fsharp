@@ -12,7 +12,8 @@ exports.connect = async function (port) {
   const evaluate = async expression => { const r = await send('Runtime.evaluate', { expression, returnByValue: true }); if (r.exceptionDetails) throw new Error(r.exceptionDetails.text); return r.result.value; };
   return {
     evaluate,
-    async key(key) { const code = key === 'F12' ? 123 : key === 'Escape' ? 27 : undefined; assert.ok(code); for (const type of ['keyDown', 'keyUp']) await send('Input.dispatchKeyEvent', { type, key, code: key, windowsVirtualKeyCode: code }); },
+    async key(key, modifiers = 0) { const code = key === 'F12' ? 123 : key === 'Escape' ? 27 : undefined; assert.ok(code); for (const type of ['keyDown', 'keyUp']) await send('Input.dispatchKeyEvent', { type, key, code: key, windowsVirtualKeyCode: code, modifiers }); },
+    async clickPoint(point) { assert.ok(point&&Number.isFinite(point.x)&&Number.isFinite(point.y));for(const type of ['mousePressed','mouseReleased'])await send('Input.dispatchMouseEvent',{type,...point,button:'left',clickCount:1}); },
     async clickStatus(text) {
       const point = await evaluate(`(()=>{const n=[...document.querySelectorAll('.statusbar-item')].find(n=>(n.textContent||'').includes(${JSON.stringify(text)}));if(!n)return null;const r=n.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2,h=document.elementFromPoint(x,y);return r.width&&r.height&&h&&(h===n||n.contains(h))?{x,y}:null;})()`);
       if (!point) return false;

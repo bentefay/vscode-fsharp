@@ -28,8 +28,18 @@ test('each scenario has a distinct rule, explicit oracle and a real query token'
       assert.notEqual(scenario.edit.text, fixture.files[scenario.edit.file]);
       snapshots.push({query: scenario.edit.baseline.query, files: fixture.files});
     }
-    for (const {query, files} of snapshots) assert.equal(files[query.file].split('\n')[query.line].slice(query.character, query.character + query.token.length), query.token, scenario.id);
-    assert.ok(['exact', 'candidates', 'unavailable'].includes(scenario.expected.kind));
+    for (const {query, files} of snapshots) {
+      const tokenStart = query.tokenStart ?? query.character;
+      assert.ok(Number.isInteger(tokenStart) && tokenStart >= 0);
+      assert.ok(query.character >= tokenStart && query.character < tokenStart + query.token.length, 'Caret must be inside the authored full token');
+      assert.equal(files[query.file].split('\n')[query.line].slice(tokenStart, tokenStart + query.token.length), query.token, scenario.id);
+    }
+    const referenceCase = scenario.operation === 'references';
+    assert.ok((referenceCase ? ['exact', 'incomplete'] : ['exact', 'candidates', 'unavailable']).includes(scenario.expected.kind));
+    if (referenceCase) {
+      assert.ok(['sidebar', 'peek'].includes(scenario.route));
+      assert.equal(typeof scenario.declarationIncluded, 'boolean');
+    }
     if (scenario.expectedFailure) assert.ok(scenario.expectedFailure.reason && scenario.expectedFailure.issue && scenario.expectedFailure.match, 'Expected failures need an explicit reproduced defect reference');
   }
 });
@@ -39,13 +49,18 @@ test('fixtures are portable source-only inputs and expected ranges identify none
     if (fixture.workspaceFolder) assert.ok(!path.isAbsolute(fixture.workspaceFolder) && !fixture.workspaceFolder.split(/[\\/]/).includes('..'));
     for (const name of Object.keys(fixture.files)) {
       assert.ok(!path.isAbsolute(name) && !name.split(/[\\/]/).includes('..'), name);
-      assert.match(name, /\.(fs|fsi|fsx|fsproj)$/);
+      if (name === 'Directory.Build.props') assert.equal(fixture.files[name], '<Project/>\n', 'Only the exact inert ambient-context fixture is allowed');
+      else assert.match(name, /\.(fs|fsi|fsx|fsproj)$/);
     }
   }
   for (const scenario of manifest.cases) {
     const fixture = manifest.fixtures.find(f => f.id === scenario.fixture), expected = scenario.expected;
     const edited = {...fixture.files, ...(scenario.edit ? {[scenario.edit.file]: scenario.edit.text} : {})};
     const locations = [...(expected.required || []).map(location => ({location, files: edited})),
+      ...(expected.references || []).map(location => ({location, files: edited})),
+      ...(expected.possibleRequired || []).map(location => ({location, files: edited})),
+      ...(expected.possibleTarget ? [{location: expected.possibleTarget, files: edited}] : []),
+      ...(scenario.operation === 'references' ? [scenario.oracle.declaration, ...scenario.oracle.uses, ...(scenario.oracle.excludedHomonyms || []), ...(scenario.oracle.unrelatedSameNameOccurrences || [])].map(location => ({location, files: edited})) : []),
       ...(expected.target ? [{location: expected.target, files: edited}] : []),
       ...(expected.forbidden || []).map(location => ({location, files: fixture.files})),
       ...(scenario.edit ? [{location: scenario.edit.baseline.expected.target, files: fixture.files}] : [])];
@@ -55,12 +70,40 @@ test('fixtures are portable source-only inputs and expected ranges identify none
       const line = files[location.file].split('\n')[start.line];
       assertLiteralSpan(line, start.character, end.character, location.text, scenario.id);
     }
-    if (expected.kind === 'exact') assert.ok(expected.target);
+    if (expected.kind === 'exact' && scenario.operation !== 'references') assert.ok(expected.target);
     if (expected.kind === 'candidates') {
       assert.ok(expected.required.length >= 1);
       assert.ok(expected.required.some(x => JSON.stringify(x) === JSON.stringify(expected.target)));
     }
   }
+});
+
+test('reference sets are complete authored UTF-16 sets, with usage counts separate from declarations', () => {
+  const keys = locations => locations.map(location => JSON.stringify(location)).sort();
+  for (const scenario of manifest.cases.filter(c => c.operation === 'references')) {
+    const {expected, oracle} = scenario;
+    assert.equal(oracle.knownUsageCount, oracle.uses.length);
+    if (expected.kind === 'exact') {
+      const all = [...(scenario.declarationIncluded ? [oracle.declaration] : []), ...oracle.uses];
+      assert.deepEqual(keys(expected.references), keys(all), scenario.id);
+      assert.equal(new Set(keys(expected.references)).size, expected.references.length);
+      for (const homonym of oracle.excludedHomonyms) assert.ok(!keys(all).includes(JSON.stringify(homonym)));
+      assert.deepEqual(keys(expected.forbidden), keys(oracle.excludedHomonyms));
+    } else {
+      assert.equal(scenario.showPossible, true);
+      assert.equal(expected.possibleSet, 'exact');
+      assert.deepEqual(keys(expected.possibleRequired), keys([oracle.declaration, ...oracle.uses, ...oracle.unrelatedSameNameOccurrences]));
+      assert.equal(new Set(keys(expected.possibleRequired)).size, expected.possibleRequired.length);
+      assert.ok(keys(expected.possibleRequired).includes(JSON.stringify(expected.possibleTarget)));
+      assert.equal(expected.references, undefined, 'Incomplete FAR must not masquerade as an exact empty reference set');
+    }
+  }
+});
+
+test('all twelve prior definition cases and seven prior fixtures remain byte-semantically frozen', () => {
+  const original = {fixtures: manifest.fixtures.slice(0, 7), cases: manifest.cases.slice(0, 12)};
+  assert.equal(createHash('sha256').update(JSON.stringify(original)).digest('hex'),
+    '4c22572c91e986175ca157979fdc694f14a1098961267117c67b2a38e53f7925');
 });
 
 test('the original six passing scenario and fixture contracts remain frozen', () => {

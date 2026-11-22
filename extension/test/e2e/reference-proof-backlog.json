@@ -1,0 +1,527 @@
+{
+  "schemaVersion": 1,
+  "status": "observed-unsupported-proof-backlog",
+  "executedByRequiredGate": false,
+  "explanation": "These four routes were attempted in the first References editor run and failed the exact-result gate conservatively. The language oracle remains valid and unchanged. The current local lexical proof supports a lambda passed as an application argument, but not this directly applied lambda in callee position. Neither multiline formatting nor the astral comment is established as the cause. These original cases are preserved for future proof work and are excluded from subsequent required editor gates; they are not passing coverage.",
+  "originalExecutedManifestSha256": "ec5ca1700f875b10567d0878ad1f58f2515fba58d57f4784b7bad968e79beded",
+  "fixtures": [
+    {
+      "id": "references-lexical",
+      "project": "References.fsproj",
+      "files": {
+        "References.fs": "module ReferenceCases\nlet homonym = (fun value -> value) 99\nlet used =\n    (* 😀 *) (fun value ->\n        value + 1) 20\nlet unusedHomonym = (fun neverUsed -> neverUsed) 7\nlet unused =\n    (* 😀 *) (fun neverUsed ->\n        42) 0\n",
+        "References.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"References.fs\" /></ItemGroup></Project>\n"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "references-used-once-sidebar",
+      "ruleId": "references.lexical-used-once.sidebar",
+      "operation": "references",
+      "route": "sidebar",
+      "fixture": "references-lexical",
+      "query": {
+        "file": "References.fs",
+        "line": 3,
+        "character": 19,
+        "token": "value",
+        "tokenStart": 18
+      },
+      "declarationIncluded": true,
+      "expected": {
+        "kind": "exact",
+        "references": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 3,
+                "character": 18
+              },
+              "end": {
+                "line": 3,
+                "character": 23
+              }
+            },
+            "text": "value"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 4,
+                "character": 8
+              },
+              "end": {
+                "line": 4,
+                "character": 13
+              }
+            },
+            "text": "value"
+          }
+        ],
+        "forbidden": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 19
+              },
+              "end": {
+                "line": 1,
+                "character": 24
+              }
+            },
+            "text": "value"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 28
+              },
+              "end": {
+                "line": 1,
+                "character": 33
+              }
+            },
+            "text": "value"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-complete-lexical-reference-set",
+        "explanation": "The selected lambda parameter has 1 body use(s). Its lexical scope is closed; the separate same-spelled lambda parameter and use are distinct bindings and excluded. All declaration/use locations are authored full UTF-16 ranges, including an astral comment before the selected declaration. Pinned VS Code sidebar includes the declaration. Shift+F12 starts with declaration inclusion; only the two-row declaration-plus-one-use case compactly retries excluding the declaration, producing a direct use jump. For the unused case the sole declaration row is not evidence of a use. Language/reference-set coverage is the two binding rules, with two UI routes each; four routes are not four distinct language rules.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/lambda-expressions-the-fun-keyword",
+        "declaration": {
+          "file": "References.fs",
+          "range": {
+            "start": {
+              "line": 3,
+              "character": 18
+            },
+            "end": {
+              "line": 3,
+              "character": 23
+            }
+          },
+          "text": "value"
+        },
+        "uses": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 4,
+                "character": 8
+              },
+              "end": {
+                "line": 4,
+                "character": 13
+              }
+            },
+            "text": "value"
+          }
+        ],
+        "knownUsageCount": 1,
+        "excludedHomonyms": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 19
+              },
+              "end": {
+                "line": 1,
+                "character": 24
+              }
+            },
+            "text": "value"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 28
+              },
+              "end": {
+                "line": 1,
+                "character": 33
+              }
+            },
+            "text": "value"
+          }
+        ],
+        "uiPolicy": "references-view.findReferences includes declaration; pinned Shift+F12 compact 2-to-1 behavior is an editor route policy, not a language reference rule."
+      }
+    },
+    {
+      "id": "references-unused-sidebar",
+      "ruleId": "references.lexical-unused.sidebar",
+      "operation": "references",
+      "route": "sidebar",
+      "fixture": "references-lexical",
+      "query": {
+        "file": "References.fs",
+        "line": 7,
+        "character": 19,
+        "token": "neverUsed",
+        "tokenStart": 18
+      },
+      "declarationIncluded": true,
+      "expected": {
+        "kind": "exact",
+        "references": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 7,
+                "character": 18
+              },
+              "end": {
+                "line": 7,
+                "character": 27
+              }
+            },
+            "text": "neverUsed"
+          }
+        ],
+        "forbidden": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 5,
+                "character": 25
+              },
+              "end": {
+                "line": 5,
+                "character": 34
+              }
+            },
+            "text": "neverUsed"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 5,
+                "character": 38
+              },
+              "end": {
+                "line": 5,
+                "character": 47
+              }
+            },
+            "text": "neverUsed"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-complete-lexical-reference-set",
+        "explanation": "The selected lambda parameter has 0 body use(s). Its lexical scope is closed; the separate same-spelled lambda parameter and use are distinct bindings and excluded. All declaration/use locations are authored full UTF-16 ranges, including an astral comment before the selected declaration. Pinned VS Code sidebar includes the declaration. Shift+F12 starts with declaration inclusion; only the two-row declaration-plus-one-use case compactly retries excluding the declaration, producing a direct use jump. For the unused case the sole declaration row is not evidence of a use. Language/reference-set coverage is the two binding rules, with two UI routes each; four routes are not four distinct language rules.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/lambda-expressions-the-fun-keyword",
+        "declaration": {
+          "file": "References.fs",
+          "range": {
+            "start": {
+              "line": 7,
+              "character": 18
+            },
+            "end": {
+              "line": 7,
+              "character": 27
+            }
+          },
+          "text": "neverUsed"
+        },
+        "uses": [],
+        "knownUsageCount": 0,
+        "excludedHomonyms": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 5,
+                "character": 25
+              },
+              "end": {
+                "line": 5,
+                "character": 34
+              }
+            },
+            "text": "neverUsed"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 5,
+                "character": 38
+              },
+              "end": {
+                "line": 5,
+                "character": 47
+              }
+            },
+            "text": "neverUsed"
+          }
+        ],
+        "uiPolicy": "references-view.findReferences includes declaration; pinned Shift+F12 compact 2-to-1 behavior is an editor route policy, not a language reference rule."
+      }
+    },
+    {
+      "id": "references-used-once-peek",
+      "ruleId": "references.lexical-used-once.peek",
+      "operation": "references",
+      "route": "peek",
+      "fixture": "references-lexical",
+      "query": {
+        "file": "References.fs",
+        "line": 3,
+        "character": 19,
+        "token": "value",
+        "tokenStart": 18
+      },
+      "declarationIncluded": false,
+      "expected": {
+        "kind": "exact",
+        "references": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 4,
+                "character": 8
+              },
+              "end": {
+                "line": 4,
+                "character": 13
+              }
+            },
+            "text": "value"
+          }
+        ],
+        "forbidden": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 19
+              },
+              "end": {
+                "line": 1,
+                "character": 24
+              }
+            },
+            "text": "value"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 28
+              },
+              "end": {
+                "line": 1,
+                "character": 33
+              }
+            },
+            "text": "value"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-complete-lexical-reference-set",
+        "explanation": "The selected lambda parameter has 1 body use(s). Its lexical scope is closed; the separate same-spelled lambda parameter and use are distinct bindings and excluded. All declaration/use locations are authored full UTF-16 ranges, including an astral comment before the selected declaration. Pinned VS Code sidebar includes the declaration. Shift+F12 starts with declaration inclusion; only the two-row declaration-plus-one-use case compactly retries excluding the declaration, producing a direct use jump. For the unused case the sole declaration row is not evidence of a use. Language/reference-set coverage is the two binding rules, with two UI routes each; four routes are not four distinct language rules.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/lambda-expressions-the-fun-keyword",
+        "declaration": {
+          "file": "References.fs",
+          "range": {
+            "start": {
+              "line": 3,
+              "character": 18
+            },
+            "end": {
+              "line": 3,
+              "character": 23
+            }
+          },
+          "text": "value"
+        },
+        "uses": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 4,
+                "character": 8
+              },
+              "end": {
+                "line": 4,
+                "character": 13
+              }
+            },
+            "text": "value"
+          }
+        ],
+        "knownUsageCount": 1,
+        "excludedHomonyms": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 19
+              },
+              "end": {
+                "line": 1,
+                "character": 24
+              }
+            },
+            "text": "value"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 28
+              },
+              "end": {
+                "line": 1,
+                "character": 33
+              }
+            },
+            "text": "value"
+          }
+        ],
+        "uiPolicy": "references-view.findReferences includes declaration; pinned Shift+F12 compact 2-to-1 behavior is an editor route policy, not a language reference rule."
+      }
+    },
+    {
+      "id": "references-unused-peek",
+      "ruleId": "references.lexical-unused.peek",
+      "operation": "references",
+      "route": "peek",
+      "fixture": "references-lexical",
+      "query": {
+        "file": "References.fs",
+        "line": 7,
+        "character": 19,
+        "token": "neverUsed",
+        "tokenStart": 18
+      },
+      "declarationIncluded": true,
+      "expected": {
+        "kind": "exact",
+        "references": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 7,
+                "character": 18
+              },
+              "end": {
+                "line": 7,
+                "character": 27
+              }
+            },
+            "text": "neverUsed"
+          }
+        ],
+        "forbidden": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 5,
+                "character": 25
+              },
+              "end": {
+                "line": 5,
+                "character": 34
+              }
+            },
+            "text": "neverUsed"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 5,
+                "character": 38
+              },
+              "end": {
+                "line": 5,
+                "character": 47
+              }
+            },
+            "text": "neverUsed"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-complete-lexical-reference-set",
+        "explanation": "The selected lambda parameter has 0 body use(s). Its lexical scope is closed; the separate same-spelled lambda parameter and use are distinct bindings and excluded. All declaration/use locations are authored full UTF-16 ranges, including an astral comment before the selected declaration. Pinned VS Code sidebar includes the declaration. Shift+F12 starts with declaration inclusion; only the two-row declaration-plus-one-use case compactly retries excluding the declaration, producing a direct use jump. For the unused case the sole declaration row is not evidence of a use. Language/reference-set coverage is the two binding rules, with two UI routes each; four routes are not four distinct language rules.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/lambda-expressions-the-fun-keyword",
+        "declaration": {
+          "file": "References.fs",
+          "range": {
+            "start": {
+              "line": 7,
+              "character": 18
+            },
+            "end": {
+              "line": 7,
+              "character": 27
+            }
+          },
+          "text": "neverUsed"
+        },
+        "uses": [],
+        "knownUsageCount": 0,
+        "excludedHomonyms": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 5,
+                "character": 25
+              },
+              "end": {
+                "line": 5,
+                "character": 34
+              }
+            },
+            "text": "neverUsed"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 5,
+                "character": 38
+              },
+              "end": {
+                "line": 5,
+                "character": 47
+              }
+            },
+            "text": "neverUsed"
+          }
+        ],
+        "uiPolicy": "references-view.findReferences includes declaration; pinned Shift+F12 compact 2-to-1 behavior is an editor route policy, not a language reference rule."
+      }
+    }
+  ]
+}

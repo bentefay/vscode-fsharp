@@ -70,6 +70,25 @@
         "Single.fs": "module Single\ntype Item = { Code: string }\nlet read (items: Item list) = (List.head items).Code\n",
         "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Single.fs\" /></ItemGroup></Project>\n"
       }
+    },
+    {
+      "id": "references-lexical",
+      "project": "References.fsproj",
+      "files": {
+        "References.fs": "module ReferenceCases\nlet homonym = List.map (fun value -> value) [99]\nlet used = (* 😀 *) List.map (fun value -> value + 1) [20]\nlet unusedHomonym = List.map (fun neverUsed -> neverUsed) [7]\nlet unused = (* 😀 *) List.map (fun neverUsed -> 42) [0]\n",
+        "References.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"References.fs\" /></ItemGroup></Project>\n"
+      }
+    },
+    {
+      "id": "references-uncertified-crossfile",
+      "project": "App.fsproj",
+      "files": {
+        "Across.fs": "module Across\nlet sharedValue = 1\n",
+        "Other.fs": "module Other\nlet sharedValue = 9\nlet copy = sharedValue\n",
+        "Consumer.fs": "module Consumer\nlet answer = Across.sharedValue\n",
+        "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Across.fs\" /><Compile Include=\"Other.fs\" /><Compile Include=\"Consumer.fs\" /></ItemGroup></Project>\n",
+        "Directory.Build.props": "<Project/>\n"
+      }
     }
   ],
   "cases": [
@@ -745,6 +764,671 @@
         "kind": "authored-candidate-safety-contract",
         "explanation": "List.head has the language result Item, but this unprepared indexed request has no certified library identity/type. Exactly one local Code declaration is collected. A singleton unproven result remains incomplete, with no jump at offer or picker time and navigation only after deliberate selection. This is a presentation/proof-boundary obligation, not an assertion that the F# compiler is ambiguous.",
         "source": "https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-listmodule.html#head"
+      }
+    },
+    {
+      "id": "references-used-once-sidebar",
+      "ruleId": "references.lexical-used-once.sidebar",
+      "operation": "references",
+      "route": "sidebar",
+      "fixture": "references-lexical",
+      "query": {
+        "file": "References.fs",
+        "line": 2,
+        "character": 35,
+        "token": "value",
+        "tokenStart": 34
+      },
+      "declarationIncluded": true,
+      "expected": {
+        "kind": "exact",
+        "references": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 34
+              },
+              "end": {
+                "line": 2,
+                "character": 39
+              }
+            },
+            "text": "value"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 43
+              },
+              "end": {
+                "line": 2,
+                "character": 48
+              }
+            },
+            "text": "value"
+          }
+        ],
+        "forbidden": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 28
+              },
+              "end": {
+                "line": 1,
+                "character": 33
+              }
+            },
+            "text": "value"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 37
+              },
+              "end": {
+                "line": 1,
+                "character": 42
+              }
+            },
+            "text": "value"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-complete-lexical-reference-set",
+        "explanation": "The selected List.map callback parameter has 1 body use(s). Its lexical scope is closed; the separate same-spelled callback parameter and use are distinct bindings and excluded. This fixture exercises a lambda passed as an application argument, not the unsupported directly applied lambda shape retained in reference-proof-backlog.json. All declaration/use locations are independently authored full UTF-16 ranges, including an astral comment before the selected declaration. Pinned VS Code sidebar includes the declaration. Shift+F12 starts with declaration inclusion; only the two-row declaration-plus-one-use case compactly retries excluding the declaration, producing a direct use jump. For the unused case the sole declaration row is not evidence of a use. The four UI routes cover two binding rules, not four distinct language rules.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/lambda-expressions-the-fun-keyword",
+        "declaration": {
+          "file": "References.fs",
+          "range": {
+            "start": {
+              "line": 2,
+              "character": 34
+            },
+            "end": {
+              "line": 2,
+              "character": 39
+            }
+          },
+          "text": "value"
+        },
+        "uses": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 43
+              },
+              "end": {
+                "line": 2,
+                "character": 48
+              }
+            },
+            "text": "value"
+          }
+        ],
+        "knownUsageCount": 1,
+        "excludedHomonyms": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 28
+              },
+              "end": {
+                "line": 1,
+                "character": 33
+              }
+            },
+            "text": "value"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 37
+              },
+              "end": {
+                "line": 1,
+                "character": 42
+              }
+            },
+            "text": "value"
+          }
+        ],
+        "uiPolicy": "references-view.findReferences includes declaration; pinned Shift+F12 compact 2-to-1 behavior is an editor route policy, not a language reference rule."
+      }
+    },
+    {
+      "id": "references-unused-sidebar",
+      "ruleId": "references.lexical-unused.sidebar",
+      "operation": "references",
+      "route": "sidebar",
+      "fixture": "references-lexical",
+      "query": {
+        "file": "References.fs",
+        "line": 4,
+        "character": 37,
+        "token": "neverUsed",
+        "tokenStart": 36
+      },
+      "declarationIncluded": true,
+      "expected": {
+        "kind": "exact",
+        "references": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 4,
+                "character": 36
+              },
+              "end": {
+                "line": 4,
+                "character": 45
+              }
+            },
+            "text": "neverUsed"
+          }
+        ],
+        "forbidden": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 3,
+                "character": 34
+              },
+              "end": {
+                "line": 3,
+                "character": 43
+              }
+            },
+            "text": "neverUsed"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 3,
+                "character": 47
+              },
+              "end": {
+                "line": 3,
+                "character": 56
+              }
+            },
+            "text": "neverUsed"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-complete-lexical-reference-set",
+        "explanation": "The selected List.map callback parameter has 0 body use(s). Its lexical scope is closed; the separate same-spelled callback parameter and use are distinct bindings and excluded. This fixture exercises a lambda passed as an application argument, not the unsupported directly applied lambda shape retained in reference-proof-backlog.json. All declaration/use locations are independently authored full UTF-16 ranges, including an astral comment before the selected declaration. Pinned VS Code sidebar includes the declaration. Shift+F12 starts with declaration inclusion; only the two-row declaration-plus-one-use case compactly retries excluding the declaration, producing a direct use jump. For the unused case the sole declaration row is not evidence of a use. The four UI routes cover two binding rules, not four distinct language rules.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/lambda-expressions-the-fun-keyword",
+        "declaration": {
+          "file": "References.fs",
+          "range": {
+            "start": {
+              "line": 4,
+              "character": 36
+            },
+            "end": {
+              "line": 4,
+              "character": 45
+            }
+          },
+          "text": "neverUsed"
+        },
+        "uses": [],
+        "knownUsageCount": 0,
+        "excludedHomonyms": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 3,
+                "character": 34
+              },
+              "end": {
+                "line": 3,
+                "character": 43
+              }
+            },
+            "text": "neverUsed"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 3,
+                "character": 47
+              },
+              "end": {
+                "line": 3,
+                "character": 56
+              }
+            },
+            "text": "neverUsed"
+          }
+        ],
+        "uiPolicy": "references-view.findReferences includes declaration; pinned Shift+F12 compact 2-to-1 behavior is an editor route policy, not a language reference rule."
+      }
+    },
+    {
+      "id": "references-used-once-peek",
+      "ruleId": "references.lexical-used-once.peek",
+      "operation": "references",
+      "route": "peek",
+      "fixture": "references-lexical",
+      "query": {
+        "file": "References.fs",
+        "line": 2,
+        "character": 35,
+        "token": "value",
+        "tokenStart": 34
+      },
+      "declarationIncluded": false,
+      "expected": {
+        "kind": "exact",
+        "references": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 43
+              },
+              "end": {
+                "line": 2,
+                "character": 48
+              }
+            },
+            "text": "value"
+          }
+        ],
+        "forbidden": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 28
+              },
+              "end": {
+                "line": 1,
+                "character": 33
+              }
+            },
+            "text": "value"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 37
+              },
+              "end": {
+                "line": 1,
+                "character": 42
+              }
+            },
+            "text": "value"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-complete-lexical-reference-set",
+        "explanation": "The selected List.map callback parameter has 1 body use(s). Its lexical scope is closed; the separate same-spelled callback parameter and use are distinct bindings and excluded. This fixture exercises a lambda passed as an application argument, not the unsupported directly applied lambda shape retained in reference-proof-backlog.json. All declaration/use locations are independently authored full UTF-16 ranges, including an astral comment before the selected declaration. Pinned VS Code sidebar includes the declaration. Shift+F12 starts with declaration inclusion; only the two-row declaration-plus-one-use case compactly retries excluding the declaration, producing a direct use jump. For the unused case the sole declaration row is not evidence of a use. The four UI routes cover two binding rules, not four distinct language rules.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/lambda-expressions-the-fun-keyword",
+        "declaration": {
+          "file": "References.fs",
+          "range": {
+            "start": {
+              "line": 2,
+              "character": 34
+            },
+            "end": {
+              "line": 2,
+              "character": 39
+            }
+          },
+          "text": "value"
+        },
+        "uses": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 43
+              },
+              "end": {
+                "line": 2,
+                "character": 48
+              }
+            },
+            "text": "value"
+          }
+        ],
+        "knownUsageCount": 1,
+        "excludedHomonyms": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 28
+              },
+              "end": {
+                "line": 1,
+                "character": 33
+              }
+            },
+            "text": "value"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 37
+              },
+              "end": {
+                "line": 1,
+                "character": 42
+              }
+            },
+            "text": "value"
+          }
+        ],
+        "uiPolicy": "references-view.findReferences includes declaration; pinned Shift+F12 compact 2-to-1 behavior is an editor route policy, not a language reference rule."
+      }
+    },
+    {
+      "id": "references-unused-peek",
+      "ruleId": "references.lexical-unused.peek",
+      "operation": "references",
+      "route": "peek",
+      "fixture": "references-lexical",
+      "query": {
+        "file": "References.fs",
+        "line": 4,
+        "character": 37,
+        "token": "neverUsed",
+        "tokenStart": 36
+      },
+      "declarationIncluded": true,
+      "expected": {
+        "kind": "exact",
+        "references": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 4,
+                "character": 36
+              },
+              "end": {
+                "line": 4,
+                "character": 45
+              }
+            },
+            "text": "neverUsed"
+          }
+        ],
+        "forbidden": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 3,
+                "character": 34
+              },
+              "end": {
+                "line": 3,
+                "character": 43
+              }
+            },
+            "text": "neverUsed"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 3,
+                "character": 47
+              },
+              "end": {
+                "line": 3,
+                "character": 56
+              }
+            },
+            "text": "neverUsed"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-complete-lexical-reference-set",
+        "explanation": "The selected List.map callback parameter has 0 body use(s). Its lexical scope is closed; the separate same-spelled callback parameter and use are distinct bindings and excluded. This fixture exercises a lambda passed as an application argument, not the unsupported directly applied lambda shape retained in reference-proof-backlog.json. All declaration/use locations are independently authored full UTF-16 ranges, including an astral comment before the selected declaration. Pinned VS Code sidebar includes the declaration. Shift+F12 starts with declaration inclusion; only the two-row declaration-plus-one-use case compactly retries excluding the declaration, producing a direct use jump. For the unused case the sole declaration row is not evidence of a use. The four UI routes cover two binding rules, not four distinct language rules.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/lambda-expressions-the-fun-keyword",
+        "declaration": {
+          "file": "References.fs",
+          "range": {
+            "start": {
+              "line": 4,
+              "character": 36
+            },
+            "end": {
+              "line": 4,
+              "character": 45
+            }
+          },
+          "text": "neverUsed"
+        },
+        "uses": [],
+        "knownUsageCount": 0,
+        "excludedHomonyms": [
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 3,
+                "character": 34
+              },
+              "end": {
+                "line": 3,
+                "character": 43
+              }
+            },
+            "text": "neverUsed"
+          },
+          {
+            "file": "References.fs",
+            "range": {
+              "start": {
+                "line": 3,
+                "character": 47
+              },
+              "end": {
+                "line": 3,
+                "character": 56
+              }
+            },
+            "text": "neverUsed"
+          }
+        ],
+        "uiPolicy": "references-view.findReferences includes declaration; pinned Shift+F12 compact 2-to-1 behavior is an editor route policy, not a language reference rule."
+      }
+    },
+    {
+      "id": "references-incomplete-explicit-possible",
+      "ruleId": "references.incomplete-crossfile-explicit-action",
+      "operation": "references",
+      "route": "sidebar",
+      "fixture": "references-uncertified-crossfile",
+      "query": {
+        "file": "Across.fs",
+        "line": 1,
+        "character": 4,
+        "token": "sharedValue"
+      },
+      "declarationIncluded": true,
+      "showPossible": true,
+      "expected": {
+        "kind": "incomplete",
+        "possibleRequired": [
+          {
+            "file": "Across.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 4
+              },
+              "end": {
+                "line": 1,
+                "character": 15
+              }
+            },
+            "text": "sharedValue"
+          },
+          {
+            "file": "Other.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 4
+              },
+              "end": {
+                "line": 1,
+                "character": 15
+              }
+            },
+            "text": "sharedValue"
+          },
+          {
+            "file": "Other.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 11
+              },
+              "end": {
+                "line": 2,
+                "character": 22
+              }
+            },
+            "text": "sharedValue"
+          },
+          {
+            "file": "Consumer.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 20
+              },
+              "end": {
+                "line": 1,
+                "character": 31
+              }
+            },
+            "text": "sharedValue"
+          }
+        ],
+        "possibleSet": "exact",
+        "possibleTarget": {
+          "file": "Consumer.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 20
+            },
+            "end": {
+              "line": 1,
+              "character": 31
+            }
+          },
+          "text": "sharedValue"
+        }
+      },
+      "oracle": {
+        "kind": "authored-incomplete-safety-and-physical-occurrence-contract",
+        "explanation": "The literal source-level binding has its declaration in Across and one qualified consumer use; Other.sharedValue and its body use are a different binding. The empty ambient Directory.Build.props intentionally leaves the raw indexed project environment uncertified without invoking evaluation. Ordinary FAR must warn that results are incomplete, not certify an exact empty set. Only the explicit Possible References action may show the exact four physical same-name identifier occurrences; that set includes two unrelated bindings and is deliberately not a complete semantic-reference assertion. Deliberate clicking chooses the known consumer use. This fixture needs no discovery padding or readiness sleep. The .props file is exactly inert <Project/> and is never executed.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules",
+        "declaration": {
+          "file": "Across.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 4
+            },
+            "end": {
+              "line": 1,
+              "character": 15
+            }
+          },
+          "text": "sharedValue"
+        },
+        "uses": [
+          {
+            "file": "Consumer.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 20
+              },
+              "end": {
+                "line": 1,
+                "character": 31
+              }
+            },
+            "text": "sharedValue"
+          }
+        ],
+        "knownUsageCount": 1,
+        "unrelatedSameNameOccurrences": [
+          {
+            "file": "Other.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 4
+              },
+              "end": {
+                "line": 1,
+                "character": 15
+              }
+            },
+            "text": "sharedValue"
+          },
+          {
+            "file": "Other.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 11
+              },
+              "end": {
+                "line": 2,
+                "character": 22
+              }
+            },
+            "text": "sharedValue"
+          }
+        ]
       }
     }
   ]

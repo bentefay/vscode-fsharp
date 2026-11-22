@@ -33,7 +33,8 @@ def main():
         for name, text in fixture['files'].items(): relative_file(name); assert isinstance(text, str)
     for case in manifest['cases']:
         fixture = next(f for f in manifest['fixtures'] if f['id'] == case['fixture'])
-        assert case['query']['file'] in fixture['files'] and case['expected']['kind'] in ('exact', 'candidates', 'unavailable')
+        assert case['query']['file'] in fixture['files'] and case['expected']['kind'] in ('exact', 'candidates', 'unavailable', 'incomplete')
+        if case.get('operation') == 'references': assert case['route'] in ('sidebar', 'peek')
         if case.get('edit'):
             assert case['edit']['file'] in fixture['files'] and isinstance(case['edit']['text'], str)
             if case['edit'].get('baseline'):
@@ -42,9 +43,9 @@ def main():
         if case.get('expectedFailure'):
             assert case['expectedFailure'].get('reason') and case['expectedFailure'].get('issue') and case['expectedFailure'].get('match'), 'Expected failures require a scoped reason and error match'
     output.mkdir(parents=True, exist_ok=False)
-    inputs = [code, vsix, manifest_path, HERE/'run.py', HERE/'host.cjs', HERE/'renderer.cjs']
+    inputs = [code, vsix, manifest_path, HERE/'run.py', HERE/'host.cjs', HERE/'renderer.cjs', HERE/'referenceUi.cjs']
     hashes = {str(p): digest(p) for p in inputs}
-    for p in [manifest_path, HERE/'run.py', HERE/'host.cjs', HERE/'renderer.cjs']:
+    for p in [manifest_path, HERE/'run.py', HERE/'host.cjs', HERE/'renderer.cjs', HERE/'referenceUi.cjs']:
         shutil.copy2(p, output/p.name)
     with zipfile.ZipFile(vsix) as archive:
         package = json.loads(archive.read('extension/package.json'))

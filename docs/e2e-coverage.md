@@ -1,6 +1,14 @@
 # Packaged editor coverage and remaining gates
 
-This inventory extends source checkpoint `d203de6763b8353c2d647b61dd0f3ed3528b4460`.
+The References slice extends source checkpoint
+`70b00733090db4ddc239109c60622897b0bfa09e`. Its final pinned Code 1.108.0
+run and its identical frozen-input repeat each passed **16 required scenarios**,
+with the existing signature-candidate known failure reproduced separately. These are **12 definition scenarios and
+5 References route scenarios**, or 19 execution phases including two dirty
+baselines. References adds two lexical binding rules through two UI routes and
+one incomplete-scope action; route counts are not language completeness counts.
+
+The preceding definition inventory extended `d203de6763b8353c2d647b61dd0f3ed3528b4460`.
 Runtime and the selected evaluation package are unchanged. The first extended
 Code 1.108.0 run passed **11/12 scenarios**, or 13/14 phases, with 15 trusted editor
 F12 inputs. Two phases positively prime linked-provider targets before edits;
@@ -101,18 +109,20 @@ needs an ambiguity or safe-refusal negative where proof is unavailable.
 | Quoted/Unicode identifiers | Planned: `identifier-span`, F12 | Exact UTF-16 literal span at a real use | Pending; not a new binding rule |
 | In-flight cancellation | Planned: `pending-cancel`, F12 then Escape while proven pending | No later jump/offer/picker; next request works | Pending; idle Escape is not this test |
 
-## Public feature behavior still to add
+## Public feature coverage
 
-These rows are pending in this shared packaged manifest. Existing native and
-Extension Host checks are supporting evidence only, not invisible E2E passes.
+Statuses below distinguish actual packaged actions from supporting native and
+Extension Host checks. Provider checks alone are not E2E passes. The new
+[References observer](../extension/test/e2e/referenceUi.cjs) is included in the
+runner's immutable input snapshot/hash set.
 
 | Behavior | Planned fixture / action | Oracle and negative obligation | Status |
 | --- | --- | --- | --- |
-| Sidebar Find All References | `local-references`, actual menu/palette action | Rendered declaration + use URI/range set, click each | Pending |
-| Shift+F12 | Same fixture, keyboard from declaration | Correct compact use/retry behavior; not already-at-target | Pending |
-| Proven empty use scope | `unused-formal`, both entry points | No incomplete warning; distinguish declaration row from zero uses | Pending; exclude-declaration API check alone is not empty UI proof |
-| Incomplete cross-file references | `pending-references`, action before witnessed readiness | No partial native set as complete; explicit scope-not-searched warning | Pending |
-| Possible References action | Same fixture, click warning action | Labelled incomplete set, one deliberate action, no automatic search | Pending |
+| Sidebar Find All References | `references-used-once-sidebar`, actual Shift+Alt+F12 | Exact declaration + use set; click every row, exclude homonyms | Pass |
+| Shift+F12 | `references-used-once-peek`, actual shortcut inside declaration | Observed jump to sole use; full end-range secondary, retry flags source-derived | Pass within that boundary |
+| Unused binder / zero semantic uses | `references-unused-sidebar` and `references-unused-peek` | Declaration-only result, actual movement from interior caret; no incomplete warning | Pass; not an empty native UI claim |
+| Incomplete cross-file references | `references-incomplete-explicit-possible`, actual sidebar shortcut | Empty native result view plus scope-not-searched warning | Pass; stable uncertified context, not pending-discovery timing |
+| Possible References action | Same fixture, click warning action | Four reachable physical occurrences including unrelated homonyms; explicit full-range selection | Pass; not semantic completeness |
 | Repeats and currentness | `reference-edits`, linked edit/delete/rebind, repeated action | Deduplication, updated rows, stale rows cannot navigate | Pending |
 | Reference cancellation/restart | Same fixture, actual pending cancel/restart | No late stale publication/navigation | Pending; sidebar non-cancellable token differs from Shift+F12 |
 | External library hover | `external-docs`, rendered Show Hover | Reviewed catalog identity, exact signature/docs | Pending; needs legitimate catalog assets, no implicit preparation |
@@ -128,12 +138,69 @@ Relevant supporting suites include `extension/test/suite.cjs`,
 and Rust `typeflow.rs`, `treesitter.rs`, `possible_references.rs`, and
 `solution_tree.rs`. None establishes the pending rendered behaviors by itself.
 
+## References result interpretation
+
+Sidebar exact sets are checked through every rendered row's highlighted literal
+and actual clicked URI/start caret. The full single-line UTF-16 range is
+reconstructed from that caret and highlight length. Compact Shift+F12 displays
+no row in these one-result cases: its actual caret movement is observed, while
+full end ranges are secondary native evidence. Homonyms in other lambda scopes
+are absent from exact sets. An unused binder contributes its declaration, so
+this is zero uses, not an empty native result panel.
+
+The incomplete case visibly retains the native “No results” wording alongside
+the explicit warning. The warning explains that the scope was not fully searched
+and that “No references found” is not evidence of no uses; it does not change
+VS Code's native wording. The separate deliberate action shows the four labelled
+physical occurrences, including two unrelated homonym occurrences, and selects
+the known consumer use. Internal diagnostic `lastResult` partial locations are
+not provider exports. Readiness is bounded observed-state polling, not a fixed
+sleep. No timing, memory, pending-discovery, dirty-References or cancellation
+claim follows from this slice.
+
+## References fixture failure retained separately
+
+The first References cohort used directly applied lambdas, such as
+`(fun value -> value + 1) 20`. Its four exact route contracts are valid language
+oracles, but the unchanged engine declined their complete reference domains.
+The diagnostic says callable parameter references may include named arguments
+outside the body. Source inspection identifies a narrower implementation limit:
+`local_lexical::argument_lambda` certifies a lambda passed as an application
+argument, not a lambda that is itself the applied function. This is a conservative
+coverage gap, not a claim that the source is invalid or that multiline syntax
+or Unicode caused the failure.
+
+The authored source and four route contracts are retained in
+[reference-proof-backlog.json](../extension/test/e2e/reference-proof-backlog.json).
+They are observed unsupported cases, not passing required cases or invisible
+provider substitutes. The required UI slice instead uses `List.map` argument
+lambdas, with independent declaration/use/homonym oracles. That fixture change
+does not fix the original direct-application gap.
+
+The first incomplete cross-file case also failed a harness assertion:
+`api.lastResult` is an internal diagnostic payload and can retain partial native
+locations even though the provider withholds them. The corrected assertion must
+observe the empty native result view and explicit incomplete warning. No exported
+partial-result leak was established by the failed internal-payload assertion.
+Raw first failures remain preserved; no runtime change was made.
+
+A second run passed all four exact References routes and reached the explicit
+Possible References action, but the observer asserted the explanatory message
+as soon as rows appeared. The captured view had four reachable rows and an
+incomplete title, without the message yet observed. Selection was not exercised
+in that failed case. The final observer waits jointly for labelled explanatory
+text and all expected rows within the existing bounded wait; it does not add a
+sleep or extend the timeout. This observation alone does not establish a runtime
+publication defect or prove that the text would never arrive.
+
 ## Next checkpoint and release boundary
 
-First decide on the narrowly scoped signature-candidate fix using the retained
-failing repro. The next test implementation should cover native References in
-both entry points with one local use, an unused binder and an incomplete
-cross-file scope, followed by rendered hover and ordered tree/file actions.
+Keep the signature-candidate repro: its proposed exclusion remains blocked by
+unproven signature applicability in raw project context. Do not drop plausible
+candidates or add implicit evaluation to make that gate pass. The next test slice
+is rendered library-only hover and ordered tree/file actions. Reference dirty
+edits, real in-flight cancellation and restart remain additional separate gates;
+the direct-application proof gap remains in the explicit backlog.
 Do not fabricate hover catalog ownership or claim an unwitnessed pending race.
 
 Twenty-four scenarios is a minimum planning floor, not a language completeness
@@ -143,3 +210,13 @@ are targets, not observed timings: native/contracts ≤5 minutes, small packaged
 gate ≤10 minutes, broader two-editor nightly ≤30 minutes. Normal-sandbox Ubuntu
 clean install/reinstall is a separate unobserved release gate. This cohort does
 not establish general speed, memory, daily-use readiness or a qualified new VSIX.
+
+## Observed automation boundary
+
+This checkpoint was validated locally through the protected repository CLI and
+the existing disposable packaged-editor route. At the base commit, GitHub
+reported zero Actions runs and zero check-runs; the repository has no tracked
+`.github` workflow. An empty combined-status response reported `pending`, which
+is not evidence of a running CI job. Remote runs/checks are queried again after
+publication; absent checks must not be described as CI passing. Normal-sandbox
+Ubuntu GUI acceptance remains unobserved.

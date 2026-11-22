@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const hash = text => crypto.createHash('sha256').update(text).digest('hex');
 const vscode = require('vscode');
 const { connect } = require('./renderer.cjs');
+const { exercise: referenceUi } = require('./referenceUi.cjs');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const same = (a,b) => JSON.stringify(a) === JSON.stringify(b);
 const norm = value => ({ uri: value.uri.toString(), range: { start: { line: value.range.start.line, character: value.range.start.character }, end: { line: value.range.end.line, character: value.range.end.character } } });
@@ -28,7 +29,7 @@ exports.run = async () => {
     report.manifestCaseCount=manifest.cases.length;report.plannedPhaseCount=phases.length;
     for(const test of phases){
       let editedDocument, originalText, cleanupFailed=false;
-      const c={id:test.id,manifestCaseId:test.manifestCaseId,phase:test.phase,ruleId:test.ruleId,fixture:test.fixture,expected:test.expected,oracle:test.oracle,selections:[],editors:[],errors:[]};report.cases.push(c);
+      const c={id:test.id,manifestCaseId:test.manifestCaseId,phase:test.phase,ruleId:test.ruleId,fixture:test.fixture,operation:test.operation||'definition',expected:test.expected,oracle:test.oracle,selections:[],editors:[],errors:[]};report.cases.push(c);
       try{
         if(test.edit?.baseline)assert.equal(report.cases.find(p=>p.id===test.id+':baseline')?.status,'pass','Positive baseline actual F12 required before edit');
         api.candidates.clear();await vscode.commands.executeCommand('closeReferenceSearch').catch(()=>{});await vscode.commands.executeCommand('leaveEditorMessage');await vscode.commands.executeCommand('notifications.clearAll');
@@ -41,7 +42,8 @@ exports.run = async () => {
         const doc=await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(roots[test.fixture],test.query.file))),q=new vscode.Position(test.query.line,test.query.character),editor=await vscode.window.showTextDocument(doc,{preview:false});editor.selection=new vscode.Selection(q,q);await vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
         if(c.consumerBeforeEdit&&test.edit.file!==test.query.file){c.consumerAfterEdit={uri:doc.uri.toString(),version:doc.version,hash:hash(doc.getText()),isDirty:doc.isDirty};assert.deepEqual(c.consumerAfterEdit,c.consumerBeforeEdit,'Consumer unchanged by linked edit');}
         await wait(async()=>{const s=await state();return !s.offer&&!s.picker;},'previous choices cleared');c.origin=current();assert.equal(c.origin.uri,doc.uri.toString());assert.ok(editor.selection.active.isEqual(q));
-        await renderer.evaluate(`(()=>{window.__fsnavE2EKeys=[];window.__fsnavE2EKeyListener&&document.removeEventListener('keydown',window.__fsnavE2EKeyListener,true);window.__fsnavE2EKeyListener=e=>window.__fsnavE2EKeys.push({key:e.key,shiftKey:e.shiftKey,inEditor:!!e.target.closest?.('.monaco-editor'),trusted:e.isTrusted});document.addEventListener('keydown',window.__fsnavE2EKeyListener,true);})()`);
+        await renderer.evaluate(`(()=>{window.__fsnavE2EKeys=[];window.__fsnavE2EKeyListener&&document.removeEventListener('keydown',window.__fsnavE2EKeyListener,true);window.__fsnavE2EKeyListener=e=>window.__fsnavE2EKeys.push({key:e.key,shiftKey:e.shiftKey,altKey:e.altKey,inEditor:!!e.target.closest?.('.monaco-editor'),trusted:e.isTrusted});document.addEventListener('keydown',window.__fsnavE2EKeyListener,true);})()`);
+        if(test.operation==='references'){active=c;await referenceUi({vscode,renderer,api,test,c,roots,wait,current,norm,noWrongNavigation});c.status=test.expectedFailure?'xpass':'pass';continue;}
         const before=api.lastResult;active=c;await renderer.key('F12');c.keyboard=await renderer.evaluate('window.__fsnavE2EKeys');assert.ok(c.keyboard.some(k=>k.key==='F12'&&!k.shiftKey&&k.inEditor&&k.trusted),'Actual F12 reached focused editor');
         await wait(()=>api.lastResult!==before&&api.lastResult,'Fresh actual-F12 native result');c.nativeResult=api.lastResult;c.collected=api.candidates.getAllCandidates().map(norm);for(const forbidden of test.expected.forbidden||[]){const old=target(test.fixture,forbidden);assert.ok(!(c.nativeResult.locations||[]).map(norm).some(n=>same(n,old)),'Forbidden direct target absent');if(c.collected.some(n=>same(n,old))){
           const marker=`${test.id} forbidden candidate ${forbidden.file} ${forbidden.range.start.line}:${forbidden.range.start.character}-${forbidden.range.end.line}:${forbidden.range.end.character}`;

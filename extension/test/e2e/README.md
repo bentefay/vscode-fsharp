@@ -1,6 +1,11 @@
-# Immutable packaged-editor definition gate
+# Immutable packaged-editor navigation gate
 
-This manifest-driven slice contains **12 distinct rule scenarios**. The first
+The current manifest contains **12 definition scenarios and 5 References route
+scenarios**. The final References cohort and its identical frozen-input repeat
+each passed **16 required scenarios** and reproduced the one existing signature-candidate known failure separately. See
+[References details](#native-references-slice) for UI/range confidence boundaries.
+
+The preceding definition-only slice contained 12 scenarios. The first
 extended pinned Code 1.108.0 run passed **11/12**, with a signature-hidden
 candidate defect. Its 14 phases include two positive before-edit baselines;
 15 trusted editor F12 inputs include the idle-picker repeat. These are different
@@ -131,8 +136,8 @@ Dirty edits use supported WorkspaceEdit, not simulated physical typing.
 
 ## Remaining scope
 
-Twelve scenarios are authored; eleven pass and one is a known defect. At least
-12 more scenarios are needed even to reach the proposed 24-case floor, which
+The required manifest has 17 scenarios: 16 pass and one is a known defect. At least
+7 more scenarios are needed even to reach the proposed 24-case floor, which
 is not a completeness claim. The [traceable matrix](../../../docs/e2e-coverage.md)
 records distinct language rules, explicit unsupported outcomes, References,
 hover and tree work, and the next decision. Provider-only support is not a
@@ -140,3 +145,54 @@ packaged UI pass. In-flight cancellation needs a proven pending request;
 the existing idle Escape case cannot substitute for it.
 
 A normal-sandbox Ubuntu clean install/activation/reinstall remains unobserved.
+
+## Native References slice
+
+Five additional route scenarios exercise two lambda-argument bindings and an
+uncertified cross-file scope. They are five public UI behaviors, not five new
+language-binding rules. Original definition scenarios remain frozen.
+
+The pinned editor's Shift+Alt+F12 invokes sidebar **Find All References**;
+Shift+F12 invokes the compact editor action. Both require a trusted shortcut
+receipt from the focused editor. The sidebar must display the exact authored
+set and every row must be clicked. Its built-in open command intentionally
+collapses the selection: for these single-line spans the driver reconstructs
+the full range from actual clicked URI/start caret and rendered highlighted
+literal length in UTF-16. Native full ranges are secondary evidence. Carets
+begin inside the token, so a declaration-row click cannot pass merely because
+it was already at the destination.
+
+For the used binder, sidebar results include declaration and use; compact
+Shift+F12 moves from the declaration to its sole use. An unused binder has a
+declaration-only result, not a fabricated empty References UI. Both fixtures
+exclude same-spelled binders and uses in another lambda scope. Compact mode
+checks the actual URI/caret; it renders no row from which to independently
+establish an end column, so its full-range confidence remains native-secondary.
+The include-declaration/compact-retry explanation comes from pinned editor
+source; the harness does not claim to observe provider token identity or each
+internal retry.
+
+The cross-file fixture uses only an inert `Directory.Build.props` containing
+`<Project/>` to leave the project context uncertified. The runner never executes
+it or builds the project. This tests an incomplete scope, not a timing-dependent
+pending-discovery window. Standard FAR must expose no partial result rows and
+display the explicit warning that the scope was not fully searched and native “No references found” is not evidence of no uses. Only a
+click on **Show Possible References** starts the separate occurrence search.
+The internal `lastResult` payload may contain partial locations; those are not
+the provider export and are not scored as native UI results. The separate
+Possible References view contains four physical occurrences including unrelated
+homonyms, visibly labelled incomplete; they are not a complete semantic-reference set. All rows must be
+reachable and a deliberate known-use click must select the current full range.
+
+Readiness uses bounded polling of matching fresh results and rendered state,
+not a fixed sleep. The earlier idle-definition Escape observation interval is
+unchanged. This slice does not test References cancellation, dirty edits,
+restart, virtualized large lists, hover or project-tree actions.
+
+The first four direct-application lambda reference cases remain in
+[reference-proof-backlog.json](reference-proof-backlog.json), with their valid
+exact oracles and observed unsupported outcome. They are not executed by the
+required gate or counted as passes. The first incomplete-state attempt exposed
+a raw-payload/provider distinction in the harness; a subsequent observer checked
+the explanatory message before it arrived. Both failed reports are retained.
+See the coverage matrix for the precise failure classifications.
