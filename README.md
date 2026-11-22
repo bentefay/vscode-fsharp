@@ -9,8 +9,9 @@ are outside its scope.
 
 Open a trusted F# workspace and press F12. Proven definitions jump directly.
 Uncertain definitions offer labelled possible targets; explicitly open the chooser
-and select a target. A ranked shortlist offers **Show All** for other plausible
-matches. A likely match is not promoted to an exact result. Background discovery
+and select a target. The chooser places ranked matches first and includes every
+collected alternative in the same list. A likely match is not promoted to an exact
+result. Background discovery
 is bounded and progressive; document-local navigation does not wait for the whole
 repository. A pending request can continue within its bounded indexing budget.
 
