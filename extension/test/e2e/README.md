@@ -1,10 +1,11 @@
 # Immutable packaged-editor navigation gate
 
-The current ordinary manifest contains **17 definition scenarios, 5 References
+The current ordinary manifest contains **18 definition scenarios, 5 References
 route scenarios, 1 References currentness interaction, 2 hover safety scenarios
-and 1 project-tree scenario**. Two fixed full-order qualification runs passed
-**25 required scenarios** and reproduced the scoped signature failure separately.
-The new interaction also passed two isolated runs on the same bytes.
+and 1 project-tree scenario**: 26 required scenarios plus the scoped signature
+failure. The generic-record slice below adds one exact definition contract.
+The preceding Possible References qualification passed 25 required scenarios
+in two fixed full-order runs; its new interaction also passed two isolated runs.
 The preceding language-rule runs passed 24 required scenarios. A second known defect—the
 qualified union case—remains a strict separately runnable regression, not a
 passing unavailable case. See [language-rule details](#language-rule-slice).
@@ -392,3 +393,16 @@ provenance; it is not a second coverage credit. Its native stale-coordinate case
 remains open. Earlier failure descriptions above remain historical evidence.
 See [qualification scope](../../../docs/e2e-coverage.md#possible-references-pointer-qualification),
 including the distinction between rendered clicks and captured-command replay.
+
+## Active-pattern, operator and generic-record slice
+
+`generic-record-substitution-nominal-field` is required: actual F12 through an
+explicit generic record receiver must reach the correct nominal field and
+exclude its homonym. `language-rule-regression.json` retains strict active-
+pattern and symbolic-operator exact requirements that failed the initial run.
+Use it through the existing `FSHARP_E2E_MANIFEST` route and fresh private output;
+it is not a green required gate or an expected-failure credit. Its oracles were
+not weakened to conservative refusal.
+
+See the [three-family results and limits](../../../docs/e2e-coverage.md#active-pattern-operator-and-generic-record-slice).
+No runtime change or native References investigation is part of this slice.

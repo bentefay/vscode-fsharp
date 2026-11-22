@@ -123,6 +123,30 @@
         "Quoted.fs": "module QuotedBinding\nlet other = List.map (fun ``väl ue`` -> ``väl ue``) [1]\nlet selected = (* 😀 *) List.map (fun ``väl ue`` -> ``väl ue``) [2]\n",
         "ExactRules.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Tuple.fs\" /><Compile Include=\"Guard.fs\" /><Compile Include=\"Union.fs\" /><Compile Include=\"Alias.fs\" /><Compile Include=\"Recursion.fs\" /><Compile Include=\"Quoted.fs\" /></ItemGroup></Project>\n"
       }
+    },
+    {
+      "id": "active-pattern-case",
+      "project": "App.fsproj",
+      "files": {
+        "Active.fs": "module ActiveCase\n[<RequireQualifiedAccess>]\ntype Other =\n    | Hit of int\nlet (|Hit|_|) value = if value > 0 then Some value else None\nlet classify value =\n    match value with\n    | Hit captured -> captured\n    | _ -> 0\n",
+        "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Active.fs\" /></ItemGroup></Project>\n"
+      }
+    },
+    {
+      "id": "custom-symbolic-operator",
+      "project": "App.fsproj",
+      "files": {
+        "Operator.fs": "module SymbolicScope\nmodule Other =\n    let (+++) left right = left + right\nmodule Selected =\n    let (+++) left right = left - right\n    let answer = (* 😀 *) 7 +++ 2\n",
+        "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Operator.fs\" /></ItemGroup></Project>\n"
+      }
+    },
+    {
+      "id": "generic-record-substitution",
+      "project": "App.fsproj",
+      "files": {
+        "Generic.fs": "module GenericProjection\ntype Human = { Label: string }\ntype Robot = { Label: int }\ntype Envelope<'T> = { Payload: 'T }\nlet read (envelope: Envelope<Human>) = envelope.Payload.Label\n",
+        "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Generic.fs\" /></ItemGroup></Project>\n"
+      }
     }
   ],
   "cases": [
@@ -2151,6 +2175,73 @@
           }
         },
         "repeats": 1
+      }
+    },
+    {
+      "id": "generic-record-substitution-nominal-field",
+      "ruleId": "generic-record-substitution-nominal-field",
+      "fixture": "generic-record-substitution",
+      "query": {
+        "file": "Generic.fs",
+        "line": 4,
+        "character": 56,
+        "token": "Label"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Generic.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 15
+            },
+            "end": {
+              "line": 1,
+              "character": 20
+            }
+          },
+          "text": "Label"
+        },
+        "forbidden": [
+          {
+            "file": "Generic.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 15
+              },
+              "end": {
+                "line": 2,
+                "character": 20
+              }
+            },
+            "text": "Label"
+          },
+          {
+            "file": "Generic.fs",
+            "range": {
+              "start": {
+                "line": 3,
+                "character": 22
+              },
+              "end": {
+                "line": 3,
+                "character": 29
+              }
+            },
+            "text": "Payload"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-generic-record-substitution",
+        "explanation": "Envelope<Human> substitutes Human for the record type parameter, so envelope.Payload has nominal type Human and its Label resolves to Human.Label. Robot.Label is a distinct field despite the same label; Envelope.Payload is only the intermediate projection, not the queried final field. The explicit receiver annotation determines the nominal owner independently of declaration order or field-name uniqueness.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/",
+        "additionalSources": [
+          "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records"
+        ],
+        "supportClaim": "The existing native test generic_record_field_substitution_keeps_nominal_identity establishes this supported family in its unit context, not an editor proof for this newly authored fixture. The strict exact obligation is retained if the editor cannot prove it."
       }
     }
   ]

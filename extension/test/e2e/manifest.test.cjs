@@ -206,7 +206,7 @@ test('qualified union regression remains strict with the unchanged complete fixt
 
 // Interaction extensions preserve every pre-existing scenario and fixture.
 test('all twenty-five prior cases and fixtures remain frozen', () => {
-  assert.equal(createHash('sha256').update(JSON.stringify({fixtures:manifest.fixtures,cases:manifest.cases.slice(0,25)})).digest('hex'),'dafd2910175293c8e552b2a5a1d746bdd261e61d168b6d3a44edfaf659f53f31');
+  assert.equal(createHash('sha256').update(JSON.stringify({fixtures:manifest.fixtures.slice(0,12),cases:manifest.cases.slice(0,25)})).digest('hex'),'dafd2910175293c8e552b2a5a1d746bdd261e61d168b6d3a44edfaf659f53f31');
 });
 
 test('two reference interaction plans have independent current UTF-16 sets and one-line edits', () => {
@@ -221,4 +221,19 @@ test('two reference interaction plans have independent current UTF-16 sets and o
     for(const t of oracle.excludedHomonyms||[]){assertLiteralSpan(files[t.file].split('\n')[t.range.start.line],t.range.start.character,t.range.end.character,t.text,c.id);assert.ok(!newSet.some(x=>JSON.stringify(x)===JSON.stringify(t)));}
     if(plan.kind==='possible-post-edit-command')assert.deepEqual(after.expected.possibleTarget,newSet.find(x=>x.file==='Consumer.fs'));
   }
+});
+
+test('prior twenty-six scenarios and twelve fixtures remain frozen', () => {
+  assert.equal(createHash('sha256').update(JSON.stringify({...manifest,fixtures:manifest.fixtures.slice(0,12),cases:manifest.cases.slice(0,26)})).digest('hex'),'4e7eee1639daacf82095613f6bf481672d771373b55255b6d17de4d932309a1e');
+});
+
+test('three language families retain independently authored strict contracts', () => {
+  const regression=JSON.parse(fs.readFileSync(path.join(__dirname,'language-rule-regression.json'),'utf8'));
+  assert.deepEqual(regression.cases.map(c=>c.id),['active-pattern-case-not-union-homonym','custom-symbolic-operator-full-span']);
+  for(const c of regression.cases)assert.ok(!manifest.cases.some(x=>x.id===c.id));
+  for(const f of regression.fixtures)assert.deepEqual(f,manifest.fixtures.find(x=>x.id===f.id));
+  const added={fixtures:manifest.fixtures.slice(12),cases:[...regression.cases,...manifest.cases.slice(26)]};
+  assert.equal(added.fixtures.length,3);assert.equal(added.cases.length,3);
+  assert.equal(createHash('sha256').update(JSON.stringify(added)).digest('hex'),'104edb364f543590c90b59d81f098b27e144fedeb2336ddfe07544ab112db05e');
+  for(const c of added.cases){assert.equal(c.expected.kind,'exact');assert.equal(c.expectedFailure,undefined);}
 });

@@ -1,7 +1,8 @@
 # Packaged editor coverage and remaining gates
 
-The current default gate has **25 required passing scenarios and one scoped
-signature failure**. The [Possible References pointer qualification](#possible-references-pointer-qualification)
+The current default gate has **26 required passing scenarios and one scoped
+signature failure**. The [three-family F12 slice](#active-pattern-operator-and-generic-record-slice)
+adds one generic record proof and preserves two strict qualification failures. The [Possible References pointer qualification](#possible-references-pointer-qualification)
 adds one post-edit interaction; it does not close native References currentness
 or in-flight cancellation.
 
@@ -106,10 +107,10 @@ needs an ambiguity or safe-refusal negative where proof is unavailable.
 | Tuple/destructuring slots | `tuple-second-slot-binding`, F12 | Second tuple callback binder; forbid adjacent slot and other callback | Pass; broader patterns pending |
 | Match/guard lifetime | `match-guard-arm-binding`, F12 in guard | Own arm binder; forbid outer and sibling-arm binders | Pass; post-match leakage pending |
 | Union case/field | `qualified-union-case-identity`, F12 at `Parcel.Item` | Exact Parcel case; forbid Other.Item | Known failure in separate strict regression; payload binders pending |
-| Active pattern | Planned: `active-pattern`, F12 at recognizer/case use | Correct declaration or explicit unsupported; reject union homonym | Pending |
-| Symbolic/custom operator | Planned: `operator-scope`, F12 | Full symbolic span, reject builtin/unrelated | Pending; literal integrity only |
+| Active pattern | Strict `active-pattern-case-not-union-homonym`, F12 at match case | Recognizer header `Hit`; reject qualified-only union homonym and payload binder | Failed qualification: incomplete internal candidates include the forbidden union; no direct jump |
+| Symbolic/custom operator | Strict `custom-symbolic-operator-full-span`, F12 inside `+++` | Full three-character declaration span in own module; reject unopened sibling operator | Failed qualification: unavailable before exact/span assertion; not refusal pass credit |
 | Type parameter binding | Planned: `type-parameter`, F12 | Binder, forbid nominal homonym | Pending |
-| Generic receiver substitution | Planned: `generic-record`, F12 | Instantiated field owner or labelled alternatives | Pending |
+| Generic receiver substitution | `generic-record-substitution-nominal-field`, F12 at final projection | `Envelope<Human>.Payload.Label` → `Human.Label`; reject `Robot.Label` and intermediate `Payload` | Pass; generic type-parameter binder navigation remains separate |
 | Overload resolution | Planned: `overload`, F12 | Signature-correct target or all plausible choices | Pending |
 | Extension visibility | Planned: `extension-scope`, F12 | Applicable intrinsic/optional extension or safe refusal | Pending |
 | Interface dispatch | Planned: `interface-slot`, F12 | Explicit slot/implementation target policy | Pending |
@@ -696,3 +697,76 @@ expose the selected tree item's captured command generation; the exact editor
 publication boundary and persistence remain unproven. Both failures and the
 unchanged no-clear oracle are retained. No further passive diagnostic loop or
 product change is justified without a specific separately testable remedy.
+
+## Active-pattern, operator and generic-record slice
+
+This test-only slice starts from
+`33a3262bf3468cdd20a50e0c577ae0263deb7855`. An independent author supplied exactly
+three valid F# fixtures and literal UTF-16 target oracles; an independent
+reviewer checked their language rules, negative targets and real-editor
+assertions. Primary Microsoft language documentation is linked in each manifest
+oracle. No compiler output or engine result generated the golden answers.
+
+The initial pinned Code 1.108.0 run used the prior 26 default scenarios plus
+these three strict exact cases. All prior 25 required scenarios passed and the
+scoped signature failure reproduced. Of the new cases, **one passed and two
+failed**. Its 31 phase records contain 28 passes, one expected failure and two
+failures; the two dirty baselines are not additional scenarios.
+
+| Rule and independent oracle | Observed first-run outcome |
+| --- | --- |
+| Partial active-pattern case: match `Hit` → header `Hit` at `4:6–9`; exclude qualified-only `Other.Hit` and payload binder | Incomplete result; internal candidates include both correct header and forbidden union homonym. No exact locations or direct jump. |
+| Scoped custom operator: infix `+++` → own-module declaration at `4:9–12`; exclude unopened sibling operator | Unavailable, with explicit custom-operator/active-pattern semantic-identity reason. No locations, candidates or jump. |
+| Generic record substitution: `Envelope<Human>.Payload.Label` → `Human.Label` at `1:15–20`; exclude `Robot.Label` and `Payload` | Exact result and actual URI/caret jump to `1:15`; no chooser. |
+
+All positions above are zero-based UTF-16. The operator query includes an astral
+comment before the token, so its authored query offset differs from a Unicode
+code-point offset. The operator destination policy requires all three symbol
+characters and excludes parentheses. The active-pattern policy targets the
+case identifier within the recognizer header, excluding its delimiters. These
+policies were fixed before execution, not adjusted to match a result.
+
+Both failures are preserved unchanged in
+[language-rule-regression.json](../extension/test/e2e/language-rule-regression.json).
+They remain separately runnable strict tests without expected-failure metadata.
+Neither was converted into an unavailable pass, rerun with a simpler fixture,
+or repaired in runtime. The active-pattern check failed on the internal
+forbidden-candidate assertion before exercising a picker; its captured final
+UI had no offer/picker and displayed “No definition found.” This does **not**
+qualify rendered candidate reachability. The operator's symbolic destination
+span remains unqualified because resolution was unavailable. No wrong direct
+jump was observed in either failure. These are missing qualifications, not
+claims that the engine previously promised exact support for these fixtures.
+
+The generic-record case is the sole new required scenario. Its explicit
+receiver annotation requires substitution of `Human` for the record parameter
+and then resolution of the final field's nominal owner. This is distinct from
+the existing directly typed record-label case. The full returned range is
+secondary native evidence; actual keyboard F12 and the active URI/caret provide
+the editor proof. It does not cover navigation to the `'T` binder itself,
+constraints, higher-order generics or arbitrary inferred receivers.
+
+The original fixtures/cases, scoped signature failure, qualified-union and
+native References strict regressions, and prepared List.map gap are preserved.
+The native References investigation was not reopened. Runtime and the existing
+evaluation package remain unchanged; no preparation, build or compiler is
+implicitly invoked by the editor fixtures. This is not normal-sandbox Ubuntu,
+performance or daily-use qualification. Raw failed attempts remain private.
+
+The final required-subset run passed **26 required scenarios** and reproduced
+the one scoped signature expected failure: 28 passing phase records plus one
+expected failure, including two dirty baselines. The generic case passed in
+both runs with trusted editor F12; the two new failures were not retried. All
+15 final sessions reported zero helper/compiler/decompiler launches. The
+reviewer independently checked both reports and unchanged fixture/oracle bytes.
+
+Protected aggregate checks passed: 45 Node tooling/manifest tests, 319 Rust
+unit tests plus 4 daemon tests (5 ignored), 108 adapter/transport tests,
+TypeScript and formatting. The final manifest SHA-256 is
+`151fb08a6a853bc5029cdd6f390cccaa969d9ad4ad4108cdbd7bf9929bcbcd53`.
+The unchanged private package SHA-256 is
+`8c3b8d8bb5e2c3ff929a1818f8376be1cecb2516d4f4219e33c6bc155ae17f66`.
+The private 147-file evidence inventory SHA-256 is
+`967091aee41dea40c82a4889370e91d9f0407ae59c50521dd7260d2b7225839d`.
+Raw reports, first failures and verification receipts remain local; only
+fixtures, integrity checks and sanitized documentation are published.

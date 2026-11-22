@@ -35,6 +35,11 @@ A [single native References isolation pair](native-references-isolation.md)
 then reproduced the stale activation with a public-API control provider and
 Navigator absent. The exact workbench publication boundary remains unproven;
 no product workaround or runtime fix was made.
+The [three-family F12 slice](e2e-coverage.md#active-pattern-operator-and-generic-record-slice)
+qualifies generic record substitution in the packaged editor, bringing the
+default gate to 26 required scenarios plus the signature known failure.
+Active-pattern distinction and custom-operator span remain strict failing
+qualifications, with no refusal pass credit or runtime change.
 
 ## Fixed-corpus results
 
