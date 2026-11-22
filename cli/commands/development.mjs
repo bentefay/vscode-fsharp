@@ -42,6 +42,7 @@ export async function buildDecompiler({ readyToRun = false, rid } = {}) {
 }
 export async function check() {
   await exec('python3', ['scripts/test_normalize_vsix.py']);
+  await exec('python3', ['evaluation/test_engine_corpus_gate.py']);
   await exec('node', ['--test', 'scripts/restore-parser-sources.test.mjs', 'scripts/package-output.test.mjs', 'scripts/isolated-install.test.mjs', 'extension/test/e2e/manifest.test.cjs']);
   await exec('node',['node_modules/typescript/bin/tsc','-p','extension/tsconfig.json','--noEmit']);
   await exec('cargo',['fmt','--all','--','--check']);
@@ -85,6 +86,18 @@ export class TestCommand extends Command {
   layer=Option.String();
   async execute(){
     if(this.layer==='installer') { await exec('node',['--test','scripts/isolated-install.test.mjs']); return; }
+    if(this.layer==='corpus') {
+      const inputs = [['FSHARP_CORPUS_GRACE', '--grace-root'], ['FSHARP_CORPUS_FSCHECK', '--fscheck-root'], ['FSHARP_CORPUS_COMPILER', '--compiler-root'], ['FSHARP_CORPUS_OUTPUT', '--output']];
+      const missing = inputs.filter(([key]) => !process.env[key]).map(([key]) => key);
+      if (missing.length) { console.error(`BLOCKED: engine corpus gate requires ${missing.join(', ')}.`); return 2; }
+      try {
+        await exec('python3', ['evaluation/engine_corpus_gate.py', '--binary', process.env.FSHARP_BACKEND_PATH || path.join(root, 'target/release/fsharp-navigator'), ...inputs.flatMap(([key, flag]) => [flag, process.env[key]])], { timeout: 240000 });
+      } catch (error) {
+        if (error.exitCode === 2) return 2;
+        throw error;
+      }
+      return;
+    }
     if(this.layer==='e2e') {
       for (const key of ['FSHARP_E2E_CODE', 'FSHARP_E2E_VSIX', 'FSHARP_E2E_OUTPUT']) if (!process.env[key]) throw new Error(`${key} is required for the immutable packaged editor gate.`);
       await exec('extension/test/with-display.sh', ['python3', 'extension/test/e2e/run.py',
@@ -103,7 +116,7 @@ export class TestCommand extends Command {
     }
     if(this.layer==='integration'){await build();return testHost(false);}
     if(this.layer==='ui'){await build();return testHost(true);}
-    throw new Error('Expected unit, installer, e2e, adapter (mocked editor API with real Rust), integration, or ui.');
+    throw new Error('Expected unit, installer, corpus (pinned real-source engine gate), e2e, adapter (mocked editor API with real Rust), integration, or ui.');
   }
 }
 export class VerifyCommand extends Command {

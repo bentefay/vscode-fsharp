@@ -33,3 +33,20 @@ the main `bentefay` account. Preserve remote changes and never force-push. Commi
 completed implementation work to the repository rather than leaving it only in
 temporary workspaces or source checkpoints. This authorization does not publish
 Marketplace releases or install into the user's normal editor profile.
+
+## Navigation regression gate
+
+For a navigation behavior change, first preserve a failing test with an authored
+target/range or complete reference oracle, then run the protected aggregate and
+real-native adapter checks. Run `cli/bin/run test corpus` against the pinned
+Grace, FsCheck and compiler source inputs before publishing the change; see
+`evaluation/engine-corpus/README.md`. Record required passes, failures, known
+failures and blocked inputs separately. Missing corpus inputs do not pass;
+report any tested subset and its blockers explicitly before publication.
+
+Keep useful exact or labelled candidate results distinct from safe refusal.
+Check discovery, ready, dirty and restart states rather than assuming index
+readiness proves project context or navigation availability. A fixed small
+regression belongs in the normal checks even when the full corpus is unavailable.
+Engine checks do not establish keyboard, picker, references-panel or rendered
+hover behavior; those need their separate permitted packaged-editor gate.

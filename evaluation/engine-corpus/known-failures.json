@@ -1,0 +1,306 @@
+{
+  "schemaVersion": 1,
+  "compiler": {
+    "sourceOracleSha256": "bec01ed7b534ea7a511a9f3990129954821ec3b510ae10c94dffe8db22e329cd",
+    "cases": [
+      {
+        "id": "tuple-match-idx",
+        "operation": "navigation/definition",
+        "query": {
+          "path": "src/Compiler/Utilities/range.fs",
+          "line": 197,
+          "character": 23,
+          "token": "idx"
+        },
+        "expected": {
+          "path": "src/Compiler/Utilities/range.fs",
+          "range": {
+            "start": {
+              "line": 197,
+              "character": 16
+            },
+            "end": {
+              "line": 197,
+              "character": 19
+            }
+          },
+          "text": "idx"
+        },
+        "require": "useful",
+        "reason": "Historical raw-source coverage gap; NOT a required pass or counted success.",
+        "implementationDeclaration": null
+      },
+      {
+        "id": "crossfile-TaggedText-mkTag",
+        "operation": "navigation/definition",
+        "query": {
+          "path": "src/Compiler/Facilities/RichText.fs",
+          "line": 57,
+          "character": 37,
+          "token": "mkTag"
+        },
+        "expected": {
+          "path": "src/Compiler/Utilities/sformat.fsi",
+          "range": {
+            "start": {
+              "line": 138,
+              "character": 17
+            },
+            "end": {
+              "line": 138,
+              "character": 22
+            }
+          },
+          "text": "mkTag"
+        },
+        "require": "useful",
+        "reason": "Historical raw-source coverage gap; NOT a required pass or counted success.",
+        "implementationDeclaration": {
+          "path": "src/Compiler/Utilities/sformat.fs",
+          "range": {
+            "start": {
+              "line": 127,
+              "character": 8
+            },
+            "end": {
+              "line": 127,
+              "character": 13
+            }
+          },
+          "text": "mkTag"
+        }
+      },
+      {
+        "id": "signature-RichText-IsEmpty",
+        "operation": "navigation/definition",
+        "query": {
+          "path": "src/Compiler/Facilities/RichText.fs",
+          "line": 96,
+          "character": 16,
+          "token": "IsEmpty"
+        },
+        "expected": {
+          "path": "src/Compiler/Facilities/RichText.fsi",
+          "range": {
+            "start": {
+              "line": 25,
+              "character": 11
+            },
+            "end": {
+              "line": 25,
+              "character": 18
+            }
+          },
+          "text": "IsEmpty"
+        },
+        "require": "useful",
+        "reason": "Historical raw-source coverage gap; NOT a required pass or counted success.",
+        "implementationDeclaration": {
+          "path": "src/Compiler/Facilities/RichText.fs",
+          "range": {
+            "start": {
+              "line": 29,
+              "character": 13
+            },
+            "end": {
+              "line": 29,
+              "character": 20
+            }
+          },
+          "text": "IsEmpty"
+        }
+      },
+      {
+        "id": "record-SHAStream-pos",
+        "operation": "navigation/definition",
+        "query": {
+          "path": "src/Compiler/AbstractIL/il.fs",
+          "line": 256,
+          "character": 20,
+          "token": "pos"
+        },
+        "expected": {
+          "path": "src/Compiler/AbstractIL/il.fs",
+          "range": {
+            "start": {
+              "line": 248,
+              "character": 20
+            },
+            "end": {
+              "line": 248,
+              "character": 23
+            }
+          },
+          "text": "pos"
+        },
+        "require": "useful",
+        "reason": "Historical raw-source coverage gap; NOT a required pass or counted success.",
+        "implementationDeclaration": null
+      },
+      {
+        "id": "qualified-union-While",
+        "operation": "navigation/definition",
+        "query": {
+          "path": "src/Compiler/Utilities/range.fs",
+          "line": 312,
+          "character": 36,
+          "token": "While"
+        },
+        "expected": {
+          "path": "src/Compiler/Utilities/range.fsi",
+          "range": {
+            "start": {
+              "line": 16,
+              "character": 6
+            },
+            "end": {
+              "line": 16,
+              "character": 11
+            }
+          },
+          "text": "While"
+        },
+        "require": "useful",
+        "reason": "Historical raw-source coverage gap; NOT a required pass or counted success.",
+        "implementationDeclaration": {
+          "path": "src/Compiler/Utilities/range.fs",
+          "range": {
+            "start": {
+              "line": 73,
+              "character": 6
+            },
+            "end": {
+              "line": 73,
+              "character": 11
+            }
+          },
+          "text": "While"
+        }
+      },
+      {
+        "id": "generic-InterruptibleLazy-Value",
+        "operation": "navigation/definition",
+        "query": {
+          "path": "src/Compiler/Utilities/illib.fs",
+          "line": 54,
+          "character": 45,
+          "token": "Value"
+        },
+        "expected": {
+          "path": "src/Compiler/Utilities/illib.fsi",
+          "range": {
+            "start": {
+              "line": 17,
+              "character": 11
+            },
+            "end": {
+              "line": 17,
+              "character": 16
+            }
+          },
+          "text": "Value"
+        },
+        "require": "useful",
+        "reason": "Historical raw-source coverage gap; NOT a required pass or counted success.",
+        "implementationDeclaration": {
+          "path": "src/Compiler/Utilities/illib.fs",
+          "range": {
+            "start": {
+              "line": 30,
+              "character": 16
+            },
+            "end": {
+              "line": 30,
+              "character": 21
+            }
+          },
+          "text": "Value"
+        }
+      },
+      {
+        "id": "partial-active-pattern-RecoverableException",
+        "operation": "navigation/definition",
+        "query": {
+          "path": "src/Compiler/Utilities/illib.fs",
+          "line": 1226,
+          "character": 17,
+          "token": "RecoverableException"
+        },
+        "expected": {
+          "path": "src/Compiler/Utilities/illib.fsi",
+          "range": {
+            "start": {
+              "line": 35,
+              "character": 10
+            },
+            "end": {
+              "line": 35,
+              "character": 30
+            }
+          },
+          "text": "RecoverableException"
+        },
+        "require": "useful",
+        "reason": "Historical raw-source coverage gap; NOT a required pass or counted success.",
+        "implementationDeclaration": {
+          "path": "src/Compiler/Utilities/illib.fs",
+          "range": {
+            "start": {
+              "line": 67,
+              "character": 10
+            },
+            "end": {
+              "line": 67,
+              "character": 30
+            }
+          },
+          "text": "RecoverableException"
+        }
+      },
+      {
+        "id": "custom-operator-SHA1-shift",
+        "operation": "navigation/definition",
+        "query": {
+          "path": "src/Compiler/AbstractIL/il.fs",
+          "line": 252,
+          "character": 41,
+          "token": ">>>&"
+        },
+        "expected": {
+          "path": "src/Compiler/AbstractIL/il.fs",
+          "range": {
+            "start": {
+              "line": 219,
+              "character": 16
+            },
+            "end": {
+              "line": 219,
+              "character": 20
+            }
+          },
+          "text": ">>>&"
+        },
+        "require": "useful",
+        "reason": "Historical raw-source coverage gap; NOT a required pass or counted success.",
+        "implementationDeclaration": null
+      }
+    ],
+    "notGated": [
+      {
+        "id": "references-local-part",
+        "operation": "navigation/references",
+        "reason": "Separate reference completeness / certified hover coverage; not claimed by definition gate."
+      },
+      {
+        "id": "references-CE-mappedValue",
+        "operation": "navigation/references",
+        "reason": "Separate reference completeness / certified hover coverage; not claimed by definition gate."
+      },
+      {
+        "id": "hover-System-String-IsNullOrEmpty",
+        "operation": "navigation/hover",
+        "reason": "Separate reference completeness / certified hover coverage; not claimed by definition gate."
+      }
+    ]
+  }
+}

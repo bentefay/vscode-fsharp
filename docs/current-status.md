@@ -1,10 +1,19 @@
 # Current implementation and validation
 
-Updated 21 November 2026. The Rust engine answers both fixed synthetic reference
+Updated 22 November 2026. The Rust engine answers both fixed synthetic reference
 queries missed by the imported prototype. On the Grace project, many record
 labels and complete cross-file reference sets still require explicit compiler
 preparation. The default indexed providers expose only answers for which the
 engine can establish a binding and the requested reference domain.
+
+The [readiness candidate repair](readiness-candidate-repair.md) preserves current
+same-document incomplete Definition candidates when broader contextual work hits
+its foreground limit after indexing. A deterministic red/green regression and
+pinned compiler-source replay establish the repair without a GUI. The new
+[engine corpus gate](../evaluation/engine-corpus/README.md) makes six authored
+Grace/FsCheck/compiler definitions and their lifecycle checks repeatable; named
+compiler gaps remain separate. This is not a prepared project, broader exact
+coverage, speed comparison or updated packaged-editor acceptance claim.
 
 The [lambda-trivia repair](lambda-trivia-recall.md) restores an omitted tuple
 binder in the held-out FsCheck workload. Both frozen eight-site runs improve

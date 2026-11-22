@@ -78,7 +78,11 @@ export async function exec(command, args = [], options = {}) {
       finishMeasurement();
       if (timedOut) kill('SIGKILL');
       if (code === 0 && !timedOut) resolve(output.trim());
-      else reject(new Error(`${command} ${args.join(' ')} failed (${timedOut ? `timeout after ${timeout}ms` : signal || code})${capture ? '\n' + output + errors : ''}`));
+      else {
+        const error = new Error(`${command} ${args.join(' ')} failed (${timedOut ? `timeout after ${timeout}ms` : signal || code})${capture ? '\n' + output + errors : ''}`);
+        error.exitCode = timedOut || signal ? null : code;
+        reject(error);
+      }
     });
   });
 }

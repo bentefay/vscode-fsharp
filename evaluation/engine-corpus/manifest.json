@@ -1,0 +1,378 @@
+{
+  "schemaVersion": 1,
+  "description": "Frozen portable source-only native useful-navigation gate; no acquisition, evaluation or compiler helper. Missing or changed corpus is BLOCKED, never skipped/pass.",
+  "suites": [
+    {
+      "id": "grace",
+      "repository": "https://github.com/ScottArbeit/Grace",
+      "revision": "39960e07b73cd142cc0c1fd070c0591be91c1933",
+      "workspace": ".",
+      "project": "src/Grace.Types/Grace.Types.fsproj",
+      "inventory": {
+        "sha256": "a25a4a58a050f17feb70aabf81dd46c8c790ee7f74b6292307453f3679e40520",
+        "count": 570,
+        "suffixes": [
+          ".fs",
+          ".fsi",
+          ".fsproj",
+          ".props",
+          ".targets",
+          ".sln",
+          ".slnx"
+        ],
+        "names": [
+          "global.json",
+          "Directory.Packages.props",
+          "NuGet.Config",
+          "nuget.config"
+        ],
+        "excludedDirectories": [
+          ".git",
+          "bin",
+          "obj",
+          ".cache"
+        ]
+      },
+      "ancestorInputs": {
+        "global.json": "2173d0f4243f471a07a939fb0eda8c9659cddbfa5f8471996f7be8361b33a18f"
+      },
+      "projectSha256": "4deb21d3be822685c4ea77e181fd7ee51abf6dc1f1166b87725d887b94e70cc5",
+      "required": [
+        {
+          "id": "closed-lambda-range",
+          "operation": "navigation/definition",
+          "query": {
+            "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+            "line": 420,
+            "character": 49,
+            "token": "range"
+          },
+          "expected": {
+            "path": "src/Grace.Types/ContentBlockMetadata.Types.fs",
+            "range": {
+              "start": {
+                "line": 420,
+                "character": 40
+              },
+              "end": {
+                "line": 420,
+                "character": 45
+              }
+            }
+          },
+          "require": "exact"
+        },
+        {
+          "id": "module_value_use_26_serialize",
+          "operation": "navigation/definition",
+          "query": {
+            "path": "src/Grace.Types/Events.Types.fs",
+            "line": 49,
+            "character": 41,
+            "token": "serialize"
+          },
+          "expected": {
+            "path": "src/Grace.Shared/Utilities.Shared.fs",
+            "range": {
+              "start": {
+                "line": 213,
+                "character": 8
+              },
+              "end": {
+                "line": 213,
+                "character": 17
+              }
+            }
+          },
+          "require": "useful"
+        }
+      ],
+      "lifecycle": {
+        "site": "module_value_use_26_serialize",
+        "prefix": "// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n",
+        "lines": 8,
+        "scope": "unsaved layout-only prefix; no semantic-rebind claim; close must restore disk target; process restart revalidates original disk inputs"
+      },
+      "discoveryTrigger": {
+        "id": "module_value_use_26_serialize",
+        "operation": "navigation/definition",
+        "query": {
+          "path": "src/Grace.Types/Events.Types.fs",
+          "line": 49,
+          "character": 41,
+          "token": "serialize"
+        },
+        "expected": {
+          "path": "src/Grace.Shared/Utilities.Shared.fs",
+          "range": {
+            "start": {
+              "line": 213,
+              "character": 8
+            },
+            "end": {
+              "line": 213,
+              "character": 17
+            }
+          }
+        },
+        "require": "useful"
+      }
+    },
+    {
+      "id": "fscheck",
+      "repository": "https://github.com/fscheck/FsCheck",
+      "revision": "1ef52cfc65d5c318f5ee4da467df9087ad03e34c",
+      "workspace": "src/FsCheck",
+      "project": "src/FsCheck/FsCheck.fsproj",
+      "inventory": {
+        "sha256": "e1e4e194cc51986fce42e57e00f96cd6408ed3f7c40e5d14cb222857220e8dcf",
+        "count": 27,
+        "suffixes": [
+          ".fs",
+          ".fsi",
+          ".fsproj",
+          ".props",
+          ".targets",
+          ".sln",
+          ".slnx"
+        ],
+        "names": [
+          "global.json",
+          "Directory.Packages.props",
+          "NuGet.Config",
+          "nuget.config"
+        ],
+        "excludedDirectories": [
+          ".git",
+          "bin",
+          "obj",
+          ".cache"
+        ]
+      },
+      "ancestorInputs": {
+        "Directory.Packages.props": "b1622f0bfb26dac699f630749968937cdf16ea0cb2b6bf83743c95a90ce28304",
+        "global.json": "e76756643391c913ede73df24c7bdc3aba3f7936bf61c79d568c01f4be4ff3c1",
+        "Directory.Build.targets": "2377e5452b566150016b26e4ea032424c04b5cc882b3d8a8afd8f209cbbccc3a",
+        "Directory.Build.props": "8f91b28278e8a08d97abadf9da0b243d9ced5e3ac86402e6bd7d359497df1678"
+      },
+      "projectSha256": "4ef691264ea444873f22f1fe382c0a2cf5c0c673ab127a534638490016064c8c",
+      "required": [
+        {
+          "id": "crossfile-common-takeWhilePlusLast",
+          "operation": "navigation/definition",
+          "query": {
+            "path": "src/FsCheck/Runner.fs",
+            "line": 431,
+            "character": 18,
+            "token": "takeWhilePlusLast"
+          },
+          "expected": {
+            "path": "src/FsCheck/Internals.Common.fs",
+            "range": {
+              "start": {
+                "line": 46,
+                "character": 8
+              },
+              "end": {
+                "line": 46,
+                "character": 25
+              }
+            },
+            "text": "takeWhilePlusLast"
+          },
+          "require": "useful"
+        },
+        {
+          "id": "local-tuple-match-res",
+          "operation": "navigation/definition",
+          "query": {
+            "path": "src/FsCheck/Internals.Common.fs",
+            "line": 12,
+            "character": 35,
+            "token": "res"
+          },
+          "expected": {
+            "path": "src/FsCheck/Internals.Common.fs",
+            "range": {
+              "start": {
+                "line": 12,
+                "character": 28
+              },
+              "end": {
+                "line": 12,
+                "character": 31
+              }
+            },
+            "text": "res"
+          },
+          "require": "exact"
+        },
+        {
+          "id": "local-recursive-loop",
+          "operation": "navigation/definition",
+          "query": {
+            "path": "src/FsCheck/Internals.Common.fs",
+            "line": 54,
+            "character": 27,
+            "token": "loop"
+          },
+          "expected": {
+            "path": "src/FsCheck/Internals.Common.fs",
+            "range": {
+              "start": {
+                "line": 49,
+                "character": 16
+              },
+              "end": {
+                "line": 49,
+                "character": 20
+              }
+            },
+            "text": "loop"
+          },
+          "require": "exact"
+        }
+      ],
+      "lifecycle": {
+        "site": "local-tuple-match-res",
+        "prefix": "// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n",
+        "lines": 8,
+        "scope": "unsaved layout-only prefix; no semantic-rebind claim; close must restore disk target; process restart revalidates original disk inputs"
+      },
+      "discoveryTrigger": {
+        "id": "crossfile-common-takeWhilePlusLast",
+        "operation": "navigation/definition",
+        "query": {
+          "path": "src/FsCheck/Runner.fs",
+          "line": 431,
+          "character": 18,
+          "token": "takeWhilePlusLast"
+        },
+        "expected": {
+          "path": "src/FsCheck/Internals.Common.fs",
+          "range": {
+            "start": {
+              "line": 46,
+              "character": 8
+            },
+            "end": {
+              "line": 46,
+              "character": 25
+            }
+          },
+          "text": "takeWhilePlusLast"
+        },
+        "require": "useful"
+      }
+    },
+    {
+      "id": "compiler",
+      "repository": "https://github.com/dotnet/fsharp",
+      "revision": "66187a30e8bb81d571f0244d4bd64405182ca219",
+      "workspace": "src/Compiler",
+      "project": "src/Compiler/FSharp.Compiler.Service.fsproj",
+      "inventory": {
+        "sha256": "cf1d9aab14ac875f482a70789c2c958cdebdd11dc507c10497c9cb4e75eb0016",
+        "count": 417,
+        "suffixes": [
+          ".fs",
+          ".fsi",
+          ".fsproj",
+          ".props",
+          ".targets",
+          ".sln",
+          ".slnx"
+        ],
+        "names": [
+          "global.json",
+          "Directory.Packages.props",
+          "NuGet.Config",
+          "nuget.config"
+        ],
+        "excludedDirectories": [
+          ".git",
+          "bin",
+          "obj",
+          ".cache"
+        ]
+      },
+      "ancestorInputs": {
+        "FSharp.Profiles.props": "a09349b127b295986eecd2a36430ddddb425696e298446e518ddd8f464b6ec3e",
+        "FSharpBuild.Directory.Build.props": "44421886420a985c6b086839d2f17296790b325209f938d39bd42e9948ce63b0",
+        "CoordinateXliff.targets": "f18933e42801500380f84e0af246a315ca66d55b0e0ff97e15d9a56f9c48133d",
+        "FSharpBuild.Directory.Build.targets": "93f60543ac85da1ebeb2c463b92d073cf6cc477775c5099f01a21cc4d5084d2b",
+        "UseLocalCompiler.Directory.Build.targets": "0aafb493a5ef1de9c5a0de215d0377777572a98a6eade16292e11472a58dca05",
+        "Directory.Packages.props": "73a24ed2d3cf1a0448702c331b840370407b7e07fd7cb068f80d7253fa6ca6b2",
+        "UseLocalCompiler.Directory.Build.props": "ca9ac9e9a9d0aa156fa5e29baeb8c5cfc63ffaf9dd3139f189e22187758a0b0f",
+        "global.json": "8de7a76022223b6ecb759b74c20354f8c7172be2f9b8bac5e33600f338428391",
+        "FSharpTests.Directory.Build.targets": "a46f836cabeba061e52828f79ab2a2b70addbb360e38e3ac1250abab2b09be74",
+        "FSharpTests.Directory.Build.props": "9d9b4660aad70428643f40171524a30b483d4c0ba385a70eaca52f36034ab024",
+        "Directory.Build.targets": "01ba5b7cfa733c2c0780e898f411faa00434043878421cd47d1645442cbb3218",
+        "Directory.Build.props": "f390a130acb7373d479faa6d7e29af32dcbcc98c21228e5563e6a7b43800d837",
+        "src/Directory.Build.targets": "1959c8fd4de3f6506c64ec26300a3bd4832d024a7ea30773fa386bbc054adaaa",
+        "src/Directory.Build.props": "af707683b1775711d3d05fd5806f7439503df550fe5938614e39202e89ae8188"
+      },
+      "projectSha256": "342674f841b2eb40d889e15f3e0e9f0cf5bffabc7337d99826e013fa1652a795",
+      "required": [
+        {
+          "id": "local-array-pattern-part",
+          "operation": "navigation/definition",
+          "query": {
+            "path": "src/Compiler/Facilities/RichText.fs",
+            "line": 15,
+            "character": 24,
+            "token": "part"
+          },
+          "expected": {
+            "path": "src/Compiler/Facilities/RichText.fs",
+            "range": {
+              "start": {
+                "line": 15,
+                "character": 13
+              },
+              "end": {
+                "line": 15,
+                "character": 17
+              }
+            },
+            "text": "part"
+          },
+          "require": "useful"
+        }
+      ],
+      "lifecycle": {
+        "site": "local-array-pattern-part",
+        "prefix": "// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n",
+        "lines": 8,
+        "scope": "unsaved layout-only prefix; no semantic-rebind claim; close must restore disk target; process restart revalidates original disk inputs"
+      },
+      "discoveryTrigger": {
+        "id": "tuple-match-idx",
+        "operation": "navigation/definition",
+        "query": {
+          "path": "src/Compiler/Utilities/range.fs",
+          "line": 197,
+          "character": 23,
+          "token": "idx"
+        },
+        "expected": {
+          "path": "src/Compiler/Utilities/range.fs",
+          "range": {
+            "start": {
+              "line": 197,
+              "character": 16
+            },
+            "end": {
+              "line": 197,
+              "character": 19
+            }
+          },
+          "text": "idx"
+        },
+        "require": "useful",
+        "reason": "Historical raw-source coverage gap; NOT a required pass or counted success.",
+        "implementationDeclaration": null
+      }
+    }
+  ]
+}
