@@ -3447,6 +3447,26 @@ mod integration_tests {
     }
 
     #[test]
+    fn conditional_origin_retains_physical_tuple_candidates() {
+        let (root, mut ws) = fixture();
+        let path = root.join("Main.fs");
+        let text = "module Main\nlet idx = 0\n#if UNKNOWN\nlet branch idx = idx\n#else\nlet other idx = idx\n#endif\nlet lookup value =\n    match value with\n    | true, idx -> idx\n    | _ -> 0\n";
+        fs::write(&path, text).unwrap();
+        ws.dispatch("workspace/index", &json!({})).unwrap();
+        let query = json!({"path":path,"line":9,"character":20});
+        let answer = ws.dispatch("navigation/definition", &query).unwrap();
+        assert_eq!(answer["locations"], json!([]), "{answer}");
+        assert_eq!(answer["candidateCompleteness"], "incomplete", "{answer}");
+        for (line, column) in [(1,4), (3,11), (5,10), (9,12)] {
+            let expected = json!({"uri":uri(path.to_str().unwrap()),"range":{"start":{"line":line,"character":column},"end":{"line":line,"character":column+3}}});
+            assert!(answer["candidates"].as_array().unwrap().contains(&expected), "missing {expected}: {answer}");
+        }
+        assert_ne!(ws.dispatch("navigation/references", &query).unwrap()["completeness"], "exact");
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn conditional_origin_candidates_keep_competing_targets_and_context_guards() {
         let (root, mut ws) = fixture();
         let path = root.join("Main.fs");
