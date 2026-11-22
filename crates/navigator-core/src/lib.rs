@@ -4918,7 +4918,7 @@ mod integration_tests {
         )
         .unwrap();
         let declaration = json!({"uri":uri(path.to_str().unwrap()),"range":{"start":{"line":3,"character":9},"end":{"line":3,"character":13}}});
-        let usage = json!({"uri":uri(path.to_str().unwrap()),"range":{"start":{"line":3,"character":19},"end":{"line":3,"character":23}}});
+        let usage = json!({"uri":uri(path.to_str().unwrap()),"range":{"start":{"line":3,"character":20},"end":{"line":3,"character":24}}});
         for include in [true, false] {
             let result = ws.dispatch("navigation/references", &json!({"path":path,"line":3,"character":20,"version":1,"includeDeclaration":include})).unwrap();
             assert_eq!(result["completeness"], "exact", "{result}");
