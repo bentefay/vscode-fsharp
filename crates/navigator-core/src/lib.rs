@@ -1881,11 +1881,23 @@ impl Workspace {
             return Ok(());
         };
         self.request_definition_can_progress = true;
+        self.stash_source_candidates(path, &parsed, &name, &hint)
+    }
+    // Retain only current-dispatch origin facts before broader candidate work.
+    // A foreground limit may discard that broader work, never these as exact.
+    fn stash_source_candidates(
+        &mut self,
+        path: &str,
+        parsed: &ParsedFile,
+        name: &str,
+        hint: &candidate_ranking::UseEvidence,
+    ) -> Result<()> {
         let mut ranking = candidate_ranking::Ranking::default();
         let mut seen = HashSet::new();
         let mut locations = Vec::new();
         let mut truncated = false;
-        for ordinal in candidate_declaration_tokens(&parsed) {
+        for ordinal in candidate_declaration_tokens(parsed) {
+            self.cancellation.check()?;
             let Some(token) = parsed.tokens.get(ordinal) else {
                 continue;
             };
@@ -1897,7 +1909,7 @@ impl Workspace {
                 break;
             }
             let location = json!({"uri":uri(path),"range":token.range()});
-            ranking.observe(&location, hint.rank(&parsed, ordinal, true, false));
+            ranking.observe(&location, hint.rank(parsed, ordinal, true, false));
             locations.push(location);
         }
         if !locations.is_empty() {
@@ -2562,6 +2574,7 @@ impl Workspace {
                 if hint.physical_conditional() {
                     result["candidateOrigin"] = json!("physical-conditional-source");
                 }
+                self.stash_source_candidates(&path, &origin, &name, &hint)?;
                 let (candidates, truncated, ranking) =
                     self.possible_definitions(&path, &name, Some(&hint))?;
                 if truncated {
@@ -4575,6 +4588,146 @@ mod integration_tests {
                 assert!(ws.dispatch("navigation/definition", &stale).is_err());
             }
         }
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn ready_context_limit_preserves_current_source_candidates() {
+        let (root, mut ws) = fixture();
+        let main = root.join("Main.fs");
+        let source = "module Main\nlet f parts =\n    match parts with\n    | [| part |] -> part\n    | _ -> 0\nlet part = 2\n";
+        fs::write(&main, source).unwrap();
+        let mut compile = String::from("<Compile Include=\"Main.fs\"/>");
+        for i in 0..17 {
+            let file = format!("Other{i}.fs");
+            fs::write(
+                root.join(&file),
+                format!(
+                    "module Other{i}\nlet part = {i}\n(*{}*)\n",
+                    " ".repeat(256 * 1024)
+                ),
+            )
+            .unwrap();
+            compile.push_str(&format!("<Compile Include=\"{file}\"/>"));
+        }
+        fs::write(
+            root.join("Test.fsproj"),
+            format!("<Project><ItemGroup>{compile}</ItemGroup></Project>"),
+        )
+        .unwrap();
+        for i in 0..520 {
+            fs::write(root.join(format!("padding{i}.txt")), "").unwrap();
+        }
+        ws.dispatch(
+            "document/open",
+            &json!({"path":main,"version":1,"text":source}),
+        )
+        .unwrap();
+        let query = json!({"path":main,"line":3,"character":20,"documentVersion":1});
+        let _first = ws.dispatch("navigation/definition", &query).unwrap();
+        let pending = ws.dispatch("navigation/definition", &query).unwrap();
+        let expected = json!({"uri":uri(main.to_str().unwrap()),"range":{"start":{"line":3,"character":9},"end":{"line":3,"character":13}}});
+        assert!(
+            pending["candidates"]
+                .as_array()
+                .is_some_and(|xs| xs.contains(&expected)),
+            "{pending}"
+        );
+        for _ in 0..1000 {
+            if !ws.background_pending() {
+                break;
+            }
+            ws.background_step(cancellation::CancellationToken::new())
+                .unwrap();
+        }
+        assert_eq!(ws.background.phase, "ready");
+        let ready = ws.dispatch("navigation/definition", &query).unwrap();
+        assert_eq!(ready["locations"], json!([]));
+        assert_eq!(ready["completeness"], "unavailable");
+        assert!(
+            ready["reason"]
+                .as_str()
+                .unwrap()
+                .contains("foreground work limit"),
+            "{ready}"
+        );
+        assert!(
+            ready["candidates"]
+                .as_array()
+                .is_some_and(|xs| xs.contains(&expected)),
+            "{ready}"
+        );
+        assert_eq!(ready["candidateCompleteness"], "incomplete");
+        assert_eq!(ready["version"], 1);
+        assert_eq!(ready["candidates"], pending["candidates"]);
+        assert_eq!(ready["candidates"].as_array().unwrap().len(), 2);
+        let moved = format!("// current overlay\n{source}");
+        ws.dispatch(
+            "document/change",
+            &json!({"path":main,"version":2,"text":moved}),
+        )
+        .unwrap();
+        let moved_query = json!({"path":main,"line":4,"character":20,"documentVersion":2});
+        let shifted = ws.dispatch("navigation/definition", &moved_query).unwrap();
+        assert_eq!(shifted["candidateCompleteness"], "incomplete");
+        assert_eq!(shifted["locations"], json!([]));
+        assert!(!shifted["candidates"]
+            .as_array()
+            .unwrap()
+            .contains(&expected));
+        assert_eq!(shifted["candidates"][0]["range"]["start"]["line"], 4);
+        assert!(ws.dispatch("navigation/definition", &query).is_err());
+        let renamed = source.replace("part", "piece");
+        ws.dispatch(
+            "document/change",
+            &json!({"path":main,"version":3,"text":renamed}),
+        )
+        .unwrap();
+        let renamed_query = json!({"path":main,"line":3,"character":21,"documentVersion":3});
+        let renamed_answer = ws
+            .dispatch("navigation/definition", &renamed_query)
+            .unwrap();
+        assert_eq!(renamed_answer["candidates"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            renamed_answer["candidates"][0]["range"]["end"]["character"],
+            14
+        );
+        let cancel = cancellation::CancellationToken::new();
+        cancel.cancel();
+        ws.set_cancellation(cancel);
+        assert!(ws
+            .dispatch("navigation/definition", &renamed_query)
+            .is_err());
+        ws.set_cancellation(cancellation::CancellationToken::new());
+        for method in ["navigation/references", "navigation/hover"] {
+            let other = ws.dispatch(method, &renamed_query).unwrap();
+            assert_ne!(
+                other["candidateKind"], "same-source-declarations",
+                "{other}"
+            );
+        }
+        ws.dispatch("document/close", &json!({"path":main}))
+            .unwrap();
+        let closed = ws
+            .dispatch(
+                "navigation/definition",
+                &json!({"path":main,"line":3,"character":20}),
+            )
+            .unwrap();
+        let full = closed["candidates"].as_array().unwrap();
+        for candidate in pending["candidates"].as_array().unwrap() {
+            assert!(full.contains(candidate), "{closed}");
+        }
+        // Once contextual summaries are warm, the normal fallback retains all
+        // other files too; the saved origin subset must not replace this union.
+        assert_eq!(full.len(), 19);
+        for i in 0..17 {
+            let expected = json!({"uri":uri(root.join(format!("Other{i}.fs")).to_str().unwrap()),"range":{"start":{"line":1,"character":4},"end":{"line":1,"character":8}}});
+            assert!(full.contains(&expected), "{closed}");
+        }
+        assert_eq!(closed["candidateCompleteness"], "incomplete");
         assert_eq!(ws.index.counters.helper_starts, 0);
         drop(ws);
         fs::remove_dir_all(root).unwrap();
