@@ -5592,7 +5592,7 @@ mod integration_tests {
     }
     #[test]
     fn target_scoped_signature_does_not_route_consumer_to_uninvoked_contract() {
-        for target_scoped in [false, true] {
+        for context in ["ordinary", "target", "exclude", "extensions"] {
             let (root, mut ws) = fixture();
             fs::write(
                 root.join("Wire.fsi"),
@@ -5610,10 +5610,14 @@ mod integration_tests {
             )
             .unwrap();
             let signature = "<ItemGroup><Compile Include=\"Wire.fsi\"/></ItemGroup>";
-            let signature = if target_scoped {
-                format!("<Target Name=\"NeverInvoked\">{signature}</Target>")
-            } else {
-                signature.into()
+            let signature = match context {
+                "target" => format!("<Target Name=\"NeverInvoked\">{signature}</Target>"),
+                "exclude" => {
+                    "<ItemGroup><Compile Include=\"Wire.fsi\" Exclude=\"Wire.fsi\"/></ItemGroup>"
+                        .into()
+                }
+                "extensions" => format!("<ProjectExtensions>{signature}</ProjectExtensions>"),
+                _ => signature.into(),
             };
             fs::write(root.join("Test.fsproj"),format!("<Project>{signature}<ItemGroup><Compile Include=\"Wire.fs\"/><Compile Include=\"Consumer.fs\"/></ItemGroup></Project>")).unwrap();
             let tree = ws.dispatch("workspace/tree", &json!({})).unwrap();
@@ -5628,8 +5632,8 @@ mod integration_tests {
                     .as_str()
                     .is_some_and(|uri| uri.ends_with("Wire.fsi"))
             };
-            if target_scoped {
-                // A NeverInvoked-only item is not an ordinary compile input.
+            if context != "ordinary" {
+                // Target-only, excluded or metadata-only items cannot prove a contract.
                 // Retain candidates, but never claim its contract is the exact target.
                 assert!(
                     !(definition["completeness"] == "exact"
@@ -5640,16 +5644,27 @@ mod integration_tests {
                             .any(is_signature)),
                     "tree={tree}; definition={definition}"
                 );
-                assert_ne!(definition["completeness"], "exact", "{definition}");
-                assert!(
-                    definition["candidates"]
-                        .as_array()
+                if context == "extensions" {
+                    assert_eq!(definition["completeness"], "exact", "{definition}");
+                    assert!(definition["locations"][0]["uri"]
+                        .as_str()
                         .unwrap()
-                        .iter()
-                        .any(|location| location["uri"].as_str().unwrap().ends_with("Wire.fs")),
-                    "{definition}"
+                        .ends_with("Wire.fs"));
+                } else {
+                    assert_ne!(definition["completeness"], "exact", "{definition}");
+                    assert!(
+                        definition["candidates"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .any(|location| location["uri"].as_str().unwrap().ends_with("Wire.fs")),
+                        "{definition}"
+                    );
+                }
+                assert_eq!(
+                    tree["projects"][0]["files"].as_array().unwrap().len(),
+                    if context == "extensions" { 2 } else { 3 }
                 );
-                assert_eq!(tree["projects"][0]["files"].as_array().unwrap().len(), 3);
                 let wire = root.join("Wire.fs");
                 ws.dispatch("document/change",&json!({"path":wire,"version":1,"text":"module Wire\nlet renamed text = text\n"})).unwrap();
                 let changed = ws
@@ -5662,8 +5677,8 @@ mod integration_tests {
                 assert!(
                     !changed["candidates"]
                         .as_array()
-                        .unwrap()
-                        .iter()
+                        .into_iter()
+                        .flatten()
                         .any(|location| location["uri"].as_str().unwrap().ends_with("Wire.fs")),
                     "{changed}"
                 );

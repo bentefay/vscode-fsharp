@@ -1027,3 +1027,20 @@ The private 220-file evidence inventory SHA-256 is
 `efa3c21f071d04e6af267ee8e238e0c671e8a4d07d42fdd02f866dd00b64311c`.
 Independent reviews checked semantics, cache/currentness boundaries and actual
 editor evidence. Only reviewed source/tests and sanitized documentation ship.
+
+## Excluded items and ignored project metadata
+
+The [raw-project classification checkpoint](raw-project-classification.md)
+adds two rule-distinct required keyboard scenarios while preserving the previous
+31 and the scoped signature failure:
+
+| Fixture / rule | Action | Authored oracle | Observed status |
+| --- | --- | --- | --- |
+| `exclude-signature-compile` / excluded input cannot certify contract | F12, open choices, select implementation | No exact/forced jump; exact physical pair of `render` declarations labelled incomplete; select `Wire.fs` `1:4–10` | Pass |
+| `extensions-signature-compile` / ignored metadata cannot introduce a signature | F12 | Exact `Wire.fs` native range `1:4–10`, actual caret `1:4`; `.fsi` forbidden; no offer | Pass |
+
+Fresh pinned VS Code 1.108.0 package run: **33 required passes plus one scoped
+XFAIL** (35 passing phases including the two existing dirty baselines). This is
+not broader MSBuild evaluation, a performance comparison or normal-sandbox
+Ubuntu qualification. Native References and the other documented proof gaps
+remain separate.

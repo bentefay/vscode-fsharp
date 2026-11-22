@@ -173,6 +173,26 @@
         "Consumer.fs": "module Consumer\nopen Wire\nlet shown = render \"value\"\n",
         "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><Target Name=\"Never\"><ItemGroup><Compile Include=\"Wire.fsi\" /></ItemGroup></Target><ItemGroup><Compile Include=\"Wire.fs\" /><Compile Include=\"Consumer.fs\" /></ItemGroup></Project>\n"
       }
+    },
+    {
+      "id": "exclude-signature-compile",
+      "project": "App.fsproj",
+      "files": {
+        "Wire.fsi": "module Wire\nval render: text: string -> string\n",
+        "Wire.fs": "module Wire\nlet render text = text\nlet concealed = 99\n",
+        "Consumer.fs": "module Consumer\nopen Wire\nlet shown = render \"value\"\n",
+        "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Wire.fsi\" Exclude=\"Wire.fsi\" /></ItemGroup><ItemGroup><Compile Include=\"Wire.fs\" /><Compile Include=\"Consumer.fs\" /></ItemGroup></Project>\n"
+      }
+    },
+    {
+      "id": "extensions-signature-compile",
+      "project": "App.fsproj",
+      "files": {
+        "Wire.fsi": "module Wire\nval render: text: string -> string\n",
+        "Wire.fs": "module Wire\nlet render text = text\nlet concealed = 99\n",
+        "Consumer.fs": "module Consumer\nopen Wire\nlet shown = render \"value\"\n",
+        "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ProjectExtensions><Compile Include=\"Wire.fsi\" /></ProjectExtensions><ItemGroup><Compile Include=\"Wire.fs\" /><Compile Include=\"Consumer.fs\" /></ItemGroup></Project>\n"
+      }
     }
   ],
   "cases": [
@@ -2676,6 +2696,127 @@
         },
         "implementationScopeEvidence": "Before execution, native owner predicts marking target-scoped membership inexact preserves both same-name declaration candidates; no candidate filtering or new signature applicability claim. This is an independently authored physical-set and known-target oracle, not engine-generated output.",
         "reviewStatus": "pending-independent-oracle-review"
+      }
+    },
+    {
+      "id": "exclude-signature-does-not-certify-contract",
+      "ruleId": "raw-project.exclude-membership-boundary",
+      "fixture": "exclude-signature-compile",
+      "query": {
+        "file": "Consumer.fs",
+        "line": 2,
+        "character": 12,
+        "token": "render"
+      },
+      "expected": {
+        "kind": "candidates",
+        "required": [
+          {
+            "file": "Wire.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 4
+              },
+              "end": {
+                "line": 1,
+                "character": 10
+              }
+            },
+            "text": "render"
+          },
+          {
+            "file": "Wire.fsi",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 4
+              },
+              "end": {
+                "line": 1,
+                "character": 10
+              }
+            },
+            "text": "render"
+          }
+        ],
+        "candidateSet": "exact",
+        "target": {
+          "file": "Wire.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 4
+            },
+            "end": {
+              "line": 1,
+              "character": 10
+            }
+          },
+          "text": "render"
+        }
+      },
+      "oracle": {
+        "kind": "authored-project-membership-and-navigation-policy",
+        "explanation": "Exclude removes the matching Wire.fsi item from this explicit source-list scenario. The raw reader deliberately does not evaluate exclusions: retain exactly both physical render declarations as incomplete choices without an automatic jump, then select the known implementation target. The extra signature choice is uncertain physical inventory, not a second semantic binding.",
+        "source": "https://learn.microsoft.com/en-us/visualstudio/msbuild/item-element-msbuild",
+        "additionalSources": [
+          "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files"
+        ],
+        "reviewStatus": "independent-oracle-reviewed"
+      }
+    },
+    {
+      "id": "extensions-signature-does-not-certify-contract",
+      "ruleId": "raw-project.extensions-membership-boundary",
+      "fixture": "extensions-signature-compile",
+      "query": {
+        "file": "Consumer.fs",
+        "line": 2,
+        "character": 12,
+        "token": "render"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Wire.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 4
+            },
+            "end": {
+              "line": 1,
+              "character": 10
+            }
+          },
+          "text": "render"
+        },
+        "forbidden": [
+          {
+            "file": "Wire.fsi",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 4
+              },
+              "end": {
+                "line": 1,
+                "character": 10
+              }
+            },
+            "text": "render"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-project-membership-and-navigation-policy",
+        "explanation": "MSBuild ignores the recognized direct ProjectExtensions subtree. Its Compile-shaped metadata cannot introduce Wire.fsi into compile membership. The remaining ordinary ordered prefix is Wire.fs then Consumer.fs, so the applicable render declaration is Wire.fs at the authored full range. Require an exact implementation jump, no signature result or offer. This qualifies this bounded raw context, not arbitrary SDK evaluation.",
+        "source": "https://learn.microsoft.com/en-us/visualstudio/msbuild/projectextensions-element-msbuild",
+        "additionalSources": [
+          "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files"
+        ],
+        "reviewStatus": "independent-oracle-reviewed"
       }
     }
   ]

@@ -438,10 +438,28 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
     let mut target_framework = String::new();
     let mut configuration = String::new();
     let mut property = String::new();
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum Namespace {
+        Empty,
+        MsBuild,
+        Unsupported,
+    }
+    let mut ancestors: Vec<(String, bool, Namespace)> = Vec::new();
+    let mut ignored_depth = 0usize;
+    let mut saw_root = false;
     let parent = path.parent().unwrap_or(Path::new("."));
     loop {
         crate::cancellation::check()?;
         let event = reader.read_event()?;
+        if ignored_depth > 0 {
+            match event {
+                Event::Start(_) => ignored_depth += 1,
+                Event::End(_) => ignored_depth -= 1,
+                Event::Eof => anyhow::bail!("Unclosed ProjectExtensions element"),
+                _ => {}
+            }
+            continue;
+        }
         let empty = matches!(event, Event::Empty(_));
         match event {
             Event::Start(e) | Event::Empty(e) => {
@@ -450,11 +468,64 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                 if e.local_name().as_ref().eq_ignore_ascii_case(b"Target") {
                     exact = false;
                 }
-                let name = String::from_utf8_lossy(e.name().as_ref()).into_owned();
+                let name = String::from_utf8_lossy(e.local_name().as_ref()).into_owned();
+                let qualified = e.name().as_ref().contains(&b':');
+                let mut namespace = ancestors
+                    .last()
+                    .map(|entry| entry.2)
+                    .unwrap_or(Namespace::Empty);
+                for attribute in e.attributes() {
+                    let attribute = attribute?;
+                    if attribute.key.as_ref() == b"xmlns" {
+                        namespace = match attribute.unescape_value()?.as_ref() {
+                            "" => Namespace::Empty,
+                            "http://schemas.microsoft.com/developer/msbuild/2003" => {
+                                Namespace::MsBuild
+                            }
+                            _ => Namespace::Unsupported,
+                        };
+                    }
+                }
+                let supported_element = !qualified
+                    && namespace != Namespace::Unsupported
+                    && ancestors
+                        .last()
+                        .is_none_or(|entry| entry.1 && entry.2 == namespace);
+                // Only the recognized direct-project extension container is inert.
+                // Its arbitrary metadata must not contribute source or property facts.
+                if name == "ProjectExtensions"
+                    && supported_element
+                    && ancestors.len() == 1
+                    && ancestors[0].0 == "Project"
+                    && ancestors[0].1
+                {
+                    property.clear();
+                    if !empty {
+                        ignored_depth = 1;
+                    }
+                    continue;
+                }
+                exact &= supported_element;
+                if matches!(name.as_str(), "Compile" | "ProjectReference") {
+                    exact &= ancestors.len() == 2
+                        && ancestors[0].0 == "Project"
+                        && ancestors[0].1
+                        && ancestors[1].0 == "ItemGroup"
+                        && ancestors[1].1;
+                }
+                if ancestors.is_empty() {
+                    exact &= !saw_root && name == "Project";
+                    saw_root = true;
+                }
+                if !empty {
+                    anyhow::ensure!(ancestors.len() < 128, "Project XML nesting limit reached");
+                    ancestors.push((name.clone(), supported_element, namespace));
+                }
                 property = name.clone();
                 let mut include = None;
                 let mut link = None;
-                for a in e.attributes().flatten() {
+                for a in e.attributes() {
+                    let a = a?;
                     let key = String::from_utf8_lossy(a.key.as_ref());
                     let value = a.unescape_value()?.into_owned();
                     if key == "Condition" || name == "Import" {
@@ -479,7 +550,9 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                     if name == "Compile" && key == "Link" {
                         link = Some(value.clone());
                     }
-                    if name == "Compile" && matches!(key.as_ref(), "Remove" | "Update") {
+                    if matches!(name.as_str(), "Compile" | "ProjectReference")
+                        && matches!(key.as_ref(), "Exclude" | "Remove" | "Update")
+                    {
                         exact = false;
                     }
                     if name == "ProjectReference" && key == "Include" {
@@ -549,12 +622,16 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                 }
             }
             Event::End(e) => {
-                if e.name().as_ref() == b"Compile" {
+                ancestors.pop();
+                if e.local_name().as_ref() == b"Compile" {
                     compile_item = None;
                 }
                 property.clear();
             }
-            Event::Eof => break,
+            Event::Eof => {
+                anyhow::ensure!(ancestors.is_empty(), "Unclosed project XML element");
+                break;
+            }
             _ => {}
         }
     }
@@ -986,6 +1063,81 @@ mod membership_model_tests {
         assert!(Model::from_evaluated(&normalize(&root), &value).is_err());
         fs::remove_dir_all(root).unwrap();
     }
+    #[test]
+    fn raw_member_attributes_and_ancestry_cannot_certify_tentative_inventory() {
+        let root = fixture();
+        fs::write(root.join("A.fs"), "module A\nlet value = 1\n").unwrap();
+        let path = root.join("P.fsproj");
+        for (xml, expected_exact) in [
+            ("<Project><ItemGroup><Compile Include=\"A.fs\"/></ItemGroup></Project>", true),
+            ("<Project xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\"><ItemGroup><Compile Include=\"A.fs\"><Link>Linked/A.fs</Link></Compile></ItemGroup></Project>", true),
+            ("<Project><ItemGroup><Compile Include=\"A.fs\" Exclude=\"A.fs\"/></ItemGroup></Project>", false),
+            ("<Project><PropertyGroup><Compile Include=\"A.fs\"/></PropertyGroup></Project>", false),
+            ("<Project><ItemDefinitionGroup><Compile Include=\"A.fs\"/></ItemDefinitionGroup></Project>", false),
+            ("<Project><Choose><When Condition=\"true\"><ItemGroup><Compile Include=\"A.fs\"/></ItemGroup></When></Choose></Project>", false),
+            ("<Project xmlns=\"urn:foreign\"><ItemGroup><Compile Include=\"A.fs\"/></ItemGroup></Project>", false),
+            ("<Project xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\"><ItemGroup xmlns=\"\"><Compile Include=\"A.fs\"/></ItemGroup></Project>", false),
+            ("<m:Project xmlns:m=\"http://schemas.microsoft.com/developer/msbuild/2003\"><m:ItemGroup><m:Compile Include=\"A.fs\"/></m:ItemGroup></m:Project>", false),
+            ("<Project><ProjectExtensions xmlns=\"urn:foreign\"><Compile Include=\"A.fs\"/></ProjectExtensions></Project>", false),
+            ("<Project/><Project><ItemGroup><Compile Include=\"A.fs\"/></ItemGroup></Project>", false),
+        ] {
+            fs::write(&path, xml).unwrap();
+            let (project, exact, _) = parse_project(&path).unwrap();
+            assert_eq!(exact, expected_exact, "{xml}");
+            assert_eq!(project.files, vec![normalize(root.join("A.fs"))], "{xml}");
+            if xml.contains("<Link>") {
+                assert_eq!(project.items[0]["virtualPath"], "Linked/A.fs");
+            }
+        }
+        for attribute in ["Exclude", "Remove", "Update"] {
+            fs::write(&path, format!("<Project><ItemGroup><Compile Include=\"A.fs\"/><ProjectReference Include=\"Dependency.fsproj\" {attribute}=\"Dependency.fsproj\"/></ItemGroup></Project>")).unwrap();
+            let (project, exact, _) = parse_project(&path).unwrap();
+            assert!(!exact);
+            assert_eq!(project.references.len(), 1);
+        }
+        fs::write(&path, "<Project><ItemGroup><Compile Include=\"A.fs\" Include=\"A.fs\"/></ItemGroup></Project>").unwrap();
+        assert!(parse_project(&path).is_err());
+        fs::write(&path, "<Project><ItemGroup><Compile Include=\"A.fs\"/>").unwrap();
+        assert!(parse_project(&path).is_err());
+        fs::write(
+            &path,
+            format!(
+                "<Project>{}{}</Project>",
+                "<Wrapper>".repeat(129),
+                "</Wrapper>".repeat(129)
+            ),
+        )
+        .unwrap();
+        assert!(parse_project(&path).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn project_extensions_are_inert_without_demoting_normal_ordered_items() {
+        let root = fixture();
+        for name in ["A.fs", "B.fs", "Ghost.fs"] {
+            fs::write(root.join(name), "module Source\n").unwrap();
+        }
+        let path = root.join("P.fsproj");
+        for namespace in [
+            "",
+            " xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\"",
+        ] {
+            for metadata in ["<ProjectExtensions/>", "<ProjectExtensions><Compile Include=\"Ghost.fs\"/><ProjectReference Include=\"Ghost.fsproj\"/><DefineConstants>GHOST</DefineConstants><Target/><Import Project=\"ignored.props\"/><OtherFlags>--unsafe</OtherFlags><Configuration>Ghost</Configuration></ProjectExtensions>"] {
+                fs::write(&path, format!("<Project{namespace}><ItemGroup><Compile Include=\"B.fs\"/></ItemGroup>{metadata}<ItemGroup><Compile Include=\"A.fs\" Link=\"Linked/A.fs\"/></ItemGroup></Project>")).unwrap();
+                let (project, exact, _) = parse_project(&path).unwrap();
+                assert!(exact, "{metadata}");
+                assert_eq!(project.files, vec![normalize(root.join("B.fs")), normalize(root.join("A.fs"))]);
+                assert!(project.references.is_empty());
+                assert!(project.defines.is_empty());
+                assert!(project.configuration.is_empty());
+                assert_eq!(project.items[0]["compileIndex"], 1);
+                assert_eq!(project.items[0]["virtualPath"], "Linked/A.fs");
+            }
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn target_elements_require_evaluation_without_changing_literal_inventory() {
         let root = fixture();
