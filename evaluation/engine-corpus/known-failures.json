@@ -287,11 +287,6 @@
     ],
     "notGated": [
       {
-        "id": "references-local-part",
-        "operation": "navigation/references",
-        "reason": "Separate reference completeness / certified hover coverage; not claimed by definition gate."
-      },
-      {
         "id": "references-CE-mappedValue",
         "operation": "navigation/references",
         "reason": "Separate reference completeness / certified hover coverage; not claimed by definition gate."
@@ -300,6 +295,13 @@
         "id": "hover-System-String-IsNullOrEmpty",
         "operation": "navigation/hover",
         "reason": "Separate reference completeness / certified hover coverage; not claimed by definition gate."
+      }
+    ],
+    "promotedReferences": [
+      {
+        "id": "references-local-part",
+        "operation": "navigation/references",
+        "reason": "Promoted to required exact reference sets in manifest.json; original source oracle unchanged."
       }
     ]
   }
