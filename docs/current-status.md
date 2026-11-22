@@ -40,6 +40,12 @@ qualifies generic record substitution in the packaged editor, bringing the
 default gate to 26 required scenarios plus the signature known failure.
 Active-pattern distinction and custom-operator span remain strict failing
 qualifications, with no refusal pass credit or runtime change.
+The subsequent [scoped additive operator proof](e2e-coverage.md#scoped-additive-custom-operator-definition-proof)
+qualifies the unchanged operator case and a later-open refusal control in a fresh
+private package: 28 required scenarios plus the preserved signature failure.
+General operators and active patterns remain outside this new proof. One
+aggregate References assertion failed, then passed focused and full replays;
+its cause remains unproven and no References behavior was changed.
 
 ## Fixed-corpus results
 

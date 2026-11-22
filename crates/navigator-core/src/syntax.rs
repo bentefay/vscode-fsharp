@@ -403,8 +403,24 @@ pub struct CallArgumentNameCandidate {
     pub callee: Option<usize>,
 }
 
+/// Definition-only CST evidence, separate from the reference token domain.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct OperatorBinding {
+    pub operator: Token,
+    pub declaration_start: usize,
+    pub visible_start: usize,
+    pub scope_end: usize,
+    pub module: String,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ParsedFile {
+    #[serde(default)]
+    pub operator_uses: Vec<Token>,
+    #[serde(default)]
+    pub operator_bindings: Vec<OperatorBinding>,
+    #[serde(default)]
+    pub operator_proofs_complete: bool,
     pub tokens: Vec<Token>,
     pub declarations: Vec<Declaration>,
     /// Ambiguous pattern identifiers that may bind values after semantic
@@ -889,6 +905,9 @@ pub fn parse(src: &str) -> ParsedFile {
         })
         .collect();
     ParsedFile {
+        operator_uses: Vec::new(),
+        operator_bindings: Vec::new(),
+        operator_proofs_complete: false,
         tokens,
         declarations,
         potential_bindings: Vec::new(),

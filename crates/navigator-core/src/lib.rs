@@ -2017,6 +2017,66 @@ impl Workspace {
         }
         Ok((locations, truncated, ranking))
     }
+    /// Definition-only ordinary custom infix binding. No operator reference domain.
+    fn operator_definition(
+        &self,
+        path: &str,
+        parsed: &ParsedFile,
+        line: u32,
+        col: u32,
+    ) -> Option<syntax::Token> {
+        if !parsed.operator_proofs_complete {
+            return None;
+        }
+        let usage = parsed
+            .operator_uses
+            .iter()
+            .find(|token| token.line == line && token.column <= col && col < token.end_column)?;
+        if self.possible_signature_context(path, false) {
+            return None;
+        }
+        let module = parsed
+            .modules
+            .iter()
+            .filter(|module| module.start <= usage.start && usage.start < module.end)
+            .min_by_key(|module| module.end - module.start)
+            .map(|module| module.name.as_str())
+            .or(parsed.module.as_deref())?;
+        let binding = parsed
+            .operator_bindings
+            .iter()
+            .filter(|binding| {
+                binding.operator.text == usage.text
+                    && binding.module == module
+                    && binding.visible_start <= usage.start
+                    && usage.start < binding.scope_end
+            })
+            .max_by_key(|binding| binding.visible_start)?;
+        if parsed.opens.iter().any(|open| {
+            binding.declaration_start < open.offset
+                && open.offset < usage.start
+                && usage.start < open.scope_end
+        }) || parsed.aliases.iter().any(|alias| {
+            binding.declaration_start < alias.offset
+                && alias.offset < usage.start
+                && usage.start < alias.scope_end
+        }) || parsed
+            .modules
+            .iter()
+            .any(|module| binding.visible_start <= module.start && module.start < usage.start)
+            || parsed.uncertain.iter().any(|uncertain| {
+                uncertain.start <= usage.start
+                    && usage.start < uncertain.end
+                    && !(uncertain.start == binding.declaration_start
+                        && uncertain.end == binding.scope_end
+                        && uncertain.reason
+                            == "Custom operator/active-pattern declaration needs semantic identity")
+            })
+        {
+            return None;
+        }
+        Some(binding.operator.clone())
+    }
     fn navigation(&mut self, method: &str, p: &Value) -> Result<Value> {
         let started = Instant::now();
         self.index.counters.query_count += 1;
@@ -2217,7 +2277,14 @@ impl Workspace {
             }
         } else {
             let parsed = parsed.unwrap();
-            let mut value = if let Some(token) = parsed.token_at(line, col) {
+            let operator = if method == "navigation/definition" {
+                self.operator_definition(&path, &parsed, line, col)
+            } else {
+                None
+            };
+            let mut value = if let Some(operator) = operator {
+                json!({"locations":[{"uri":uri(&path),"range":operator.range()}],"completeness":"exact","source":self.mode.name(),"proof":{"kind":"scoped-custom-infix-definition","invalidation":"source-and-project-snapshot"}})
+            } else if let Some(token) = parsed.token_at(line, col) {
                 if hover {
                     self.hover_native(&path, &parsed, token)?
                 } else if let Some(symbol) = if method == "navigation/references" {
@@ -5102,5 +5169,155 @@ mod integration_tests {
             .contains("stale"));
         drop(stale);
         fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn custom_operator_definition_is_scoped_current_and_definition_only() {
+        let (root, mut ws) = fixture();
+        let path = root.join("Main.fs");
+        fs::write(
+            root.join("Test.fsproj"),
+            "<Project><ItemGroup><Compile Include=\"Main.fs\"/></ItemGroup></Project>",
+        )
+        .unwrap();
+        let source="module SymbolicScope\nmodule Other =\n    let (+++) left right = left + right\nmodule Selected =\n    let (+++) left right = left - right\n    let answer = (* 😀 *) 7 +++ 2\n";
+        fs::write(&path, source).unwrap();
+        let query = |text: &str| {
+            let (line, text) = text
+                .lines()
+                .enumerate()
+                .find(|(_, text)| text.contains("let answer"))
+                .unwrap();
+            let at = text.rfind("+++").unwrap();
+            (line, text[..at].encode_utf16().count() + 1)
+        };
+        let (line, col) = query(source);
+        let params = json!({"path":path,"line":line,"character":col});
+        let answer = ws.dispatch("navigation/definition", &params).unwrap();
+        assert_eq!(answer["completeness"], "exact", "{answer}");
+        assert_eq!(
+            answer["locations"][0]["range"],
+            json!({"start":{"line":4,"character":9},"end":{"line":4,"character":12}})
+        );
+        assert_ne!(
+            ws.dispatch("navigation/references", &params).unwrap()["completeness"],
+            "exact"
+        );
+        for (version, text) in [
+            source.replace(
+                "    let answer",
+                "    let ``+++`` a b = a*b\n    let answer",
+            ),
+            source.replace(
+                "    let answer = (* 😀 *) 7 +++ 2",
+                "    let answer ``+++`` = 7 +++ 2",
+            ),
+            source.to_owned() + "let op_Addition a b = a+b\n",
+            source.to_owned() + "let ``op_Addition`` a b = a+b\n",
+            source.replace(
+                "let (+++) left right = left - right",
+                "let (***) left right = left - right",
+            ),
+            source.replace("    let answer", "    open Other\n    let answer"),
+            source.replace(
+                "let (+++) left right = left - right",
+                "let inline (+++) left right = left - right",
+            ),
+            source.replace(
+                "    let answer = (* 😀 *) 7 +++ 2",
+                "    let answer = let (+++) a b = a * b in 7 +++ 2",
+            ),
+            source.replace(
+                "    let (+++) left right = left - right",
+                "    [<CompiledName(\"Changed\")>]\n    let (+++) left right = left - right",
+            ),
+            source.replace("    let answer", "#if ACTIVE\n    let answer") + "#endif\n",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let version = version as i64 + 1;
+            ws.dispatch(
+                "document/change",
+                &json!({"path":path,"text":text,"version":version}),
+            )
+            .unwrap();
+            let (line, col) = query(&text);
+            let answer = ws
+                .dispatch(
+                    "navigation/definition",
+                    &json!({"path":path,"line":line,"character":col,"version":version}),
+                )
+                .unwrap();
+            assert_ne!(
+                answer["completeness"], "exact",
+                "version{version}: {answer}"
+            );
+        }
+        ws.dispatch(
+            "document/change",
+            &json!({"path":path,"text":source,"version":20}),
+        )
+        .unwrap();
+        let mut stale = params.clone();
+        stale["version"] = json!(1);
+        assert!(ws.dispatch("navigation/definition", &stale).is_err());
+        let mut current = params.clone();
+        current["version"] = json!(20);
+        assert_eq!(
+            ws.dispatch("navigation/definition", &current).unwrap()["locations"],
+            answer["locations"]
+        );
+        let heldout = source.replace("+++", "++-");
+        ws.dispatch(
+            "document/change",
+            &json!({"path":path,"text":heldout,"version":21}),
+        )
+        .unwrap();
+        let mut heldout_params = params.clone();
+        heldout_params["version"] = json!(21);
+        assert_eq!(
+            ws.dispatch("navigation/definition", &heldout_params)
+                .unwrap()["locations"],
+            answer["locations"]
+        );
+        let rhs =
+            "module SymbolicScope\nmodule Selected =\n    let (+++) left right = left +++ right\n";
+        ws.dispatch(
+            "document/change",
+            &json!({"path":path,"text":rhs,"version":22}),
+        )
+        .unwrap();
+        let col = rhs.lines().nth(2).unwrap().rfind("+++").unwrap() + 1;
+        assert_ne!(
+            ws.dispatch(
+                "navigation/definition",
+                &json!({"path":path,"line":2,"character":col,"version":22})
+            )
+            .unwrap()["completeness"],
+            "exact"
+        );
+        ws.dispatch(
+            "document/change",
+            &json!({"path":path,"text":source,"version":23}),
+        )
+        .unwrap();
+        fs::write(
+            root.join("Main.fsi"),
+            "module SymbolicScope\nmodule Selected =\n    val (+++) : int -> int -> int\n",
+        )
+        .unwrap();
+        fs::write(root.join("Test.fsproj"),"<Project><ItemGroup><Compile Include=\"Main.fsi\"/><Compile Include=\"Main.fs\"/></ItemGroup></Project>").unwrap();
+        ws.dispatch(
+            "workspace/filesChanged",
+            &json!({"paths":[root.join("Test.fsproj"),root.join("Main.fsi")]}),
+        )
+        .unwrap();
+        current["version"] = json!(23);
+        assert_ne!(
+            ws.dispatch("navigation/definition", &current).unwrap()["completeness"],
+            "exact"
+        );
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
     }
 }

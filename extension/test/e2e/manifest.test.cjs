@@ -229,11 +229,24 @@ test('prior twenty-six scenarios and twelve fixtures remain frozen', () => {
 
 test('three language families retain independently authored strict contracts', () => {
   const regression=JSON.parse(fs.readFileSync(path.join(__dirname,'language-rule-regression.json'),'utf8'));
-  assert.deepEqual(regression.cases.map(c=>c.id),['active-pattern-case-not-union-homonym','custom-symbolic-operator-full-span']);
+  assert.deepEqual(regression.cases.map(c=>c.id),['active-pattern-case-not-union-homonym']);
   for(const c of regression.cases)assert.ok(!manifest.cases.some(x=>x.id===c.id));
   for(const f of regression.fixtures)assert.deepEqual(f,manifest.fixtures.find(x=>x.id===f.id));
-  const added={fixtures:manifest.fixtures.slice(12),cases:[...regression.cases,...manifest.cases.slice(26)]};
+  const added={fixtures:manifest.fixtures.slice(12,15),cases:[regression.cases[0],manifest.cases.find(c=>c.id==='custom-symbolic-operator-full-span'),manifest.cases.find(c=>c.id==='generic-record-substitution-nominal-field')]};
   assert.equal(added.fixtures.length,3);assert.equal(added.cases.length,3);
   assert.equal(createHash('sha256').update(JSON.stringify(added)).digest('hex'),'104edb364f543590c90b59d81f098b27e144fedeb2336ddfe07544ab112db05e');
   for(const c of added.cases){assert.equal(c.expected.kind,'exact');assert.equal(c.expectedFailure,undefined);}
+});
+
+test('prior twenty-seven cases and fifteen fixtures remain frozen', () => {
+  assert.equal(createHash('sha256').update(JSON.stringify({...manifest,fixtures:manifest.fixtures.slice(0,15),cases:manifest.cases.slice(0,27)})).digest('hex'),'60c17946f9135bfb4f782483e6fdfaea1d02e5311cd53287e30ed61d38a29f72');
+});
+
+test('later-open operator fallback preserves authored semantic and refused targets', () => {
+  const c=manifest.cases.find(c=>c.id==='operator-later-open-refuses-old-local-proof'),f=manifest.fixtures.find(f=>f.id===c.fixture);
+  assert.equal(c.expected.kind,'unavailable');assert.equal(c.expectedFailure,undefined);
+  assert.deepEqual(c.expected.forbidden,[c.oracle.wrongPriorLocalTarget]);
+  assert.notDeepEqual(c.oracle.semanticTarget,c.oracle.wrongPriorLocalTarget);
+  for(const t of [c.oracle.semanticTarget,c.oracle.wrongPriorLocalTarget])assertLiteralSpan(f.files[t.file].split('\n')[t.range.start.line],t.range.start.character,t.range.end.character,t.text,c.id);
+  assert.equal(createHash('sha256').update(JSON.stringify({fixtures:[f],cases:[c]})).digest('hex'),'5e0263d192344f1a28987a26b26931c0317d2ad0c884696d7ba2e6822f21ab5c');
 });

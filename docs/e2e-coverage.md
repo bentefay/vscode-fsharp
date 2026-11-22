@@ -1,8 +1,9 @@
 # Packaged editor coverage and remaining gates
 
-The current default gate has **26 required passing scenarios and one scoped
-signature failure**. The [three-family F12 slice](#active-pattern-operator-and-generic-record-slice)
-adds one generic record proof and preserves two strict qualification failures. The [Possible References pointer qualification](#possible-references-pointer-qualification)
+The current default gate has **28 required passing scenarios and one scoped
+signature failure**. The [scoped operator proof](#scoped-additive-custom-operator-definition-proof)
+adds one exact operator case and one explicit later-open refusal control. The [three-family F12 slice](#active-pattern-operator-and-generic-record-slice)
+adds one generic record proof and initially preserved two strict qualification failures. The [Possible References pointer qualification](#possible-references-pointer-qualification)
 adds one post-edit interaction; it does not close native References currentness
 or in-flight cancellation.
 
@@ -108,7 +109,7 @@ needs an ambiguity or safe-refusal negative where proof is unavailable.
 | Match/guard lifetime | `match-guard-arm-binding`, F12 in guard | Own arm binder; forbid outer and sibling-arm binders | Pass; post-match leakage pending |
 | Union case/field | `qualified-union-case-identity`, F12 at `Parcel.Item` | Exact Parcel case; forbid Other.Item | Known failure in separate strict regression; payload binders pending |
 | Active pattern | Strict `active-pattern-case-not-union-homonym`, F12 at match case | Recognizer header `Hit`; reject qualified-only union homonym and payload binder | Failed qualification: incomplete internal candidates include the forbidden union; no direct jump |
-| Symbolic/custom operator | Strict `custom-symbolic-operator-full-span`, F12 inside `+++` | Full three-character declaration span in own module; reject unopened sibling operator | Failed qualification: unavailable before exact/span assertion; not refusal pass credit |
+| Symbolic/custom operator | `custom-symbolic-operator-full-span` and `operator-later-open-refuses-old-local-proof`, actual F12 | Exact own-module full span; later open must not jump to shadowed local operator | Pass for bounded additive family; later-open explicit refusal, general operators pending |
 | Type parameter binding | Planned: `type-parameter`, F12 | Binder, forbid nominal homonym | Pending |
 | Generic receiver substitution | `generic-record-substitution-nominal-field`, F12 at final projection | `Envelope<Human>.Payload.Label` → `Human.Label`; reject `Robot.Label` and intermediate `Payload` | Pass; generic type-parameter binder navigation remains separate |
 | Overload resolution | Planned: `overload`, F12 | Signature-correct target or all plausible choices | Pending |
@@ -726,9 +727,11 @@ characters and excludes parentheses. The active-pattern policy targets the
 case identifier within the recognizer header, excluding its delimiters. These
 policies were fixed before execution, not adjusted to match a result.
 
-Both failures are preserved unchanged in
-[language-rule-regression.json](../extension/test/e2e/language-rule-regression.json).
-They remain separately runnable strict tests without expected-failure metadata.
+At that checkpoint both failures were preserved unchanged in
+[the pinned language-rule regression](https://github.com/bentefay/vscode-fsharp/blob/41222d740aba04edb195f99d10d6c4139556de53/extension/test/e2e/language-rule-regression.json).
+The operator is subsequently qualified below; the current separate regression
+retains the active-pattern case.
+They were separately runnable strict tests without expected-failure metadata.
 Neither was converted into an unavailable pass, rerun with a simpler fixture,
 or repaired in runtime. The active-pattern check failed on the internal
 forbidden-candidate assertion before exercising a picker; its captured final
@@ -770,3 +773,87 @@ The private 147-file evidence inventory SHA-256 is
 `967091aee41dea40c82a4889370e91d9f0407ae59c50521dd7260d2b7225839d`.
 Raw reports, first failures and verification receipts remain local; only
 fixtures, integrity checks and sanitized documentation are published.
+
+## Scoped additive custom-operator definition proof
+
+This checkpoint starts from `41222d740aba04edb195f99d10d6c4139556de53` and
+retains the original strict `custom-symbolic-operator-full-span` fixture and
+oracle without changes. Independent language and implementation reviewers
+checked the proof and counterexamples. F# resolves an infix operator through
+ordinary operator-function lookup before type-directed fallback; a proven local
+binding therefore does not require operand type inference. See
+[operator expressions, specification §6.4.3](https://fsharp.github.io/fslang-spec/expressions/#643-operator-expressions).
+
+The implemented envelope is deliberately smaller than general operator support:
+ASCII additive spellings of 3–32 characters beginning with `+` and containing
+only `+` and `-`, an actual CST infix use, and an ordinary nonrecursive binary
+module-level binding in the same module. Its declaration must precede the use,
+and the existing exact project-context and signature safeguards must pass.
+Later opens, aliases or module declarations, overlapping uncertainty, nested or
+repeated uncertain bindings, attributes, compiled-name or escaped additive
+identifiers, source projection, malformed syntax and multiline operator declarations decline this
+proof. A use in a nonrecursive operator's own RHS cannot bind to itself.
+
+Facts are collected during existing syntax passes, separately from normal
+navigation tokens. Collection is capped at 256 bindings and 2,048 uses per file;
+overflow disables this proof for the file. The query checks for an operator use
+before project-context traversal. There is no additional parse, workspace scan,
+wait or compiler helper. Persisted summary revisions change with the new binary
+layout. Existing source/version, project snapshot and cancellation checks remain
+in force. These are structural properties, not measured latency or memory gains.
+References and hover receive no new exact operator domain.
+
+The independently authored `operator-later-open-refuses-old-local-proof` control
+places an `open Imported` after the local declaration. Its actual F# target is
+recorded separately: `Imported.(+++)`, not the earlier local operator. The
+supported initial behavior is explicit unavailable, not a claim that no binding
+exists. This follows the specification's
+[opening rules, §14.1.3](https://fsharp.github.io/fslang-spec/inference-procedures/#1413-opening-modules-and-namespace-declaration-groups).
+The original unavailable result and private failed-run evidence remain preserved
+in the preceding checkpoint; promotion requires fresh packaged-editor evidence.
+
+Native tests exercise the original astral-offset case and a separate `++-`
+spelling, no complete operator references, same-position dirty replacement,
+current versus stale document versions, own-RHS refusal, nested rebinding,
+later opens, attributes, compiled and quoted identifiers, projection/signature
+refusal, multiline declarations and both fact caps. These native controls are
+not additional packaged-editor coverage.
+
+Final protected aggregate checks passed: 3 Python, 47 Node tooling/manifest,
+321 Rust core plus 4 daemon tests (5 ignored), 108 adapter/transport tests,
+TypeScript and formatting. One earlier final-source aggregate failed the
+existing `possible_references::tests::occurrences_refresh_dirty_names_rebinding_and_deleted_targets`
+assertion: `Later.fs` was absent after closing its overlay and rewriting disk.
+Its single isolated replay and one unchanged full-suite replay passed. A watcher
+notification race is plausible but not established by the captured failure;
+no References code or oracle changed. The failure and both replays remain in
+private evidence. This checkpoint does not claim to resolve that test's
+repeatability or native References currentness.
+
+The single fresh Code 1.108.0 packaged run passed **28 required scenarios**
+plus the existing scoped signature expected failure. Its 31 phase records are
+30 passes and one expected failure; two dirty baselines are not extra scenarios.
+All prior 26 required scenarios remain unchanged and passed. Trusted focused
+F12 in the original operator case returned the complete UTF-16 `4:9–12` span
+(excluding parentheses) and moved the actual editor caret to `4:9`, with no
+chooser. The later-open case visibly reported incomplete, returned no locations
+or candidates and left the caret unchanged. That control proves conservative
+refusal, not useful target availability. Native full-range evidence and actual
+editor URI/caret assertions remain distinct.
+
+The fresh private evaluation VSIX SHA-256 is
+`6b96c028b09e036cdb2ea1a3a1934db9da50c5c30f8ef91a41e5a075b21d4cb3`;
+its native binary SHA-256 is
+`bbbaddc64e1d1e393ce74a9da697c210837b5afcc828a4aada36d0d71a933880`.
+The 111 recorded build inputs and all fixture/oracle bytes were unchanged
+during package construction and the editor run. Older preview packages remain
+unchanged. No timing/memory comparison or normal-sandbox Ubuntu acceptance was
+run. Active-pattern, signature, qualified-union, native References and prepared
+List.map gaps remain open; this checkpoint does not investigate or fix them.
+
+All 16 final editor sessions reported zero helper/compiler/decompiler starts.
+Independent reviewers checked language semantics, implementation scope/ranges,
+and the actual renderer evidence. The private 100-file evidence inventory
+SHA-256 is `29b802cd36abfce56b482e19201ab643ce9394839e78830a217eb0037996bd83`.
+Only reviewed source, fixtures, integrity tests and sanitized documentation are
+published; packages, profiles and raw output remain private.

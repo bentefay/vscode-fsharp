@@ -1,9 +1,10 @@
 # Immutable packaged-editor navigation gate
 
-The current ordinary manifest contains **18 definition scenarios, 5 References
+The current ordinary manifest contains **20 definition scenarios, 5 References
 route scenarios, 1 References currentness interaction, 2 hover safety scenarios
-and 1 project-tree scenario**: 26 required scenarios plus the scoped signature
-failure. The generic-record slice below adds one exact definition contract.
+and 1 project-tree scenario**: 28 required scenarios plus the scoped signature
+failure. The generic-record slice adds one exact definition contract; the scoped
+operator slice adds one exact case and one explicit later-open refusal control.
 The preceding Possible References qualification passed 25 required scenarios
 in two fixed full-order runs; its new interaction also passed two isolated runs.
 The preceding language-rule runs passed 24 required scenarios. A second known defect—the
@@ -398,11 +399,24 @@ including the distinction between rendered clicks and captured-command replay.
 
 `generic-record-substitution-nominal-field` is required: actual F12 through an
 explicit generic record receiver must reach the correct nominal field and
-exclude its homonym. `language-rule-regression.json` retains strict active-
-pattern and symbolic-operator exact requirements that failed the initial run.
+exclude its homonym. The initial run failed strict active-pattern and symbolic-
+operator requirements. `language-rule-regression.json` now retains only the
+active-pattern failure; the unchanged operator case is required after the
+scoped proof qualification below.
 Use it through the existing `FSHARP_E2E_MANIFEST` route and fresh private output;
 it is not a green required gate or an expected-failure credit. Its oracles were
 not weakened to conservative refusal.
 
 See the [three-family results and limits](../../../docs/e2e-coverage.md#active-pattern-operator-and-generic-record-slice).
 No runtime change or native References investigation is part of this slice.
+
+## Scoped additive operator proof
+
+The unchanged `custom-symbolic-operator-full-span` case now passes actual F12
+in a fresh evaluation package. Its full native UTF-16 range excludes parentheses;
+the renderer assertion checks the actual URI/caret separately.
+`operator-later-open-refuses-old-local-proof` requires visible refusal with no
+wrong jump and records its known language target independently. This is an
+explicit limited proof boundary, not evidence that the operator has no binding.
+All 28 required scenarios passed in one fresh packaged run, with the existing
+signature failure separate. See [scope, checks and retained failure evidence](../../../docs/e2e-coverage.md#scoped-additive-custom-operator-definition-proof).

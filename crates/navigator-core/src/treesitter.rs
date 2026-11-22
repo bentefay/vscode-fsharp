@@ -6,10 +6,10 @@ use crate::syntax::{
     CallArgumentNameCandidate, Declaration, DeclaredParameterType, ExpressionTypeCandidate,
     ExpressionTypeRole, FactoryAtom, FunctionResultFact, FunctionReturn, Import, IntrinsicLiteral,
     LiteralProjectionSpan, MatchBranch, MatchExpression, MemberAccess, MethodCall,
-    MethodDeclaration, ModuleScope, ParsedFile, PatternBinding, PatternDeclaration,
-    PipelineApplication, PipelineArgument, RecordExpression, RecordField, RecordPatternBinding,
-    RecordType, Token, TypeAlias, TypeSource, TypeUse, UncertainSpan, UnconstrainedMember,
-    UnionCasePayload,
+    MethodDeclaration, ModuleScope, OperatorBinding, ParsedFile, PatternBinding,
+    PatternDeclaration, PipelineApplication, PipelineArgument, RecordExpression, RecordField,
+    RecordPatternBinding, RecordType, Token, TypeAlias, TypeSource, TypeUse, UncertainSpan,
+    UnconstrainedMember, UnionCasePayload,
 };
 use std::collections::{HashMap, HashSet};
 use std::{
@@ -326,6 +326,9 @@ fn parse_impl_with_projection(source: &str, signature: bool, allow_projection: b
         })
         .collect();
     let mut tokens = Vec::new();
+    let mut operator_uses = Vec::new();
+    let mut operator_proofs_complete =
+        !signature && projection.is_none() && !tree.root_node().has_error();
     let mut stack = vec![tree.root_node()];
     while let Some(n) = stack.pop() {
         if crate::cancellation::is_cancelled() {
@@ -336,6 +339,34 @@ fn parse_impl_with_projection(source: &str, signature: bool, allow_projection: b
             "line_comment" | "block_comment" | "comment" | "xml_doc"
         ) {
             continue;
+        }
+        if matches!(n.kind(), "preproc_if" | "fsi_directive_decl" | "attributes")
+            || (n.kind() == "identifier"
+                && (raw(n, source).trim_matches('`').starts_with("op_")
+                    || custom_operator(raw(n, source).trim_matches('`'))))
+        {
+            operator_proofs_complete = false;
+        }
+        if n.kind() == "infix_op" && custom_operator(raw(n, source)) {
+            if operator_uses.len() == 2048 {
+                operator_proofs_complete = false;
+            } else {
+                let row = n.start_position().row;
+                let column = if ascii[row] {
+                    n.start_position().column as u32
+                } else {
+                    source[lines[row]..n.start_byte()].encode_utf16().count() as u32
+                };
+                operator_uses.push(Token {
+                    text: raw(n, source).into(),
+                    start: n.start_byte(),
+                    end: n.end_byte(),
+                    line: row as u32,
+                    column,
+                    end_column: column + raw(n, source).len() as u32,
+                    ident: false,
+                });
+            }
         }
         // Named operator identifiers are atomic even when their grammar has children.
         if n.child_count() == 0 || n.kind() == "op_identifier" {
@@ -395,6 +426,9 @@ fn parse_impl_with_projection(source: &str, signature: bool, allow_projection: b
         .map(|(i, t)| (t.start, i))
         .collect();
     let parsed = ParsedFile {
+        operator_uses,
+        operator_bindings: Vec::new(),
+        operator_proofs_complete,
         tokens,
         declarations: Vec::new(),
         potential_bindings: Vec::new(),
@@ -540,6 +574,13 @@ fn parse_impl_with_projection(source: &str, signature: bool, allow_projection: b
     x.parsed
 }
 
+fn custom_operator(text: &str) -> bool {
+    // Initial definition-only additive family; exclude built-in/special operators.
+    (3..=32).contains(&text.len())
+        && text.starts_with('+')
+        && text.bytes().all(|b| b == b'+' || b == b'-')
+}
+
 fn env_limit(name: &str, default: u64) -> u64 {
     std::env::var(name)
         .ok()
@@ -566,6 +607,9 @@ fn rss_bytes() -> Option<u64> {
 }
 fn unavailable(source: &str, reason: &str) -> ParsedFile {
     ParsedFile {
+        operator_uses: Vec::new(),
+        operator_bindings: Vec::new(),
+        operator_proofs_complete: false,
         tokens: Vec::new(),
         declarations: Vec::new(),
         potential_bindings: Vec::new(),
@@ -1840,6 +1884,61 @@ impl Extractor<'_> {
                                 left,
                                 recursive || group_start.is_some(),
                             );
+                            // Preserve general/reference uncertainty; certify only this
+                            // separate ordinary module-level binary definition role.
+                            if self.parsed.operator_bindings.len() == 256 {
+                                self.parsed.operator_proofs_complete = false;
+                            } else if ctx.top
+                                && names.is_some()
+                                && !prefix
+                                    .split_whitespace()
+                                    .any(|word| matches!(word, "inline" | "mutable" | "use"))
+                            {
+                                let text = raw(c, self.source);
+                                let trimmed = text
+                                    .strip_prefix('(')
+                                    .and_then(|text| text.strip_suffix(')'))
+                                    .map(str::trim);
+                                let args = children(left)
+                                    .into_iter()
+                                    .find(|child| child.kind() == "argument_patterns");
+                                let ordinary_args = args.is_some_and(|args| {
+                                    let args = children(args);
+                                    args.len() == 2
+                                        && args.iter().all(|arg| {
+                                            simple_pattern_name(*arg).is_some_and(|name| {
+                                                raw(name, self.source)
+                                                    .as_bytes()
+                                                    .first()
+                                                    .is_some_and(u8::is_ascii_lowercase)
+                                            })
+                                        })
+                                });
+                                if let (Some(name), Some(token)) = (
+                                    trimmed.filter(|name| {
+                                        custom_operator(name)
+                                            && ordinary_args
+                                            && !text.contains(['\r', '\n'])
+                                    }),
+                                    self.token(c),
+                                ) {
+                                    let mut operator = self.parsed.tokens[token].clone();
+                                    let prefix = text.find(name).unwrap();
+                                    operator.start += prefix;
+                                    operator.end = operator.start + name.len();
+                                    operator.column += text[..prefix].encode_utf16().count() as u32;
+                                    operator.end_column = operator.column + name.len() as u32;
+                                    operator.text = name.into();
+                                    operator.ident = false;
+                                    self.parsed.operator_bindings.push(OperatorBinding {
+                                        operator,
+                                        declaration_start: node.start_byte(),
+                                        visible_start: visible,
+                                        scope_end: ctx.end,
+                                        module: ctx.module.clone(),
+                                    });
+                                }
+                            }
                             self.uncertain(node.start_byte(),ctx.end,"Custom operator/active-pattern declaration needs semantic identity");
                             self.parsed.uncertain.last_mut().unwrap().binding_names = names;
                         }
@@ -7817,5 +7916,64 @@ type Factory =
             "Microsoft.FSharp.Core.AutoOpenAttribute"
         );
         assert_eq!(qualified.attributes[0].owner, "N.Helpers");
+    }
+    #[test]
+    fn custom_operator_sparse_facts_preserve_tokens_and_disable_on_caps() {
+        let source =
+            "module M\nlet (+++) left right = left + right\nlet answer = (* 😀 *) 1 +++ 2\n";
+        let parsed = parse(source);
+        assert!(parse(&source.replace("(+++)", "(\n +++\n)"))
+            .operator_bindings
+            .is_empty());
+        assert!(!parse(&(source.to_owned() + "let ``+++`` a b = a+b\n")).operator_proofs_complete);
+        assert!(parsed.operator_proofs_complete);
+        assert_eq!(
+            parsed.operator_bindings.len(),
+            1,
+            "{:?}",
+            parsed.operator_bindings
+        );
+        assert_eq!(parsed.operator_uses.len(), 1);
+        assert_eq!(
+            parsed.operator_bindings[0].operator.range(),
+            crate::syntax::Range {
+                start: crate::syntax::Position {
+                    line: 1,
+                    character: 5
+                },
+                end: crate::syntax::Position {
+                    line: 1,
+                    character: 8
+                }
+            }
+        );
+        let at = parsed.operator_uses[0].column + 1;
+        assert!(parsed.token_at(2, at).is_none());
+        assert_eq!(
+            parse(&source.replace("+++", "++-")).operator_bindings.len(),
+            1
+        );
+        for unsupported in ["&&", "||", "::", "|>", "**"] {
+            assert!(parse(&source.replace("+++", unsupported))
+                .operator_bindings
+                .is_empty());
+        }
+        assert!(
+            !parse(&(source.to_owned() + "let op_Addition a b = a+b\n")).operator_proofs_complete
+        );
+        let many = format!(
+            "module M\n{}",
+            "let (+++) left right = left + right\n".repeat(257)
+        );
+        let capped = parse(&many);
+        assert_eq!(capped.operator_bindings.len(), 256);
+        assert!(!capped.operator_proofs_complete);
+        let many_uses = format!("module M\n{}", "let value = 1 +++ 2\n".repeat(2049));
+        let capped_uses = parse(&many_uses);
+        assert_eq!(capped_uses.operator_uses.len(), 2048);
+        assert!(!capped_uses.operator_proofs_complete);
+        assert!(
+            !parse("module M\n#if ACTIVE\nlet (+++) a b = a+b\n#endif\n").operator_proofs_complete
+        );
     }
 }

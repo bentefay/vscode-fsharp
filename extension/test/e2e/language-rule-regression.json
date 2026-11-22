@@ -12,14 +12,6 @@
         "Active.fs": "module ActiveCase\n[<RequireQualifiedAccess>]\ntype Other =\n    | Hit of int\nlet (|Hit|_|) value = if value > 0 then Some value else None\nlet classify value =\n    match value with\n    | Hit captured -> captured\n    | _ -> 0\n",
         "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Active.fs\" /></ItemGroup></Project>\n"
       }
-    },
-    {
-      "id": "custom-symbolic-operator",
-      "project": "App.fsproj",
-      "files": {
-        "Operator.fs": "module SymbolicScope\nmodule Other =\n    let (+++) left right = left + right\nmodule Selected =\n    let (+++) left right = left - right\n    let answer = (* 😀 *) 7 +++ 2\n",
-        "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Operator.fs\" /></ItemGroup></Project>\n"
-      }
     }
   ],
   "cases": [
@@ -89,60 +81,6 @@
         ],
         "supportClaim": "Parser declares active-pattern case identities, but scoped resolution is explicitly conservative; current editor coverage marks this family pending. No claim of an already passing exact UI feature; any refusal stays a strict failure.",
         "navigationSpanPolicy": "Case identifier token Hit in (|Hit|_|), excluding recognizer delimiters."
-      }
-    },
-    {
-      "id": "custom-symbolic-operator-full-span",
-      "ruleId": "custom-symbolic-operator-full-span",
-      "fixture": "custom-symbolic-operator",
-      "query": {
-        "file": "Operator.fs",
-        "line": 5,
-        "character": 29,
-        "token": "+++",
-        "tokenStart": 28
-      },
-      "expected": {
-        "kind": "exact",
-        "target": {
-          "file": "Operator.fs",
-          "range": {
-            "start": {
-              "line": 4,
-              "character": 9
-            },
-            "end": {
-              "line": 4,
-              "character": 12
-            }
-          },
-          "text": "+++"
-        },
-        "forbidden": [
-          {
-            "file": "Operator.fs",
-            "range": {
-              "start": {
-                "line": 2,
-                "character": 9
-              },
-              "end": {
-                "line": 2,
-                "character": 12
-              }
-            },
-            "text": "+++"
-          }
-        ]
-      },
-      "oracle": {
-        "kind": "authored-lexical-symbolic-operator-binding",
-        "explanation": "The infix +++ used inside Selected denotes Selected’s locally declared operator, not the same-spelled operator in unopened sibling Other. The target is all three operator characters, excluding declaration parentheses. An astral comment before the query requires UTF-16 indexing, and the caret is inside the operator. The operands are integers, so both declarations are valid ordinary function bindings; no overload inference or external member resolution is required.",
-        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/operator-overloading",
-        "additionalSources": [
-          "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules"
-        ],
-        "supportClaim": "Parser records op_identifier declarations but retains uncertainty that custom operator/active-pattern declarations need semantic identity. Existing public coverage lacks real symbolic-operator F12 support. This strict exact semantic/span contract is a requested missing rule, not a claim that declaration parsing establishes support; refusal remains a strict failure."
       }
     }
   ]

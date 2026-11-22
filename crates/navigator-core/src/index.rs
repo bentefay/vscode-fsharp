@@ -186,9 +186,9 @@ fn stamp(path: &str) -> Result<(u64, u64)> {
 // Both modes persist ParsedFile in bincode; its layout is part of the key.
 fn summary_revision(indexed: bool) -> &'static str {
     if indexed {
-        "treesitter-fsharp-0.3.13-summary6:"
+        "treesitter-fsharp-0.3.13-summary7:"
     } else {
-        "lexical-summary3:"
+        "lexical-summary4:"
     }
 }
 fn bounded_source(path: &str, limit: usize) -> Result<String> {
@@ -840,11 +840,15 @@ impl Index {
         let _scope = self.cancellation.enter();
         crate::foreground::parse()?;
         let projected = crate::context::project(source, context, &self.cancellation)?;
-        let parsed = if project::signature(path) {
+        let mut parsed = if project::signature(path) {
             crate::treesitter::parse_signature(&projected)
         } else {
             crate::parse_indexed(&projected)
         };
+        if projected != source {
+            // Definition-only operator certificates never infer an active branch.
+            parsed.operator_proofs_complete = false;
+        }
         self.counters.files_parsed += 1;
         self.cancellation.check()?;
         if parsed.tokens.is_empty() && !parsed.supported {

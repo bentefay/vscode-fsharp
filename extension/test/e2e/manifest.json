@@ -147,6 +147,14 @@
         "Generic.fs": "module GenericProjection\ntype Human = { Label: string }\ntype Robot = { Label: int }\ntype Envelope<'T> = { Payload: 'T }\nlet read (envelope: Envelope<Human>) = envelope.Payload.Label\n",
         "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Generic.fs\" /></ItemGroup></Project>\n"
       }
+    },
+    {
+      "id": "operator-later-open",
+      "project": "App.fsproj",
+      "files": {
+        "OperatorOpen.fs": "module OperatorOpenShadow\nmodule Imported =\n    let (+++) left right = left - right\nmodule Selected =\n    let (+++) left right = left + right\n    open Imported\n    let answer = (* 😀 *) 7 +++ 2\n",
+        "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"OperatorOpen.fs\" /></ItemGroup></Project>\n"
+      }
     }
   ],
   "cases": [
@@ -2242,6 +2250,132 @@
           "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records"
         ],
         "supportClaim": "The existing native test generic_record_field_substitution_keeps_nominal_identity establishes this supported family in its unit context, not an editor proof for this newly authored fixture. The strict exact obligation is retained if the editor cannot prove it."
+      }
+    },
+    {
+      "id": "custom-symbolic-operator-full-span",
+      "ruleId": "custom-symbolic-operator-full-span",
+      "fixture": "custom-symbolic-operator",
+      "query": {
+        "file": "Operator.fs",
+        "line": 5,
+        "character": 29,
+        "token": "+++",
+        "tokenStart": 28
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Operator.fs",
+          "range": {
+            "start": {
+              "line": 4,
+              "character": 9
+            },
+            "end": {
+              "line": 4,
+              "character": 12
+            }
+          },
+          "text": "+++"
+        },
+        "forbidden": [
+          {
+            "file": "Operator.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 9
+              },
+              "end": {
+                "line": 2,
+                "character": 12
+              }
+            },
+            "text": "+++"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-lexical-symbolic-operator-binding",
+        "explanation": "The infix +++ used inside Selected denotes Selected’s locally declared operator, not the same-spelled operator in unopened sibling Other. The target is all three operator characters, excluding declaration parentheses. An astral comment before the query requires UTF-16 indexing, and the caret is inside the operator. The operands are integers, so both declarations are valid ordinary function bindings; no overload inference or external member resolution is required.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/operator-overloading",
+        "additionalSources": [
+          "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules"
+        ],
+        "supportClaim": "Parser records op_identifier declarations but retains uncertainty that custom operator/active-pattern declarations need semantic identity. Existing public coverage lacks real symbolic-operator F12 support. This strict exact semantic/span contract is a requested missing rule, not a claim that declaration parsing establishes support; refusal remains a strict failure."
+      }
+    },
+    {
+      "id": "operator-later-open-refuses-old-local-proof",
+      "ruleId": "operator.later-open-invalidates-local-proof",
+      "fixture": "operator-later-open",
+      "query": {
+        "file": "OperatorOpen.fs",
+        "line": 6,
+        "character": 29,
+        "tokenStart": 28,
+        "token": "+++"
+      },
+      "expected": {
+        "kind": "unavailable",
+        "forbidden": [
+          {
+            "file": "OperatorOpen.fs",
+            "range": {
+              "start": {
+                "line": 4,
+                "character": 9
+              },
+              "end": {
+                "line": 4,
+                "character": 12
+              }
+            },
+            "text": "+++"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-later-open-shadowing-and-explicit-proof-boundary",
+        "explanation": "The later open Imported supplies the same operator after Selected’s local operator declaration. The infix use must not receive the earlier Selected operator as an exact answer. The intended narrow local-operator proof explicitly declines an intervening open; its existing fallback excludes infix operators from the general candidate domain. Therefore this control requires visible unavailable with no direct or candidate targets, rather than falsely asserting complete exact binding. This is a deliberate supported-refusal boundary, not proof that no language binding exists. The known source binding is Imported’s operator, separately recorded below; changing fallback behavior requires a separately reviewed contract, not silently accepting any result.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/import-declarations-the-open-keyword",
+        "additionalSources": [
+          "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/operator-overloading",
+          "https://fsharp.github.io/fslang-spec/name-resolution/",
+          "https://fsharp.github.io/fslang-spec/expressions/#643-operator-expressions"
+        ],
+        "semanticTarget": {
+          "file": "OperatorOpen.fs",
+          "range": {
+            "start": {
+              "line": 2,
+              "character": 9
+            },
+            "end": {
+              "line": 2,
+              "character": 12
+            }
+          },
+          "text": "+++"
+        },
+        "wrongPriorLocalTarget": {
+          "file": "OperatorOpen.fs",
+          "range": {
+            "start": {
+              "line": 4,
+              "character": 9
+            },
+            "end": {
+              "line": 4,
+              "character": 12
+            }
+          },
+          "text": "+++"
+        },
+        "implementationScopeEvidence": "Native owner explicitly confirmed before execution: later open after binding declines new proof; existing general token domain excludes infix operators, so unavailable/empty locations is the intended fallback. No runtime output consulted.",
+        "reviewStatus": "independent-semantics-approved-before-execution",
+        "sourceSections": "F# specification §14.1.3: open adds values to ExprItems; §6.4.3: infix operator translates to ordinary operator lookup."
       }
     }
   ]
