@@ -22,7 +22,7 @@ test('each scenario has a distinct rule, explicit oracle and a real query token'
     const fixture = manifest.fixtures.find(f => f.id === scenario.fixture);
     assert.ok(fixture, scenario.id);
     assert.ok(scenario.oracle.explanation && /^https:\/\//.test(scenario.oracle.source));
-    const snapshots = [{query: scenario.query, files: {...fixture.files, ...(scenario.edit ? {[scenario.edit.file]: scenario.edit.text} : {})}}];
+    const snapshots = scenario.operation === 'projectTree' ? [] : [{query: scenario.query, files: {...fixture.files, ...(scenario.edit ? {[scenario.edit.file]: scenario.edit.text} : {})}}];
     if (scenario.edit) {
       assert.ok(fixture.files[scenario.edit.file] && typeof scenario.edit.text === 'string' && scenario.edit.baseline);
       assert.notEqual(scenario.edit.text, fixture.files[scenario.edit.file]);
@@ -35,7 +35,8 @@ test('each scenario has a distinct rule, explicit oracle and a real query token'
       assert.equal(files[query.file].split('\n')[query.line].slice(tokenStart, tokenStart + query.token.length), query.token, scenario.id);
     }
     const referenceCase = scenario.operation === 'references';
-    assert.ok((referenceCase ? ['exact', 'incomplete'] : ['exact', 'candidates', 'unavailable']).includes(scenario.expected.kind));
+    assert.ok((scenario.operation === 'projectTree' ? ['ordered-tree'] : scenario.operation === 'hover' ? ['suppressed', 'external', 'unavailable'] : referenceCase ? ['exact', 'incomplete'] : ['exact', 'candidates', 'unavailable']).includes(scenario.expected.kind));
+    if (scenario.operation === 'hover' && scenario.expected.kind !== 'external') { assert.equal(scenario.expected.ownership, scenario.expected.kind === 'suppressed' ? 'workspace' : 'unknown'); assert.equal(scenario.expected.completeness, scenario.expected.kind === 'suppressed' ? 'exact' : 'unavailable'); }
     if (referenceCase) {
       assert.ok(['sidebar', 'peek'].includes(scenario.route));
       assert.equal(typeof scenario.declarationIncluded, 'boolean');
@@ -121,4 +122,46 @@ test('literal spans use UTF-16 coordinates for operators, quoted names and Unico
   assertLiteralSpan(source, 18, 20, '++');
   assertLiteralSpan(source, 22, 24, '😀');
   assert.throws(() => assertLiteralSpan(source, 22, 23, '😀'), 'A partial surrogate is not the authored literal');
+});
+
+// New UI routes do not rewrite any previously accepted or expected-failure contract.
+test('prior seventeen cases and nine fixtures remain frozen', () => {
+  const prior = {fixtures: manifest.fixtures.slice(0, 9), cases: manifest.cases.slice(0, 17)};
+  assert.equal(createHash('sha256').update(JSON.stringify(prior)).digest('hex'),
+    '222a4bf08d39ce94421a95e8e8b65be361eb9c590aa196a19023f7ae462a92f2');
+});
+
+test('tree leaves follow literal compile order and retain physical linked targets', () => {
+  for (const scenario of manifest.cases.filter(c => c.operation === 'projectTree')) {
+    const fixture = manifest.fixtures.find(f => f.id === scenario.fixture);
+    const project = scenario.expected.tree.project;
+    assert.equal(project, fixture.project);
+    const xml = fixture.files[project];
+    const items = [...xml.matchAll(/<Compile Include="([^"]+)"\s*(?:\/>|>([\s\S]*?)<\/Compile>)/g)];
+    const expected = items.map(item => {
+      const link = item[2]?.match(/<Link>([^<]+)<\/Link>/)?.[1];
+      return {file: path.posix.normalize(path.posix.join(path.posix.dirname(project), item[1])), displayPath: (link || item[1]).split('/')};
+    });
+    assert.deepEqual(scenario.expected.tree.leaves, expected);
+    for (const leaf of expected) assert.ok(fixture.files[leaf.file]);
+    assert.notDeepEqual(expected.map(x => x.file), expected.map(x => x.file).sort());
+  }
+});
+
+test('opt-in prepared hover contract pins genuine assets and literal queries', () => {
+  const prepared = JSON.parse(fs.readFileSync(path.join(__dirname, 'prepared-hover-manifest.json'), 'utf8'));
+  for (const scenario of prepared.cases) {
+    const fixture = prepared.fixtures.find(f => f.id === scenario.fixture);
+    assert.equal(fixture.externalAsset, 'prepared-library-hover-v1');
+    assert.equal(scenario.operation, 'hover');
+    assert.ok(['external', 'suppressed'].includes(scenario.expected.kind));
+    assert.equal(scenario.expected.ownership, scenario.expected.kind === 'external' ? 'external' : 'workspace');
+    if (scenario.expected.kind === 'external') assert.ok(scenario.expected.contains.length >= 4);
+    else assert.equal(scenario.expected.completeness, 'exact');
+    for (const hash of Object.values(fixture.assetPins)) assert.match(hash, /^[a-f0-9]{64}$/);
+    if (scenario.expected.kind === 'external') for (const hash of [scenario.oracle.assemblySha256, scenario.oracle.xmlSha256]) assert.match(hash, /^[a-f0-9]{64}$/);
+    const q = scenario.query, line = fixture.files[q.file].split('\n')[q.line];
+    assertLiteralSpan(line, q.character, q.character + q.token.length, q.token, scenario.id);
+    if (scenario.expected.kind === 'external') assert.ok(scenario.oracle.xmlDocId);
+  }
 });

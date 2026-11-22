@@ -27,13 +27,25 @@ def main():
     assert manifest['schemaVersion'] == 1 and manifest['cases'] and manifest['fixtures']
     fixture_ids = [f['id'] for f in manifest['fixtures']]
     assert len(fixture_ids) == len(set(fixture_ids)) and all(re.fullmatch(r'[A-Za-z0-9_-]+', x) for x in fixture_ids)
+    external = [f for f in manifest['fixtures'] if f.get('externalAsset')]
+    descriptor_path = Path(os.environ['FSHARP_E2E_PREPARED_DESCRIPTOR']).resolve() if external and os.environ.get('FSHARP_E2E_PREPARED_DESCRIPTOR') else None
+    assert not external or descriptor_path, 'Prepared asset manifest requires explicit FSHARP_E2E_PREPARED_DESCRIPTOR'
+    prepared = json.loads(descriptor_path.read_text()) if descriptor_path else None
+    if prepared:
+        assert len(external) == len(manifest['fixtures']) == 1, 'Prepared assets must use a separate one-root suite'
+        assert prepared['schemaVersion'] == 1 and external[0]['externalAsset'] == prepared['asset']
+        assert set(prepared['settings']) == {'libraryCatalogPath', 'builtinEnvironmentPath', 'evaluatedModelPath'}
+        assert all(value in prepared['hashes'] for value in prepared['settings'].values()), 'All configured assets must have pinned hashes'
+        assert {key: prepared['hashes'][value] for key, value in prepared['settings'].items()} == external[0]['assetPins'], 'Descriptor assets differ from public immutable catalog/context pins'
+        assert not any(c.get('edit') for c in manifest['cases']), 'Prepared original sources are read-only'
     for fixture in manifest['fixtures']:
-        assert fixture['project'] in fixture['files']
+        assert fixture.get('externalAsset') or fixture['project'] in fixture['files']
         if fixture.get('workspaceFolder'): relative_file(fixture['workspaceFolder'])
         for name, text in fixture['files'].items(): relative_file(name); assert isinstance(text, str)
     for case in manifest['cases']:
         fixture = next(f for f in manifest['fixtures'] if f['id'] == case['fixture'])
-        assert case['query']['file'] in fixture['files'] and case['expected']['kind'] in ('exact', 'candidates', 'unavailable', 'incomplete')
+        assert case['expected']['kind'] in ('exact', 'candidates', 'unavailable', 'incomplete', 'external', 'suppressed', 'ordered-tree')
+        if case.get('operation') != 'projectTree': assert case['query']['file'] in fixture['files']
         if case.get('operation') == 'references': assert case['route'] in ('sidebar', 'peek')
         if case.get('edit'):
             assert case['edit']['file'] in fixture['files'] and isinstance(case['edit']['text'], str)
@@ -43,10 +55,12 @@ def main():
         if case.get('expectedFailure'):
             assert case['expectedFailure'].get('reason') and case['expectedFailure'].get('issue') and case['expectedFailure'].get('match'), 'Expected failures require a scoped reason and error match'
     output.mkdir(parents=True, exist_ok=False)
-    inputs = [code, vsix, manifest_path, HERE/'run.py', HERE/'host.cjs', HERE/'renderer.cjs', HERE/'referenceUi.cjs']
+    inputs = [code, vsix, manifest_path, HERE/'run.py', HERE/'host.cjs', HERE/'renderer.cjs', HERE/'referenceUi.cjs', HERE/'hoverUi.cjs', HERE/'treeUi.cjs']
+    if descriptor_path: inputs.append(descriptor_path)
     hashes = {str(p): digest(p) for p in inputs}
-    for p in [manifest_path, HERE/'run.py', HERE/'host.cjs', HERE/'renderer.cjs', HERE/'referenceUi.cjs']:
+    for p in [manifest_path, HERE/'run.py', HERE/'host.cjs', HERE/'renderer.cjs', HERE/'referenceUi.cjs', HERE/'hoverUi.cjs', HERE/'treeUi.cjs']:
         shutil.copy2(p, output/p.name)
+    if descriptor_path: shutil.copy2(descriptor_path, output/'prepared-descriptor.json')
     with zipfile.ZipFile(vsix) as archive:
         package = json.loads(archive.read('extension/package.json'))
         assert package['publisher'] + '.' + package['name'] == 'bentefay.fsharp-navigator'
@@ -58,7 +72,29 @@ def main():
     env = {k: v for k, v in os.environ.items() if not k.startswith(('VSCODE_', 'ELECTRON_')) and k != 'NODE_OPTIONS'
            and not re.search(r'(^|_)(TOKEN|PASSWORD|PASSWD|SECRET|CREDENTIAL|AUTHORIZATION|API_KEY|COOKIE)($|_)', k)
            and k not in {'SSH_AUTH_SOCK', 'GIT_ASKPASS', 'SSH_ASKPASS', 'FSHARP_BACKEND_PATH', 'FSHARP_TEST_VSIX'}}
+    if prepared and prepared.get('environment'):
+        assert set(prepared['environment']) == {'DOTNET_ROOT'}, 'Only certified SDK spelling may be restored'
+        sdk = prepared['environment']['DOTNET_ROOT']
+        assert Path(sdk).resolve() == Path(env['DOTNET_ROOT']).resolve(), 'Prepared SDK must be the already approved physical SDK'
+        model = json.loads(Path(prepared['settings']['evaluatedModelPath']).read_text())
+        sdk_hash = hashlib.sha256(sdk.encode()).hexdigest()
+        for project in model['projects']:
+            witnesses = [entry for entry in project['environmentCertificate']['inputs'] if entry.get('name') == 'DOTNET_ROOT']
+            assert len(witnesses) == 1 and witnesses[0]['sha256'] == sdk_hash, 'SDK spelling must match every original environment certificate'
+        report['preparedEnvironmentRestoration'] = {'name': 'DOTNET_ROOT', 'original': env['DOTNET_ROOT'], 'restored': sdk, 'sha256': sdk_hash, 'samePhysicalSDK': True}
+        env['DOTNET_ROOT'] = sdk
+    def verify_prepared():
+        if not prepared: return None
+        observed = {name: digest(name) for name in prepared['hashes']}
+        assert observed == prepared['hashes'], 'Prepared provenance or input hash changed'
+        assert all(not Path(name).exists() for name in prepared['missingPaths']), 'Prepared missing-input witness changed'
+        assert all(Path(name).is_dir() for name in prepared['directories']), 'Prepared directory witness changed'
+        return {'hashes': observed, 'missingPaths': prepared['missingPaths'], 'directories': prepared['directories'], 'verified': True}
     try:
+        if prepared:
+            report['preparedInputsBefore'] = verify_prepared()
+            report['preparationBoundary'] = 'Explicit opt-in original path-bound prepared root and genuine catalog/environment/model; no certificate relocation, edits, build, restore or helper invocation. New native index/cache lives in disposable extension storage.'
+            report['noPreparation'] = 'This run consumes existing explicitly prepared assets. It does not establish default unprepared hover behavior.'
         with tempfile.TemporaryDirectory(prefix='fsnav-packaged-e2e-') as td:
             temp = Path(td); roots = {}; workspace_roots = {}; fixtures = temp/'fixtures'; fixtures.mkdir()
             for key in ('XDG_CACHE_HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME', 'XDG_RUNTIME_DIR', 'TMPDIR'):
@@ -67,6 +103,13 @@ def main():
             report['privateEnvironmentDirectories'] = {key: env[key] for key in ('XDG_CACHE_HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME', 'XDG_RUNTIME_DIR', 'TMPDIR')}
             report['fixtureAncestors'] = [str(p) for p in fixtures.parents]
             for fixture in manifest['fixtures']:
+                if fixture.get('externalAsset'):
+                    root = Path(prepared['root']).resolve(); assert root.is_dir() and (root/relative_file(fixture['project'])).is_file()
+                    for name, text in fixture['files'].items():
+                        assert (root/relative_file(name)).read_text() == text, 'Prepared source differs from authored snapshot'
+                        assert str(root/relative_file(name)) in prepared['hashes'], 'Prepared query source must be hash-pinned'
+                    roots[fixture['id']] = str(root); workspace_roots[fixture['id']] = str(root)
+                    continue
                 root = fixtures/fixture['id']; root.mkdir(); roots[fixture['id']] = str(root)
                 workspace_roots[fixture['id']] = str(root/fixture.get('workspaceFolder', '.'))
                 for name, text in fixture['files'].items():
@@ -82,6 +125,7 @@ def main():
                         'extensions.autoCheckUpdates': False, 'workbench.enableExperiments': False,
                         'workbench.startupEditor': 'none', 'window.restoreWindows': 'none',
                         'security.workspace.trust.startupPrompt': 'never', 'fsharpNavigator.mode': 'indexed'}
+            if prepared: settings.update({'fsharpNavigator.'+key:value for key,value in prepared['settings'].items()})
             (user/'User/settings.json').write_text(json.dumps(settings)); report['settings'] = settings
             (probe/'package.json').write_text(json.dumps({'name': 'packaged-e2e-probe', 'publisher': 'test', 'version': '0.0.0', 'engines': {'vscode': '^1.108.0'}, 'main': 'index.js', 'activationEvents': ['*']}))
             (probe/'index.js').write_text('exports.activate = () => {};')
@@ -120,8 +164,11 @@ def main():
     except Exception as error:
         report['runnerError'] = str(error)
     finally:
+        if prepared:
+            try: report['preparedInputsAfter'] = verify_prepared()
+            except Exception as error: report['preparedInputError'] = str(error)
         report['inputsAfter'] = {str(p): digest(p) for p in inputs}; report['inputsUnchanged'] = hashes == report['inputsAfter']
-        report['passed'] = bool(report.get('editorExitCode') == 0 and report.get('fixturesUnchanged') and report['inputsUnchanged'] and report.get('host', {}).get('passed'))
+        report['passed'] = bool(report.get('editorExitCode') == 0 and report.get('fixturesUnchanged') and report['inputsUnchanged'] and report.get('host', {}).get('passed') and (not prepared or report.get('preparedInputsAfter', {}).get('verified')))
         (output/'report.json').write_text(json.dumps(report, indent=2)+'\n')
     print(json.dumps({'passed': report['passed'], 'cases': [{'id': c['id'], 'status': c['status']} for c in report['cases']], 'output': str(output)}))
     raise SystemExit(0 if report['passed'] else 1)

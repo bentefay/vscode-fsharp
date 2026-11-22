@@ -89,7 +89,7 @@ export class TestCommand extends Command {
       for (const key of ['FSHARP_E2E_CODE', 'FSHARP_E2E_VSIX', 'FSHARP_E2E_OUTPUT']) if (!process.env[key]) throw new Error(`${key} is required for the immutable packaged editor gate.`);
       await exec('extension/test/with-display.sh', ['python3', 'extension/test/e2e/run.py',
         '--code', process.env.FSHARP_E2E_CODE, '--vsix', process.env.FSHARP_E2E_VSIX,
-        '--manifest', path.join(root, 'extension/test/e2e/manifest.json'), '--output', process.env.FSHARP_E2E_OUTPUT], { timeout: 240000 });
+        '--manifest', process.env.FSHARP_E2E_MANIFEST || path.join(root, 'extension/test/e2e/manifest.json'), '--output', process.env.FSHARP_E2E_OUTPUT], { timeout: 240000 });
       return;
     }
     if(this.layer==='unit') return check();

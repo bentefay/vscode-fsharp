@@ -1,8 +1,12 @@
 # Immutable packaged-editor navigation gate
 
-The current manifest contains **12 definition scenarios and 5 References route
-scenarios**. The final References cohort and its identical frozen-input repeat
-each passed **16 required scenarios** and reproduced the one existing signature-candidate known failure separately. See
+The current ordinary manifest contains **12 definition scenarios, 5 References
+route scenarios, 2 hover safety scenarios and 1 project-tree scenario**. The
+corrected ordinary cohort and its identical frozen-input repeat each passed
+**19 required scenarios** and reproduced the
+one existing signature-candidate known failure separately. The separate prepared
+hover suite is **0/3 verified**: all three cases timed out before a fresh usable
+editor result, so positive rendered library documentation remains unverified. See
 [References details](#native-references-slice) for UI/range confidence boundaries.
 
 The preceding definition-only slice contained 12 scenarios. The first
@@ -136,8 +140,8 @@ Dirty edits use supported WorkspaceEdit, not simulated physical typing.
 
 ## Remaining scope
 
-The required manifest has 17 scenarios: 16 pass and one is a known defect. At least
-7 more scenarios are needed even to reach the proposed 24-case floor, which
+The ordinary manifest has 20 scenarios: 19 pass and one is a known defect. At least
+4 more ordinary scenarios are needed even to reach the proposed 24-case floor, which
 is not a completeness claim. The [traceable matrix](../../../docs/e2e-coverage.md)
 records distinct language rules, explicit unsupported outcomes, References,
 hover and tree work, and the next decision. Provider-only support is not a
@@ -186,8 +190,8 @@ reachable and a deliberate known-use click must select the current full range.
 
 Readiness uses bounded polling of matching fresh results and rendered state,
 not a fixed sleep. The earlier idle-definition Escape observation interval is
-unchanged. This slice does not test References cancellation, dirty edits,
-restart, virtualized large lists, hover or project-tree actions.
+unchanged. The References slice does not test References cancellation, dirty edits,
+restart or virtualized large lists. Hover/tree coverage is separated below.
 
 The first four direct-application lambda reference cases remain in
 [reference-proof-backlog.json](reference-proof-backlog.json), with their valid
@@ -196,3 +200,77 @@ required gate or counted as passes. The first incomplete-state attempt exposed
 a raw-payload/provider distinction in the harness; a subsequent observer checked
 the explanatory message before it arrived. Both failed reports are retained.
 See the coverage matrix for the precise failure classifications.
+
+## Rendered hover and ordered project tree
+
+The ordinary manifest adds a fresh local-parameter hover suppression check, an
+explicitly unsupported unprepared module-homonym check, and one ordered tree
+scenario. Hover uses the supported `editor.action.showHover` command and waits
+for a fresh response and rendered widget state. Exact workspace ownership and
+unknown ownership are different contracts. The latter does not prove absence;
+it checks that unavailable ownership does not produce speculative library docs.
+Negative widget checks are snapshots after the fresh response, not a proof
+against every possible late publication schedule.
+
+The tree scenario focuses the contributed Solution view, expands actual rows
+with pointer input, and checks the complete rendered hierarchy. Compile order
+is deliberately nonalphabetic and interleaves repeated folder runs. Every leaf
+is clicked and must change the active physical URI, including a logical
+`Links/Remote.fs` row whose file is outside the mounted App directory. Model
+inspection supplies only project identity/readiness. It is not counted as
+rendered order or a file-open assertion. This does not establish selected
+project semantic context or stale-row rejection.
+
+The separate [prepared hover manifest](prepared-hover-manifest.json) checks
+rendered `List.map` and `System.String.IsNullOrEmpty` declaration documentation,
+plus suppression for a workspace member colliding with the framework name.
+Names and discriminating signature/documentation text are authored from pinned
+DLL/XML assets, not copied from a provider response. It does not test use-site
+generic specialization. This suite requires genuine existing path-bound
+catalog, builtin environment and evaluated-model assets; a clean checkout alone
+cannot reproduce it. Never relocate certificates by rewriting paths or hashes.
+
+Run it separately using the same pinned editor/package arguments above, plus:
+
+```sh
+FSHARP_E2E_MANIFEST=extension/test/e2e/prepared-hover-manifest.json \
+FSHARP_E2E_PREPARED_DESCRIPTOR=/absolute/path/reviewed-local-descriptor.json \
+FSHARP_E2E_OUTPUT=/absolute/path/new-prepared-results \
+  cli/bin/run test e2e
+```
+
+The private descriptor has schemaVersion 1, asset `prepared-library-hover-v1`,
+the original root, settings for `libraryCatalogPath`, `builtinEnvironmentPath`
+and `evaluatedModelPath`, a `hashes` map of absolute input paths to SHA-256,
+`missingPaths` and `directories` witnesses. Its configured asset hashes must
+match the public manifest pins. Sources must match the authored snapshots.
+Every recorded input is checked before and after execution. An optional
+`environment` object may restore only `DOTNET_ROOT`: its literal value must
+match every project certificate and resolve to the same already provisioned
+SDK as the inherited protected CLI environment. It cannot select another SDK.
+No preparation, compiler, restore or manual indexing is performed by this
+runner. Test storage and editor configuration remain disposable. Descriptors,
+raw reports and path-bound assets are private prerequisites, not public files.
+
+First failures are retained. The unprepared homonym's original exact-ownership
+expectation is preserved in [hover-proof-backlog.json](hover-proof-backlog.json),
+not scored as a pass. An initial tree observer saw an expanded indicator before
+its children arrived; readiness now requires rendered descendants too. Investigating the
+initial prepared timeouts reproduced an SDK environment fingerprint rejection
+in a read-only native replay, caused by different path spellings for the same SDK. Restoring the original certified
+spelling in the isolated process is a setup correction, not a runtime or
+certificate change, and that failed run is not erased.
+
+### Prepared hover execution remains blocked
+
+Both prepared attempts failed all three fresh-result waits; these are not
+expected failures and do not pass the optional suite. Correcting the certified
+SDK spelling resolved the environment error in a read-only native probe, but
+did not resolve the editor run. No fresh classified hover result or positive
+widget was observed there. The editor reported no model/catalog load and no
+compiler/helper/decompiler starts. The remaining editor-child setup/response
+blocker is unresolved. Do not infer a hover semantic defect, successful
+prepared ownership suppression, or successful documentation rendering from
+these timeouts. The strict authored contracts are retained for a separately
+diagnosed prepared setup; there is no synthetic replacement catalog or relaxed
+expected outcome.

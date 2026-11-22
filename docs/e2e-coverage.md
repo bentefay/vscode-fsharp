@@ -1,6 +1,12 @@
 # Packaged editor coverage and remaining gates
 
-The References slice extends source checkpoint
+The current ordinary hover/tree slice extends verified main
+`db56caf48d8597cb016c1d4577b74b7bc4f0778b`: **19 required passes and one scoped
+signature failure across 20 scenarios**. The separate three-case prepared hover
+attempt remains **0/3 verified**, blocked before fresh usable editor responses.
+Positive rendered library documentation is not a passing feature here.
+
+The preceding References slice extends source checkpoint
 `70b00733090db4ddc239109c60622897b0bfa09e`. Its final pinned Code 1.108.0
 run and its identical frozen-input repeat each passed **16 required scenarios**,
 with the existing signature-candidate known failure reproduced separately. These are **12 definition scenarios and
@@ -125,11 +131,11 @@ runner's immutable input snapshot/hash set.
 | Possible References action | Same fixture, click warning action | Four reachable physical occurrences including unrelated homonyms; explicit full-range selection | Pass; not semantic completeness |
 | Repeats and currentness | `reference-edits`, linked edit/delete/rebind, repeated action | Deduplication, updated rows, stale rows cannot navigate | Pending |
 | Reference cancellation/restart | Same fixture, actual pending cancel/restart | No late stale publication/navigation | Pending; sidebar non-cancellable token differs from Shift+F12 |
-| External library hover | `external-docs`, rendered Show Hover | Reviewed catalog identity, exact signature/docs | Pending; needs legitimate catalog assets, no implicit preparation |
-| Hover suppression | `hover-collision`, actual hover | No library content on source collision/missing or stale catalog | Pending |
+| External library hover | Separate `hover-core-list-map` and `hover-framework-string-test`, Show Hover | Pinned name and discriminating signature/docs in actual widget | Blocked: 0/2 positive cases verified; see rendered slice below |
+| Hover suppression | `hover-local-parameter-suppressed`; `hover-unprepared-homonym-unavailable`; separate prepared framework homonym | Fresh exact workspace suppression versus explicit unknown/unavailable; no speculative widget | Ordinary two pass; prepared collision blocked; stale catalog pending |
 | Hover restart | Same fixture, restart then hover | Current identity/content; no cached wrong owner | Pending |
-| Project compile order | `ordered-tree`, open/expand view | Visible nonalphabetic compile order, including repeated folders | Pending |
-| Tree file actions | Same fixture, actual row click | Correct active file URI, then real F12 | Pending |
+| Project compile order | `project-tree-compile-order-linked-path`, pointer expansion | Exact rendered nonalphabetic order, repeated folders and linked display path | Pass |
+| Tree file actions | Same fixture, click each of five rows | Each click changes to authored physical URI; no transient unrelated file | Pass for file opens; subsequent context-sensitive F12 pending |
 | Tree linked context | `linked-tree`, select duplicate instance | Correct selected project and navigation context | Pending |
 | Tree changes/discovery | Same fixture, rename/project edit/restart | Current order/paths; incomplete discovery not represented as complete | Pending |
 
@@ -197,8 +203,8 @@ publication defect or prove that the text would never arrive.
 
 Keep the signature-candidate repro: its proposed exclusion remains blocked by
 unproven signature applicability in raw project context. Do not drop plausible
-candidates or add implicit evaluation to make that gate pass. The next test slice
-is rendered library-only hover and ordered tree/file actions. Reference dirty
+candidates or add implicit evaluation to make that gate pass. The rendered hover/tree slice is described below; selected-context tree
+semantics and stale selection remain unqualified. Reference dirty
 edits, real in-flight cancellation and restart remain additional separate gates;
 the direct-application proof gap remains in the explicit backlog.
 Do not fabricate hover catalog ownership or claim an unwitnessed pending race.
@@ -220,3 +226,65 @@ reported zero Actions runs and zero check-runs; the repository has no tracked
 is not evidence of a running CI job. Remote runs/checks are queried again after
 publication; absent checks must not be described as CI passing. Normal-sandbox
 Ubuntu GUI acceptance remains unobserved.
+
+## Rendered hover/tree slice
+
+This test-only slice extends `db56caf48d8597cb016c1d4577b74b7bc4f0778b`.
+The original 17 cases and nine fixtures remain frozen. The ordinary manifest
+now has 20 scenarios. The corrected run and its identical frozen-input repeat
+each passed 19 required scenarios and reproduced the same scoped signature failure.
+Its 22 phase records include the two earlier dirty baselines, not additional
+language rules. The package and native executable above remain unchanged.
+
+[Hover observer](../extension/test/e2e/hoverUi.cjs) invokes the supported editor
+Show Hover command, proves a fresh response, and inspects the actual visible
+widget. A local parameter proves workspace ownership and intentionally returns
+no hover. The unprepared workspace module homonym instead returns unknown
+ownership/unavailable: absence of speculative library content passes only the
+explicit unsupported contract. Its valid exact-ownership expectation remains
+in [hover-proof-backlog.json](../extension/test/e2e/hover-proof-backlog.json),
+with the original source and first executed manifest digest. This is a
+conservative ownership coverage gap, not a false library result or an exact
+ownership success. Negative widget assertions are fresh-response snapshots;
+late publication, dirty hover and restart remain untested.
+
+[Tree observer](../extension/test/e2e/treeUi.cjs) uses model data only to identify
+the authored project. Actual pointer expansion must reveal the exact five-leaf
+compile order and nesting, including repeated folder runs and a logical linked
+path. Every row is hit-testable and clicked; the active URI must change to its
+physical target, including the file outside the App workspace folder. This is
+not proof of an active semantic project context, stale-selection refusal or
+large-list virtualization. The first attempt failed because the observer saw
+the expanded indicator before any children; the corrected predicate waits for
+rendered descendants without a fixed sleep or longer timeout.
+
+The separate [prepared manifest](../extension/test/e2e/prepared-hover-manifest.json)
+uses genuine pinned DLL/XML catalog, builtin environment and evaluated-model
+assets. The two positive contracts require the actual `map` and `IsNullOrEmpty`
+names plus discriminating declaration signature and XML documentation text.
+A third contract rejects framework content on a proven workspace-owned homonym.
+These are explicit prepared-asset cases, not default first-use hover. The
+runner checks path-bound inputs before/after and uses disposable index storage;
+it does not generate or rewrite certificates. Investigating the first prepared
+timeouts reproduced an environment fingerprint rejection in a read-only native
+replay: protected CLI and original certificate used different path spellings
+for the same SDK. The descriptor can restore only the
+certified spelling of that same physical SDK in the isolated process. This
+setup failure is preserved and is not evidence of a hover semantic defect.
+See [run prerequisites](../extension/test/e2e/README.md#rendered-hover-and-ordered-project-tree);
+a clean checkout alone does not include these external assets.
+
+Both prepared editor attempts timed out in all three fresh-response waits. The
+SDK correction resolved the explicit environment mismatch in a read-only native
+probe but was insufficient in the editor; model/catalog load remained zero.
+No positive documentation widget or classified prepared collision result was
+observed. The remaining child-context/response blocker is unresolved. Strict
+contracts remain opt-in and fail on these setup outcomes; they are neither
+expected failures nor passing E2E coverage. No additional setup or runtime
+changes were made to obtain a green result.
+
+The next separable decision is to diagnose that prepared editor-child context
+and obtain the first rendered positive library hover without changing the
+certificate boundary. References edits/cancellation/restart and selected tree
+context remain separate gaps. Four more ordinary scenarios are needed even
+for the 24-case planning floor; scenario counts do not measure completeness.

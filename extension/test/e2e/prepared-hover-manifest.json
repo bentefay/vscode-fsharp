@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "suite": "opt-in-genuine-prepared-library-hover",
+  "fixtures": [
+    {
+      "id": "genuine-prepared-library-hover",
+      "externalAsset": "prepared-library-hover-v1",
+      "project": "App/App.fsproj",
+      "files": {
+        "Library/RecordFlows.fs": "namespace NavFixture\n\nmodule RecordFlows =\n    type Address = { City: string; Zip: int }\n    type Customer = { Name: string; Home: Address }\n    type Supplier = { Name: string; Code: int }\n    type Box<'T> = { Value: 'T }\n    type CustomerAlias = Customer\n    type Counter = { mutable Count: int }\n\n    let explicitCustomer (customer: Customer) = customer.Name\n    let explicitSupplier (supplier: Supplier) = supplier.Name\n\n    let localAnnotation () =\n        let customer: Customer = { Name = \"local\"; Home = { City = \"London\"; Zip = 1 } }\n        customer.Name\n\n    let qualifiedConstruction () =\n        let customer = { Customer.Name = \"qualified\"; Home = { City = \"Oslo\"; Zip = 2 } }\n        customer.Name\n\n    let inferredConstruction () =\n        let customer = { Name = \"inferred\"; Home = { City = \"Tokyo\"; Zip = 3 } }\n        customer.Name\n\n    let makeCustomer name = { Name = name; Home = { City = \"Paris\"; Zip = 4 } }\n    let makeAnnotated name : Customer = { Name = name; Home = { City = \"Bern\"; Zip = 5 } }\n    let returnedRecord () =\n        let customer = makeCustomer \"returned\"\n        customer.Name\n    let annotatedReturn () =\n        let customer = makeAnnotated \"annotated\"\n        customer.Name\n    let directReturnedRecord () = (makeCustomer \"direct\").Name\n\n    let copiedRecord (customer: Customer) =\n        let updated = { customer with Name = \"updated\" }\n        updated.Name\n\n    let aliasChain (customer: Customer) =\n        let second = customer\n        let third = second\n        third.Name\n\n    let typeAlias (customer: CustomerAlias) = customer.Name\n    let nestedField (customer: Customer) = customer.Home.City\n    let genericCustomer (box: Box<Customer>) = box.Value.Name\n    let genericAddress (box: Box<Address>) = box.Value.City\n\n    let tupleBinders ((customer: Customer), (supplier: Supplier)) =\n        customer.Name, supplier.Name\n\n    let optionBinder (input: Customer option) =\n        match input with\n        | Some customer -> customer.Name\n        | None -> \"none\"\n\n    let annotatedLambda (customers: Customer list) =\n        customers |> List.map (fun (customer: Customer) -> customer.Name)\n\n    let recordPattern ({ Name = name }: Customer) = name\n\n    let dirtyReceiver (receiver: Customer) = receiver.Name\n    let dirtyAlias (left: Customer) (right: Supplier) =\n        let selected = left\n        selected.Name\n\n    let useCounter (counter: Counter) =\n        counter.Count <- counter.Count + 1\n        counter.Count\n\n    module Shadowed =\n        type Customer = Supplier\n        let localAlias (customer: Customer) = customer.Name\n        let outerAlias (customer: CustomerAlias) = customer.Name\n\n    module OuterTypes =\n        type Item = { Name: string }\n    module InnerTypes =\n        type Item = { Name: int }\n        let local (item: Item) = item.Name\n        let outer (item: OuterTypes.Item) = item.Name\n",
+        "App/Consumer.fs": "namespace NavFixture.App\n\nopen NavFixture\nmodule Alias = Arithmetic\n\nmodule Consumer =\n    let direct = Arithmetic.increment 3\n    let alias = Alias.increment 4\n    let api = SignatureApi.exposed 5\n    let externalLibraryHover = System.String.IsNullOrEmpty \"\"\n    // increment is only text in a comment, never a semantic reference.\n    let text = \"increment\"\n\n",
+        "App/App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup><TargetFramework>net10.0</TargetFramework><DefineConstants>FIRST</DefineConstants></PropertyGroup>\n  <ItemGroup><ProjectReference Include=\"../Library/Library.fsproj\" /></ItemGroup>\n  <ItemGroup>\n    <Compile Include=\"../Shared/Linked.fs\"><Link>Shared/Linked.fs</Link></Compile>\n    <Compile Include=\"Consumer.fs\" />\n    <Compile Include=\"LinkedUse.fs\" />\n    <Compile Include=\"RecordConsumer.fs\" />\n  </ItemGroup>\n</Project>\n",
+        "Library/ScopeEdges.fs": "namespace NavFixture\n\nmodule ScopeEdges =\n    let branchValue = 10\n    let fromOption value =\n        match value with\n        | Some branchValue -> branchValue\n        | None -> branchValue\n\nmodule OpenProvider =\n    let shared = 42\n\nmodule OpenConsumer =\n    let shared = 17\n    open OpenProvider\n    let result = shared\n\nmodule LocalSystem =\n    module System =\n        type String =\n            static member IsNullOrEmpty (_value: string) = false\n    let value = System.String.IsNullOrEmpty \"\"\n\nmodule AutoOpenConsumer =\n    let chosen = 1\n    [<AutoOpen>]\n    module Imported =\n        let chosen = 2\n    let selected = chosen\n\n"
+      },
+      "assetPins": {
+        "libraryCatalogPath": "fca3937a3f22cfec7d4ba12cf89135edbceb93f6ed7c188d164fbc2bc2692166",
+        "builtinEnvironmentPath": "0d0f2241fa5989ab4ceea73b5b9740ee1acaaa7ce81652ddc7e8e5f378a3831a",
+        "evaluatedModelPath": "dd8411d4b8606d74d7c420bffb0e7725b577b553c3b99dd11ebfe4bbd0ebe45a"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "hover-core-list-map",
+      "ruleId": "hover-core-list-map",
+      "operation": "hover",
+      "fixture": "genuine-prepared-library-hover",
+      "query": {
+        "file": "Library/RecordFlows.fs",
+        "line": 58,
+        "character": 26,
+        "token": "map"
+      },
+      "expected": {
+        "kind": "external",
+        "name": "map",
+        "contains": [
+          "map",
+          "'T",
+          "'U",
+          "Builds a new collection whose elements"
+        ],
+        "ownership": "external"
+      },
+      "oracle": {
+        "kind": "pinned-library-declaration-and-xml",
+        "explanation": "Expected declaration identity Microsoft.FSharp.Collections.List.map and documentation from the genuine pinned DLL/XML export. Use only the original read-only prepared root with all recorded input hashes verified; no implicit helper, relocation or certificate rewriting. This checks declaration hover, not use-site generic specialization.",
+        "source": "https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-listmodule.html",
+        "xmlDocId": "M:Microsoft.FSharp.Collections.ListModule.Map``2(Microsoft.FSharp.Core.FSharpFunc{``0,``1},Microsoft.FSharp.Collections.FSharpList{``0})",
+        "assemblySha256": "454275e6f64f26c19f989cc0e0c43a2eaf41705fc0f456097faa1da445139394",
+        "xmlSha256": "54f72815016fc2906f3cb38cfb9f9eb89175ce0785832dc8eb5ad1f5e1e6bc72"
+      }
+    },
+    {
+      "id": "hover-framework-string-test",
+      "ruleId": "hover-framework-string-test",
+      "operation": "hover",
+      "fixture": "genuine-prepared-library-hover",
+      "query": {
+        "file": "App/Consumer.fs",
+        "line": 9,
+        "character": 45,
+        "token": "IsNullOrEmpty"
+      },
+      "expected": {
+        "kind": "external",
+        "name": "IsNullOrEmpty",
+        "contains": [
+          "IsNullOrEmpty",
+          "string",
+          "bool",
+          "Indicates whether the specified string"
+        ],
+        "ownership": "external"
+      },
+      "oracle": {
+        "kind": "pinned-library-declaration-and-xml",
+        "explanation": "Expected declaration identity System.String.IsNullOrEmpty and documentation from the genuine pinned DLL/XML export. Use only the original read-only prepared root with all recorded input hashes verified; no implicit helper, relocation or certificate rewriting. This checks declaration hover, not use-site generic specialization.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/api/system.string.isnullorempty",
+        "xmlDocId": "M:System.String.IsNullOrEmpty(System.String)",
+        "assemblySha256": "8e4d60785c1dea2b6aa566bd58fa0cdaee5b211a42c8af9951a7d17aea72b2b0",
+        "xmlSha256": "a6708171773d23000bf45673b97cf0daaa8d34566c6581df6833c3a4a14d411a"
+      }
+    },
+    {
+      "id": "hover-prepared-workspace-framework-homonym",
+      "ruleId": "hover.prepared-workspace-framework-homonym",
+      "operation": "hover",
+      "fixture": "genuine-prepared-library-hover",
+      "query": {
+        "file": "Library/ScopeEdges.fs",
+        "line": 21,
+        "character": 30,
+        "token": "IsNullOrEmpty"
+      },
+      "expected": {
+        "kind": "suppressed",
+        "ownership": "workspace",
+        "completeness": "exact"
+      },
+      "oracle": {
+        "kind": "authored-workspace-ownership-with-genuine-catalog",
+        "explanation": "The nested LocalSystem.System.String type and its static IsNullOrEmpty member are source declarations in the selected workspace. The identical framework short-name member and documentation exist in the genuine loaded catalog, but must not leak onto this workspace-owned member. Require an exact workspace/null native hover response and no rendered hover, not generic unavailable acceptance.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules"
+      }
+    }
+  ]
+}

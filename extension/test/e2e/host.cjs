@@ -7,6 +7,8 @@ const hash = text => crypto.createHash('sha256').update(text).digest('hex');
 const vscode = require('vscode');
 const { connect } = require('./renderer.cjs');
 const { exercise: referenceUi } = require('./referenceUi.cjs');
+const { exercise: hoverUi } = require('./hoverUi.cjs');
+const { exercise: treeUi } = require('./treeUi.cjs');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const same = (a,b) => JSON.stringify(a) === JSON.stringify(b);
 const norm = value => ({ uri: value.uri.toString(), range: { start: { line: value.range.start.line, character: value.range.start.character }, end: { line: value.range.end.line, character: value.range.end.character } } });
@@ -33,6 +35,7 @@ exports.run = async () => {
       try{
         if(test.edit?.baseline)assert.equal(report.cases.find(p=>p.id===test.id+':baseline')?.status,'pass','Positive baseline actual F12 required before edit');
         api.candidates.clear();await vscode.commands.executeCommand('closeReferenceSearch').catch(()=>{});await vscode.commands.executeCommand('leaveEditorMessage');await vscode.commands.executeCommand('notifications.clearAll');
+        if(test.operation==='projectTree'){c.origin=current();active=c;await treeUi({vscode,renderer,api,test,c,roots,wait,current});c.status='pass';continue;}
         if(test.edit){
           const consumer=await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(roots[test.fixture],test.query.file)));c.consumerBeforeEdit={uri:consumer.uri.toString(),version:consumer.version,hash:hash(consumer.getText()),isDirty:consumer.isDirty};
           const uri=vscode.Uri.file(path.join(roots[test.fixture],test.edit.file));editedDocument=await vscode.workspace.openTextDocument(uri);originalText=editedDocument.getText();assert.equal(editedDocument.isDirty,false,'Edit fixture starts clean');const disk=await fs.readFile(uri.fsPath,'utf8');assert.equal(originalText,disk);const version=editedDocument.version;
@@ -43,6 +46,7 @@ exports.run = async () => {
         if(c.consumerBeforeEdit&&test.edit.file!==test.query.file){c.consumerAfterEdit={uri:doc.uri.toString(),version:doc.version,hash:hash(doc.getText()),isDirty:doc.isDirty};assert.deepEqual(c.consumerAfterEdit,c.consumerBeforeEdit,'Consumer unchanged by linked edit');}
         await wait(async()=>{const s=await state();return !s.offer&&!s.picker;},'previous choices cleared');c.origin=current();assert.equal(c.origin.uri,doc.uri.toString());assert.ok(editor.selection.active.isEqual(q));
         await renderer.evaluate(`(()=>{window.__fsnavE2EKeys=[];window.__fsnavE2EKeyListener&&document.removeEventListener('keydown',window.__fsnavE2EKeyListener,true);window.__fsnavE2EKeyListener=e=>window.__fsnavE2EKeys.push({key:e.key,shiftKey:e.shiftKey,altKey:e.altKey,inEditor:!!e.target.closest?.('.monaco-editor'),trusted:e.isTrusted});document.addEventListener('keydown',window.__fsnavE2EKeyListener,true);})()`);
+        if(test.operation==='hover'){active=c;await hoverUi({vscode,renderer,api,test,c,wait,current,noWrongNavigation});c.status='pass';continue;}
         if(test.operation==='references'){active=c;await referenceUi({vscode,renderer,api,test,c,roots,wait,current,norm,noWrongNavigation});c.status=test.expectedFailure?'xpass':'pass';continue;}
         const before=api.lastResult;active=c;await renderer.key('F12');c.keyboard=await renderer.evaluate('window.__fsnavE2EKeys');assert.ok(c.keyboard.some(k=>k.key==='F12'&&!k.shiftKey&&k.inEditor&&k.trusted),'Actual F12 reached focused editor');
         await wait(()=>api.lastResult!==before&&api.lastResult,'Fresh actual-F12 native result');c.nativeResult=api.lastResult;c.collected=api.candidates.getAllCandidates().map(norm);for(const forbidden of test.expected.forbidden||[]){const old=target(test.fixture,forbidden);assert.ok(!(c.nativeResult.locations||[]).map(norm).some(n=>same(n,old)),'Forbidden direct target absent');if(c.collected.some(n=>same(n,old))){
@@ -72,6 +76,6 @@ exports.run = async () => {
         c.status=test.expectedFailure?'xpass':'pass';
       }catch(error){c.errors.push(error.stack);c.status=test.expectedFailure&&error.message==='PRODUCT_OUTCOME: '+test.expectedFailure.match?'xfail':'fail';}finally{active=undefined;c.finalSelection=current();if(renderer)c.finalUi=await state();api.candidates.clear();if(editedDocument){try{await vscode.window.showTextDocument(editedDocument,{preview:false});await vscode.commands.executeCommand('workbench.action.files.revert');assert.equal(editedDocument.isDirty,false,'Revert leaves clean buffer');assert.equal(editedDocument.getText(),originalText);assert.equal(await fs.readFile(editedDocument.uri.fsPath,'utf8'),originalText);c.cleanup={clean:true,hash:hash(originalText)};}catch(error){c.errors.push('Cleanup: '+error.stack);c.status='fail';cleanupFailed=true;}}await save();}if(cleanupFailed){report.errors.push('Stopped after failed dirty-buffer cleanup');break;}
     }
-    report.stats=await api.stats();for(const stat of report.stats)for(const key of ['compilerLaunches','helperStarts','decompilerStarts'])assert.equal(stat[key],0,'No implicit compiler/helper');report.outcomeCounts={};for(const c of report.cases){const outcome=c.nativeResult?.completeness==='exact'?'exact':c.collected?.length?'candidates':c.nativeResult?'unavailable':'unobserved';c.actualOutcome=outcome;report.outcomeCounts[outcome]=(report.outcomeCounts[outcome]||0)+1;}report.passed=report.cases.every(c=>['pass','xfail'].includes(c.status));
+    report.stats=await api.stats();for(const stat of report.stats)for(const key of ['compilerLaunches','helperStarts','decompilerStarts'])assert.equal(stat[key],0,'No implicit compiler/helper');report.outcomeCounts={};for(const c of report.cases){const outcome=c.operation==='projectTree'?(c.status==='pass'?'project-tree':'tree-unverified'):c.operation==='hover'?(c.status==='pass'?'hover-'+c.expected.kind:'hover-unverified'):c.nativeResult?.completeness==='exact'?'exact':c.collected?.length?'candidates':c.nativeResult?'unavailable':'unobserved';c.actualOutcome=outcome;report.outcomeCounts[outcome]=(report.outcomeCounts[outcome]||0)+1;}report.passed=report.cases.every(c=>['pass','xfail'].includes(c.status));
   }catch(error){report.errors.push(error.stack);report.passed=false;}finally{for(const listener of listeners)listener.dispose();renderer?.dispose();await save();}
 };

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "status": "observed-unsupported-ownership-proof-backlog",
+  "executedByRequiredGate": false,
+  "originalExecutedManifestSha256": "6fbce6e019038e4c5b0028ed89dec34c6d9ce946208ecc320ac2408dd790ddbc",
+  "explanation": "The initial ordinary editor run did not establish exact workspace ownership for this valid workspace homonym: the native response was unavailable with unknown ownership and no hover. The original exact-workspace suppression expectation and source are preserved unchanged below, excluded from subsequent required gates and not counted as passing proof coverage. A separate required case checks the conservative unavailable guard; it does not prove ownership. Prepared-context homonym coverage is independent.",
+  "fixtures": [
+    {
+      "id": "hover-source-suppression",
+      "project": "Hover.fsproj",
+      "files": {
+        "Hover.fs": "module HoverSource\nlet local = List.map (fun value -> value) [1]\nmodule List =\n    let map value = value\nlet workspaceHomonym = List.map 3\n",
+        "Hover.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Hover.fs\" /></ItemGroup></Project>\n"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "hover-workspace-module-homonym-suppressed",
+      "ruleId": "hover-workspace-module-homonym-suppressed",
+      "operation": "hover",
+      "fixture": "hover-source-suppression",
+      "query": {
+        "file": "Hover.fs",
+        "line": 4,
+        "character": 28,
+        "token": "map"
+      },
+      "expected": {
+        "kind": "suppressed",
+        "ownership": "workspace",
+        "completeness": "exact"
+      },
+      "oracle": {
+        "kind": "authored-workspace-ownership",
+        "explanation": "The explicit workspace List module declares this map; a library with the same short name must not supply hover text. This is the product library-only hover policy, not a claim that the language lacks a type for the symbol. A native hover request witness is required.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules"
+      }
+    }
+  ]
+}

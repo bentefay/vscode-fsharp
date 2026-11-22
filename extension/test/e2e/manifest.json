@@ -75,7 +75,7 @@
       "id": "references-lexical",
       "project": "References.fsproj",
       "files": {
-        "References.fs": "module ReferenceCases\nlet homonym = List.map (fun value -> value) [99]\nlet used = (* 😀 *) List.map (fun value -> value + 1) [20]\nlet unusedHomonym = List.map (fun neverUsed -> neverUsed) [7]\nlet unused = (* 😀 *) List.map (fun neverUsed -> 42) [0]\n",
+        "References.fs": "module ReferenceCases\nlet homonym = List.map (fun value -> value) [99]\nlet used = (* \ud83d\ude00 *) List.map (fun value -> value + 1) [20]\nlet unusedHomonym = List.map (fun neverUsed -> neverUsed) [7]\nlet unused = (* \ud83d\ude00 *) List.map (fun neverUsed -> 42) [0]\n",
         "References.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"References.fs\" /></ItemGroup></Project>\n"
       }
     },
@@ -88,6 +88,27 @@
         "Consumer.fs": "module Consumer\nlet answer = Across.sharedValue\n",
         "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Across.fs\" /><Compile Include=\"Other.fs\" /><Compile Include=\"Consumer.fs\" /></ItemGroup></Project>\n",
         "Directory.Build.props": "<Project/>\n"
+      }
+    },
+    {
+      "id": "hover-source-suppression",
+      "project": "Hover.fsproj",
+      "files": {
+        "Hover.fs": "module HoverSource\nlet local = List.map (fun value -> value) [1]\nmodule List =\n    let map value = value\nlet workspaceHomonym = List.map 3\n",
+        "Hover.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Hover.fs\" /></ItemGroup></Project>\n"
+      }
+    },
+    {
+      "id": "ordered-nested-linked-tree",
+      "project": "App/TreeOrder.fsproj",
+      "workspaceFolder": "App",
+      "files": {
+        "App/Zebra.fs": "module Zebra\nlet first = 1\n",
+        "App/Folder/Zed.fs": "module Zed\nlet second = 2\n",
+        "App/Alpha.fs": "module Alpha\nlet third = 3\n",
+        "App/Folder/Nested/Beta.fs": "module Beta\nlet fourth = 4\n",
+        "Shared/Linked.fs": "module Linked\nlet fifth = 5\n",
+        "App/TreeOrder.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Zebra.fs\" /><Compile Include=\"Folder/Zed.fs\" /><Compile Include=\"Alpha.fs\" /><Compile Include=\"Folder/Nested/Beta.fs\" /><Compile Include=\"../Shared/Linked.fs\"><Link>Links/Remote.fs</Link></Compile></ItemGroup></Project>\n"
       }
     }
   ],
@@ -1429,6 +1450,103 @@
             "text": "sharedValue"
           }
         ]
+      }
+    },
+    {
+      "id": "hover-local-parameter-suppressed",
+      "ruleId": "hover-local-parameter-suppressed",
+      "operation": "hover",
+      "fixture": "hover-source-suppression",
+      "query": {
+        "file": "Hover.fs",
+        "line": 1,
+        "character": 26,
+        "token": "value"
+      },
+      "expected": {
+        "kind": "suppressed",
+        "ownership": "workspace",
+        "completeness": "exact"
+      },
+      "oracle": {
+        "kind": "authored-workspace-ownership",
+        "explanation": "The queried parameter is declared in this workspace callback, independent of its inferred type. This is the product library-only hover policy, not a claim that the language lacks a type for the symbol. A native hover request witness is required.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules"
+      }
+    },
+    {
+      "id": "hover-unprepared-homonym-unavailable",
+      "ruleId": "hover.unprepared-homonym-unavailable",
+      "operation": "hover",
+      "fixture": "hover-source-suppression",
+      "query": {
+        "file": "Hover.fs",
+        "line": 4,
+        "character": 28,
+        "token": "map"
+      },
+      "expected": {
+        "kind": "unavailable",
+        "ownership": "unknown",
+        "completeness": "unavailable"
+      },
+      "oracle": {
+        "kind": "observed-uncertified-owner-safety-contract",
+        "explanation": "The source declares a workspace List.map homonym, but the unprepared context does not establish its owner under the current conservative proof rules. Require an actual hover request returning unavailable completeness, unknown ownership and no rendered hover or false library documentation. This is an observed unsupported-ownership safety guard, not proof of workspace ownership or absence of a language binding. The original exact-workspace expectation remains unchanged in hover-proof-backlog.json; prepared-context homonym proof is checked separately.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules"
+      }
+    },
+    {
+      "id": "project-tree-compile-order-linked-path",
+      "ruleId": "project-tree.compile-order-nesting-link",
+      "operation": "projectTree",
+      "fixture": "ordered-nested-linked-tree",
+      "expected": {
+        "kind": "ordered-tree",
+        "tree": {
+          "project": "App/TreeOrder.fsproj",
+          "leaves": [
+            {
+              "file": "App/Zebra.fs",
+              "displayPath": [
+                "Zebra.fs"
+              ]
+            },
+            {
+              "file": "App/Folder/Zed.fs",
+              "displayPath": [
+                "Folder",
+                "Zed.fs"
+              ]
+            },
+            {
+              "file": "App/Alpha.fs",
+              "displayPath": [
+                "Alpha.fs"
+              ]
+            },
+            {
+              "file": "App/Folder/Nested/Beta.fs",
+              "displayPath": [
+                "Folder",
+                "Nested",
+                "Beta.fs"
+              ]
+            },
+            {
+              "file": "Shared/Linked.fs",
+              "displayPath": [
+                "Links",
+                "Remote.fs"
+              ]
+            }
+          ]
+        }
+      },
+      "oracle": {
+        "kind": "authored-literal-compile-items",
+        "explanation": "Five explicit Compile items in XML order, deliberately nonalphabetic and interleaving Folder with Alpha. Link defines the logical display path Links/Remote.fs; its physical target remains Shared/Linked.fs outside App. Flattened leaves preserve item order and repeated folder runs. Clicking a leaf must open its actual file URI. This proves neither evaluated MSBuild parity nor an active project context.",
+        "source": "https://learn.microsoft.com/en-us/visualstudio/msbuild/common-msbuild-item-metadata"
       }
     }
   ]
