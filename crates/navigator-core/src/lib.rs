@@ -2077,6 +2077,86 @@ impl Workspace {
         }
         Some(binding.operator.clone())
     }
+    /// Single-partial active case definition only; never a complete reference domain.
+    fn partial_pattern_definition(
+        &self,
+        path: &str,
+        parsed: &ParsedFile,
+        token: usize,
+    ) -> Option<syntax::Token> {
+        if !parsed.partial_pattern_proofs_complete
+            || !parsed.partial_pattern_heads.contains(&token)
+            || parsed.qualifier(token).is_some()
+            || self.possible_signature_context(path, false)
+        {
+            return None;
+        }
+        let usage = &parsed.tokens[token];
+        let module = parsed.module_at(token)?;
+        let selected = parsed
+            .pattern_declarations
+            .iter()
+            .filter(|declaration| {
+                declaration.kind == "active-pattern"
+                    && declaration.name == usage.text
+                    && declaration.module == module
+                    && declaration.top_level
+                    && declaration.scope_start <= usage.start
+                    && usage.start < declaration.scope_end
+            })
+            .max_by_key(|declaration| declaration.scope_start)?;
+        if !parsed.partial_pattern_definitions.contains(&selected.token) {
+            return None;
+        }
+        let after = selected.scope_start;
+        if parsed
+            .partial_pattern_barriers
+            .iter()
+            .any(|offset| after < *offset && *offset < usage.start)
+            || parsed.opens.iter().any(|open| {
+                after < open.offset && open.offset < usage.start && usage.start < open.scope_end
+            })
+            || parsed.aliases.iter().any(|alias| {
+                after < alias.offset && alias.offset < usage.start && usage.start < alias.scope_end
+            })
+            || parsed
+                .modules
+                .iter()
+                .any(|scope| after < scope.start && scope.start < usage.start)
+            || parsed
+                .owned_types
+                .iter()
+                .any(|scope| after < scope.start && scope.start < usage.start)
+            || parsed.pattern_declarations.iter().any(|declaration| {
+                declaration.token != selected.token
+                    && after < declaration.scope_start
+                    && declaration.scope_start <= usage.start
+                    && usage.start < declaration.scope_end
+            })
+            || parsed
+                .declarations
+                .iter()
+                .chain(&parsed.potential_bindings)
+                .any(|declaration| {
+                    declaration.name == usage.text
+                        && after < declaration.visible_start
+                        && declaration.visible_start <= usage.start
+                        && usage.start < declaration.scope_end
+                })
+            || parsed.uncertain.iter().any(|uncertain| {
+                uncertain.start <= usage.start
+                    && usage.start < uncertain.end
+                    && !(uncertain.start == selected.scope_start
+                        && uncertain.end == selected.scope_end
+                        && uncertain.name.as_deref() == Some(selected.name.as_str())
+                        && uncertain.reason
+                            == "Active pattern declaration requires scoped pattern resolution")
+            })
+        {
+            return None;
+        }
+        Some(parsed.tokens[selected.token].clone())
+    }
     fn navigation(&mut self, method: &str, p: &Value) -> Result<Value> {
         let started = Instant::now();
         self.index.counters.query_count += 1;
@@ -2285,7 +2365,12 @@ impl Workspace {
             let mut value = if let Some(operator) = operator {
                 json!({"locations":[{"uri":uri(&path),"range":operator.range()}],"completeness":"exact","source":self.mode.name(),"proof":{"kind":"scoped-custom-infix-definition","invalidation":"source-and-project-snapshot"}})
             } else if let Some(token) = parsed.token_at(line, col) {
-                if hover {
+                if let Some(active_case) = (method == "navigation/definition")
+                    .then(|| self.partial_pattern_definition(&path, &parsed, token))
+                    .flatten()
+                {
+                    json!({"locations":[{"uri":uri(&path),"range":active_case.range()}],"completeness":"exact","source":self.mode.name(),"proof":{"kind":"scoped-single-partial-pattern-definition","invalidation":"source-and-project-snapshot"}})
+                } else if hover {
                     self.hover_native(&path, &parsed, token)?
                 } else if let Some(symbol) = if method == "navigation/references" {
                     self.reference_binding(&path, &parsed, token)?
@@ -5315,6 +5400,140 @@ mod integration_tests {
         current["version"] = json!(23);
         assert_ne!(
             ws.dispatch("navigation/definition", &current).unwrap()["completeness"],
+            "exact"
+        );
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn single_partial_pattern_definition_is_current_scoped_and_not_a_reference_proof() {
+        let (root, mut ws) = fixture();
+        let path = root.join("Main.fs");
+        fs::write(
+            root.join("Test.fsproj"),
+            "<Project><ItemGroup><Compile Include=\"Main.fs\"/></ItemGroup></Project>",
+        )
+        .unwrap();
+        let source="module ActiveCase\n[<RequireQualifiedAccess>]\ntype Other =\n    | Hit of int\nlet (|Hit|_|) value = if value > 0 then Some value else None\nlet classify value =\n    match value with\n    | Hit captured -> captured\n    | _ -> 0\n";
+        fs::write(&path, source).unwrap();
+        let query = |text: &str, name: &str| {
+            let (line, text) = text
+                .lines()
+                .enumerate()
+                .find(|(_, line)| line.contains("captured ->"))
+                .unwrap();
+            (
+                line,
+                text[..text.find(name).unwrap()].encode_utf16().count() + 1,
+            )
+        };
+        let (line, col) = query(source, "Hit");
+        let params = json!({"path":path,"line":line,"character":col});
+        let positive = ws.dispatch("navigation/definition", &params).unwrap();
+        assert_eq!(positive["completeness"], "exact", "{positive}");
+        assert_eq!(
+            positive["locations"][0]["range"],
+            json!({"start":{"line":4,"character":6},"end":{"line":4,"character":9}})
+        );
+        assert_ne!(
+            ws.dispatch("navigation/references", &params).unwrap()["completeness"],
+            "exact"
+        );
+        for (index, text) in [
+            source.replace("let classify", "open Imported\nlet classify"),
+            source.replace("let classify", "type Later = Hit of int\nlet classify"),
+            source.replace(
+                "let classify",
+                "let (|Hit|_|) value = Some value\nlet classify",
+            ),
+            source.replace("let classify", "let ``Hit`` = 42\nlet classify"),
+            source.replace(
+                "let (|Hit|_|)",
+                "[<CompiledName(\"Changed\")>]\nlet (|Hit|_|)",
+            ),
+            source.replace("let (|Hit|_|)", "let ``|Hit|_|``"),
+            source.replace("let (|Hit|_|) value", "let (|Hit|_|) cutoff value"),
+            source.replace("let (|Hit|_|) value", "let (|Hit|Miss|) value"),
+            source.replace("| Hit captured", "| Other.Hit captured"),
+            source.replace("| Hit captured ->", "| Hit captured _ ->"),
+            source.replace(
+                "let classify value =",
+                "let classify value =\n    let (|Hit|_|) value = Some value",
+            ),
+            format!("#if ACTIVE\n{source}#endif\n"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let version = index as i64 + 1;
+            ws.dispatch(
+                "document/change",
+                &json!({"path":path,"text":text,"version":version}),
+            )
+            .unwrap();
+            // Extra-argument control has a different pattern but the same token.
+            let (line, textline) = text
+                .lines()
+                .enumerate()
+                .find(|(_, line)| line.contains("captured") && line.contains("->"))
+                .unwrap();
+            let col = textline[..textline.find("Hit").unwrap()]
+                .encode_utf16()
+                .count()
+                + 1;
+            let answer = ws
+                .dispatch(
+                    "navigation/definition",
+                    &json!({"path":path,"line":line,"character":col,"version":version}),
+                )
+                .unwrap();
+            assert_ne!(answer["completeness"], "exact", "case{index}: {answer}");
+        }
+        let heldout = source.replace("Hit", "Found");
+        ws.dispatch(
+            "document/change",
+            &json!({"path":path,"text":heldout,"version":30}),
+        )
+        .unwrap();
+        let (line, col) = query(&heldout, "Found");
+        assert_eq!(
+            ws.dispatch(
+                "navigation/definition",
+                &json!({"path":path,"line":line,"character":col,"version":30})
+            )
+            .unwrap()["locations"][0]["range"]["end"]["character"],
+            11
+        );
+        assert!(ws
+            .dispatch(
+                "navigation/definition",
+                &json!({"path":path,"line":line,"character":col,"version":1})
+            )
+            .is_err());
+        ws.dispatch(
+            "document/change",
+            &json!({"path":path,"text":source,"version":31}),
+        )
+        .unwrap();
+        let mut restored = params.clone();
+        restored["version"] = json!(31);
+        assert_eq!(
+            ws.dispatch("navigation/definition", &restored).unwrap()["locations"],
+            positive["locations"]
+        );
+        fs::write(
+            root.join("Main.fsi"),
+            "module ActiveCase\nval (|Hit|_|) : int -> int option\n",
+        )
+        .unwrap();
+        fs::write(root.join("Test.fsproj"),"<Project><ItemGroup><Compile Include=\"Main.fsi\"/><Compile Include=\"Main.fs\"/></ItemGroup></Project>").unwrap();
+        ws.dispatch(
+            "workspace/filesChanged",
+            &json!({"paths":[root.join("Test.fsproj"),root.join("Main.fsi")]}),
+        )
+        .unwrap();
+        assert_ne!(
+            ws.dispatch("navigation/definition", &restored).unwrap()["completeness"],
             "exact"
         );
         drop(ws);

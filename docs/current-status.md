@@ -46,6 +46,12 @@ private package: 28 required scenarios plus the preserved signature failure.
 General operators and active patterns remain outside this new proof. One
 aggregate References assertion failed, then passed focused and full replays;
 its cause remains unproven and no References behavior was changed.
+The [scoped single-partial active-pattern proof](e2e-coverage.md#scoped-single-partial-active-pattern-definition-proof)
+subsequently qualifies the unchanged recognizer-header/collision case and a
+later-open labelled-choice control: 30 required scenarios plus the signature
+XFAIL passed in one fresh packaged run. This is Definition-only, with bounded
+syntax/scope evidence and conservative fallback; general active-pattern
+resolution and References are not expanded.
 
 ## Fixed-corpus results
 

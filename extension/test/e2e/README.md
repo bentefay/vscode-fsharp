@@ -1,10 +1,12 @@
 # Immutable packaged-editor navigation gate
 
-The current ordinary manifest contains **20 definition scenarios, 5 References
+The current ordinary manifest contains **22 definition scenarios, 5 References
 route scenarios, 1 References currentness interaction, 2 hover safety scenarios
-and 1 project-tree scenario**: 28 required scenarios plus the scoped signature
+and 1 project-tree scenario**: 30 required scenarios plus the scoped signature
 failure. The generic-record slice adds one exact definition contract; the scoped
 operator slice adds one exact case and one explicit later-open refusal control.
+The single-partial active-pattern slice adds one exact case and one labelled
+choices control.
 The preceding Possible References qualification passed 25 required scenarios
 in two fixed full-order runs; its new interaction also passed two isolated runs.
 The preceding language-rule runs passed 24 required scenarios. A second known defect—the
@@ -401,14 +403,15 @@ including the distinction between rendered clicks and captured-command replay.
 explicit generic record receiver must reach the correct nominal field and
 exclude its homonym. The initial run failed strict active-pattern and symbolic-
 operator requirements. `language-rule-regression.json` now retains only the
-active-pattern failure; the unchanged operator case is required after the
-scoped proof qualification below.
+active-pattern oracle copy; both original strict cases are now required after
+their scoped proof qualifications below.
 Use it through the existing `FSHARP_E2E_MANIFEST` route and fresh private output;
-it is not a green required gate or an expected-failure credit. Its oracles were
-not weakened to conservative refusal.
+it is now a passing single-case strict copy, not an extra coverage credit.
+Its oracle was not weakened to conservative refusal.
 
 See the [three-family results and limits](../../../docs/e2e-coverage.md#active-pattern-operator-and-generic-record-slice).
-No runtime change or native References investigation is part of this slice.
+The original three-family coverage slice made no runtime change. Subsequent
+proof qualifications are recorded below; native References was not reopened.
 
 ## Scoped additive operator proof
 
@@ -420,3 +423,13 @@ wrong jump and records its known language target independently. This is an
 explicit limited proof boundary, not evidence that the operator has no binding.
 All 28 required scenarios passed in one fresh packaged run, with the existing
 signature failure separate. See [scope, checks and retained failure evidence](../../../docs/e2e-coverage.md#scoped-additive-custom-operator-definition-proof).
+
+## Scoped single-partial active-pattern proof
+
+The unchanged `active-pattern-case-not-union-homonym` case is now required and
+passed real keyboard F12 in a fresh private package. The actual URI/caret and
+full native header-token range are asserted separately. The later-open control
+requires the exact two labelled physical choices, no forced jump, and deliberate
+selection of the one independently known semantic target. It does not claim
+both candidates are valid bindings. The gate now has 30 required passing
+scenarios plus the signature XFAIL. See [proof limits and retained evidence](../../../docs/e2e-coverage.md#scoped-single-partial-active-pattern-definition-proof).

@@ -416,6 +416,14 @@ pub struct OperatorBinding {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ParsedFile {
     #[serde(default)]
+    pub partial_pattern_definitions: Vec<usize>,
+    #[serde(default)]
+    pub partial_pattern_heads: Vec<usize>,
+    #[serde(default)]
+    pub partial_pattern_barriers: Vec<usize>,
+    #[serde(default)]
+    pub partial_pattern_proofs_complete: bool,
+    #[serde(default)]
     pub operator_uses: Vec<Token>,
     #[serde(default)]
     pub operator_bindings: Vec<OperatorBinding>,
@@ -905,6 +913,10 @@ pub fn parse(src: &str) -> ParsedFile {
         })
         .collect();
     ParsedFile {
+        partial_pattern_definitions: Vec::new(),
+        partial_pattern_heads: Vec::new(),
+        partial_pattern_barriers: Vec::new(),
+        partial_pattern_proofs_complete: false,
         operator_uses: Vec::new(),
         operator_bindings: Vec::new(),
         operator_proofs_complete: false,

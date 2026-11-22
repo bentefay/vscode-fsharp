@@ -1,7 +1,8 @@
 # Packaged editor coverage and remaining gates
 
-The current default gate has **28 required passing scenarios and one scoped
-signature failure**. The [scoped operator proof](#scoped-additive-custom-operator-definition-proof)
+The current default gate has **30 required passing scenarios and one scoped
+signature failure**. The [single-partial active-pattern proof](#scoped-single-partial-active-pattern-definition-proof)
+adds one exact header/collision case and one later-open labelled-choices control. The [scoped operator proof](#scoped-additive-custom-operator-definition-proof)
 adds one exact operator case and one explicit later-open refusal control. The [three-family F12 slice](#active-pattern-operator-and-generic-record-slice)
 adds one generic record proof and initially preserved two strict qualification failures. The [Possible References pointer qualification](#possible-references-pointer-qualification)
 adds one post-edit interaction; it does not close native References currentness
@@ -108,7 +109,7 @@ needs an ambiguity or safe-refusal negative where proof is unavailable.
 | Tuple/destructuring slots | `tuple-second-slot-binding`, F12 | Second tuple callback binder; forbid adjacent slot and other callback | Pass; broader patterns pending |
 | Match/guard lifetime | `match-guard-arm-binding`, F12 in guard | Own arm binder; forbid outer and sibling-arm binders | Pass; post-match leakage pending |
 | Union case/field | `qualified-union-case-identity`, F12 at `Parcel.Item` | Exact Parcel case; forbid Other.Item | Known failure in separate strict regression; payload binders pending |
-| Active pattern | Strict `active-pattern-case-not-union-homonym`, F12 at match case | Recognizer header `Hit`; reject qualified-only union homonym and payload binder | Failed qualification: incomplete internal candidates include the forbidden union; no direct jump |
+| Active pattern | `active-pattern-case-not-union-homonym` and `active-pattern-later-open-keeps-known-choice-no-old-exact`, actual F12 | Exact recognizer header; exclude prior union/payload; later open exposes labelled choices with explicit known-target selection | Pass for bounded single-partial match-head proof; parameterized, multicase and qualified forms remain unqualified |
 | Symbolic/custom operator | `custom-symbolic-operator-full-span` and `operator-later-open-refuses-old-local-proof`, actual F12 | Exact own-module full span; later open must not jump to shadowed local operator | Pass for bounded additive family; later-open explicit refusal, general operators pending |
 | Type parameter binding | Planned: `type-parameter`, F12 | Binder, forbid nominal homonym | Pending |
 | Generic receiver substitution | `generic-record-substitution-nominal-field`, F12 at final projection | `Envelope<Human>.Payload.Label` → `Human.Label`; reject `Robot.Label` and intermediate `Payload` | Pass; generic type-parameter binder navigation remains separate |
@@ -857,3 +858,95 @@ and the actual renderer evidence. The private 100-file evidence inventory
 SHA-256 is `29b802cd36abfce56b482e19201ab643ce9394839e78830a217eb0037996bd83`.
 Only reviewed source, fixtures, integrity tests and sanitized documentation are
 published; packages, profiles and raw output remain private.
+
+## Scoped single-partial active-pattern definition proof
+
+This checkpoint starts from `1cadda612b66134e3c49281ff0c5ac4f180bbb3b` and
+preserves the original `active-pattern-case-not-union-homonym` fixture and
+strict oracle. Independent language and implementation reviewers checked
+pattern visibility and collisions; a separate editor reviewer checked the
+native-range versus actual-renderer assertions.
+
+A later explicit active recognizer adds its case to the pattern-name
+environment after the earlier union case. The proof therefore does not rely on
+the spelling of `RequireQualifiedAccess` establishing an attribute identity,
+nor on unique spelling. See [pattern name resolution, specification §14.1.6](https://fsharp.github.io/fslang-spec/inference-procedures/#1416-name-resolution-in-patterns)
+and [active patterns, §7.2.3](https://fsharp.github.io/fslang-spec/patterns/#723-active-patterns).
+
+The new Definition-only envelope requires an explicit single-case partial
+recognizer, one ordinary parameter, nonrecursive module-level scope and an
+actual unqualified match-pattern head with a simple value scrutinee and one
+simple payload binder. Case names are ASCII uppercase-leading identifiers;
+`function`-form matches and arbitrary scrutinee expressions are not qualified. The
+recognizer must precede the use in the same module. Later opens, aliases,
+modules, types, attributes, competing pattern or ordinary binders and other
+live uncertainty decline the proof. So do unsupported recognizer shapes,
+qualified or parameterized uses, escaped recognizer-name forms, compiled-name
+uncertainty, source projection, recovery and uncertain signature/project
+context. The definition points to the case identifier inside the header, not
+the delimiters or payload binder. References, dispatch and payload inference
+are unchanged.
+
+Eligibility is collected during existing syntax traversals. New inventories
+are capped at 256 recognizers, 2,048 use heads and 2,048 barriers; overflow
+invalidates this proof. Header/left/name sizes are limited to 512/1,024/128
+bytes, and ancestor inspection to 64 levels and 512 child checks with
+cancellation. The query checks its positive use role before project-context
+work. Summary revisions change for the new persisted layout. This adds bounded
+work; no latency or memory improvement is claimed. No workspace scan, compiler
+helper or preparation is added.
+
+The independently authored later-open control records one correct semantic
+target (`Imported.Hit`) and exactly two physical same-name recognizer choices.
+The earlier local case is permitted only as a labelled uncertain extra, never
+an exact automatic jump. Its contract requires visible incomplete choices,
+no forced selection, and a deliberate jump to the known imported recognizer.
+Two displayed candidates do not mean two valid semantic bindings. See
+[opening rules, specification §14.1.3](https://fsharp.github.io/fslang-spec/inference-procedures/#1413-opening-modules-and-namespace-declaration-groups).
+
+Focused native tests exercise the unchanged `Hit` target and distinct `Found`
+spelling, later/nested declarations, quoted names, attributes, qualified and
+extra-payload uses, conditional projection, stale versions and signature refusal.
+References remain incomplete. A new inline-negative test initially exposed a
+missing exclusion; the repaired guard checks the CST token, including adjacent
+`inline(|Hit|_|)`, under the same inspection budget. Its initial raw failure log
+was overwritten; the exact observed error and this evidence limitation are
+retained privately. Final targeted tests passed on the frozen source.
+
+Protected aggregate checks passed on that same source: 3 Python, 49 Node
+tooling/manifest, 323 Rust core plus 4 daemon tests (5 ignored), 108 adapter/
+transport tests, TypeScript and formatting. The earlier References assertion
+did not recur in this single aggregate run; no References fix or determinism
+claim follows from that pass. All 111 recorded build inputs and the completed
+package were reverified before the editor run without rebuilding or repeating
+the completed aggregate checks.
+
+One fresh packaged Code 1.108.0 run passed **30 required scenarios** and the
+preserved scoped signature XFAIL: 32 passing phase records plus one XFAIL,
+including two dirty baselines that are not extra scenarios. All prior 28
+required cases and their fixture/oracle bytes remain unchanged. Trusted focused
+F12 in the strict case returned exactly `Active.fs` range `4:6–9`, excluding
+the union homonym and payload binder, and visibly moved the caret to `4:6`.
+The native full range and actual editor URI/caret remain separate assertions.
+
+The later-open case returned no exact locations and exactly the two authored
+physical candidates. Both appeared as incomplete, binding-unverified choices;
+there was no forced jump. Deliberate selection reached the known imported
+recognizer at full range `2:10–13`. This proves fallback reachability, not exact
+resolution of the later-open context. All 17 editor sessions reported zero
+compiler/helper/decompiler launches. The historical strict manifest remains as
+an unchanged oracle copy equal to the now-required case, not a remaining failure.
+
+Fresh private evaluation VSIX SHA-256:
+`717e09621caa08a8e8443e2a5e528d9b21771c0f338af4fdcd64f2214eb61da6`.
+Embedded native SHA-256:
+`e0913ca2ff437a01acd8e479b8e73f371c7d3aaccab33b2c8d5d54c63c2cf9bc`.
+Older preview packages remain unchanged. No performance comparison, full
+active-pattern support, native References repair or normal-sandbox Ubuntu
+acceptance is claimed. Signature, qualified-union, native References and
+prepared List.map gaps remain separate. Raw reports and packages stay private.
+
+Private evidence inventory: 99 files, SHA-256
+`b37325137fb70d3be811bc11e06415be0bf908b7302e30461beb21dfaecd31b9`.
+Independent reviewers verified scope, unchanged oracles and actual editor
+evidence. Only sanitized source/tests/documentation are published.

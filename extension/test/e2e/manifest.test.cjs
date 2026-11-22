@@ -230,7 +230,7 @@ test('prior twenty-six scenarios and twelve fixtures remain frozen', () => {
 test('three language families retain independently authored strict contracts', () => {
   const regression=JSON.parse(fs.readFileSync(path.join(__dirname,'language-rule-regression.json'),'utf8'));
   assert.deepEqual(regression.cases.map(c=>c.id),['active-pattern-case-not-union-homonym']);
-  for(const c of regression.cases)assert.ok(!manifest.cases.some(x=>x.id===c.id));
+  for(const c of regression.cases)assert.deepEqual(manifest.cases.find(x=>x.id===c.id),c);
   for(const f of regression.fixtures)assert.deepEqual(f,manifest.fixtures.find(x=>x.id===f.id));
   const added={fixtures:manifest.fixtures.slice(12,15),cases:[regression.cases[0],manifest.cases.find(c=>c.id==='custom-symbolic-operator-full-span'),manifest.cases.find(c=>c.id==='generic-record-substitution-nominal-field')]};
   assert.equal(added.fixtures.length,3);assert.equal(added.cases.length,3);
@@ -249,4 +249,16 @@ test('later-open operator fallback preserves authored semantic and refused targe
   assert.notDeepEqual(c.oracle.semanticTarget,c.oracle.wrongPriorLocalTarget);
   for(const t of [c.oracle.semanticTarget,c.oracle.wrongPriorLocalTarget])assertLiteralSpan(f.files[t.file].split('\n')[t.range.start.line],t.range.start.character,t.range.end.character,t.text,c.id);
   assert.equal(createHash('sha256').update(JSON.stringify({fixtures:[f],cases:[c]})).digest('hex'),'5e0263d192344f1a28987a26b26931c0317d2ad0c884696d7ba2e6822f21ab5c');
+});
+
+test('prior twenty-nine cases and sixteen fixtures remain frozen', () => {
+  assert.equal(createHash('sha256').update(JSON.stringify({...manifest,fixtures:manifest.fixtures.slice(0,16),cases:manifest.cases.slice(0,29)})).digest('hex'),'0ee51a09582a6da06681f2bde23e29483affcd72c80bdb7b0c4c3a6a01255e4c');
+});
+
+test('later-open active-pattern choices preserve one known semantic target', () => {
+ const c=manifest.cases.find(c=>c.id==='active-pattern-later-open-keeps-known-choice-no-old-exact'),f=manifest.fixtures.find(f=>f.id===c.fixture);
+ assert.equal(c.expected.kind,'candidates');assert.equal(c.expected.candidateSet,'exact');assert.equal(c.expectedFailure,undefined);
+ assert.deepEqual(c.expected.target,c.oracle.semanticTarget);assert.deepEqual(c.expected.required,[c.oracle.semanticTarget,c.oracle.wrongExactTarget]);
+ for(const t of c.expected.required)assertLiteralSpan(f.files[t.file].split('\n')[t.range.start.line],t.range.start.character,t.range.end.character,t.text,c.id);
+ assert.equal(createHash('sha256').update(JSON.stringify({fixtures:[f],cases:[c]})).digest('hex'),'0f4cb6d50f1d6e250d10ce1e10ce2765970553e9c7b47c9930000a3d670af3fd');
 });

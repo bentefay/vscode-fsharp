@@ -155,6 +155,14 @@
         "OperatorOpen.fs": "module OperatorOpenShadow\nmodule Imported =\n    let (+++) left right = left - right\nmodule Selected =\n    let (+++) left right = left + right\n    open Imported\n    let answer = (* 😀 *) 7 +++ 2\n",
         "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"OperatorOpen.fs\" /></ItemGroup></Project>\n"
       }
+    },
+    {
+      "id": "active-pattern-later-open",
+      "project": "App.fsproj",
+      "files": {
+        "ActiveOpen.fs": "module ActiveOpenShadow\nmodule Imported =\n    let (|Hit|_|) value = if value > 1 then Some value else None\nmodule Selected =\n    let (|Hit|_|) value = if value > 0 then Some value else None\n    open Imported\n    let classify value =\n        match value with\n        | Hit captured -> captured\n        | _ -> 0\n",
+        "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"ActiveOpen.fs\" /></ItemGroup></Project>\n"
+      }
     }
   ],
   "cases": [
@@ -2376,6 +2384,174 @@
         "implementationScopeEvidence": "Native owner explicitly confirmed before execution: later open after binding declines new proof; existing general token domain excludes infix operators, so unavailable/empty locations is the intended fallback. No runtime output consulted.",
         "reviewStatus": "independent-semantics-approved-before-execution",
         "sourceSections": "F# specification §14.1.3: open adds values to ExprItems; §6.4.3: infix operator translates to ordinary operator lookup."
+      }
+    },
+    {
+      "id": "active-pattern-case-not-union-homonym",
+      "ruleId": "active-pattern-case-not-union-homonym",
+      "fixture": "active-pattern-case",
+      "query": {
+        "file": "Active.fs",
+        "line": 7,
+        "character": 6,
+        "token": "Hit"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Active.fs",
+          "range": {
+            "start": {
+              "line": 4,
+              "character": 6
+            },
+            "end": {
+              "line": 4,
+              "character": 9
+            }
+          },
+          "text": "Hit"
+        },
+        "forbidden": [
+          {
+            "file": "Active.fs",
+            "range": {
+              "start": {
+                "line": 3,
+                "character": 6
+              },
+              "end": {
+                "line": 3,
+                "character": 9
+              }
+            },
+            "text": "Hit"
+          },
+          {
+            "file": "Active.fs",
+            "range": {
+              "start": {
+                "line": 7,
+                "character": 10
+              },
+              "end": {
+                "line": 7,
+                "character": 18
+              }
+            },
+            "text": "captured"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-active-pattern-case-binding",
+        "explanation": "The unqualified Hit in a match pattern names the case partition of the preceding partial active recognizer (|Hit|_|). Other.Hit is a qualified-only discriminated-union case and is not this recognizer; captured is the payload binder, not the case definition. The required navigation target is the complete Hit case identifier in the recognizer header, not the banana-clip wrapper or the payload variable. This is an exact semantic requirement with an explicit source-token target policy; no engine result or compiler capture generated the golden.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/active-patterns",
+        "additionalSources": [
+          "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions"
+        ],
+        "supportClaim": "Parser declares active-pattern case identities, but scoped resolution is explicitly conservative; current editor coverage marks this family pending. No claim of an already passing exact UI feature; any refusal stays a strict failure.",
+        "navigationSpanPolicy": "Case identifier token Hit in (|Hit|_|), excluding recognizer delimiters."
+      }
+    },
+    {
+      "id": "active-pattern-later-open-keeps-known-choice-no-old-exact",
+      "ruleId": "active-pattern.later-open-refuses-prior-local-proof",
+      "fixture": "active-pattern-later-open",
+      "query": {
+        "file": "ActiveOpen.fs",
+        "line": 8,
+        "character": 10,
+        "token": "Hit"
+      },
+      "expected": {
+        "kind": "candidates",
+        "required": [
+          {
+            "file": "ActiveOpen.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 10
+              },
+              "end": {
+                "line": 2,
+                "character": 13
+              }
+            },
+            "text": "Hit"
+          },
+          {
+            "file": "ActiveOpen.fs",
+            "range": {
+              "start": {
+                "line": 4,
+                "character": 10
+              },
+              "end": {
+                "line": 4,
+                "character": 13
+              }
+            },
+            "text": "Hit"
+          }
+        ],
+        "candidateSet": "exact",
+        "target": {
+          "file": "ActiveOpen.fs",
+          "range": {
+            "start": {
+              "line": 2,
+              "character": 10
+            },
+            "end": {
+              "line": 2,
+              "character": 13
+            }
+          },
+          "text": "Hit"
+        }
+      },
+      "oracle": {
+        "kind": "authored-active-pattern-open-shadowing-with-conservative-physical-set",
+        "explanation": "Selected declares a local Hit recognizer, then opens Imported, whose Hit case is added later to the pattern-name environment. The match case therefore denotes Imported.Hit, not Selected’s earlier case. The intended narrow local-pattern proof explicitly declines an intervening open. This control requires the unchanged conservative fallback to display exactly the two physical same-name recognizer case declarations as incomplete choices, with no forced selection and no exact locations, then deliberately navigates to the known Imported case. The older local case is permitted only as an uncertain extra; an exact jump to it is forbidden by the candidate-mode requirement. The two physical choices are not claimed to be two valid semantic definitions.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/active-patterns",
+        "additionalSources": [
+          "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/import-declarations-the-open-keyword",
+          "https://fsharp.github.io/fslang-spec/inference-procedures/#1416-name-resolution-in-patterns",
+          "https://fsharp.github.io/fslang-spec/patterns/#723-active-patterns"
+        ],
+        "semanticTarget": {
+          "file": "ActiveOpen.fs",
+          "range": {
+            "start": {
+              "line": 2,
+              "character": 10
+            },
+            "end": {
+              "line": 2,
+              "character": 13
+            }
+          },
+          "text": "Hit"
+        },
+        "wrongExactTarget": {
+          "file": "ActiveOpen.fs",
+          "range": {
+            "start": {
+              "line": 4,
+              "character": 10
+            },
+            "end": {
+              "line": 4,
+              "character": 13
+            }
+          },
+          "text": "Hit"
+        },
+        "implementationScopeEvidence": "Before any execution, native implementation owner confirmed later-open proof refusal and the existing generic candidate collector includes both same-file matching pattern_declarations. No native/editor output was used to select this expectation.",
+        "reviewStatus": "independent-language-and-harness-review-approved-before-execution",
+        "sourceSections": "F# specification §14.1.3: opening a module adds active-pattern tags to PatItems; §14.1.6: pattern-name resolution; §7.2.3: active patterns."
       }
     }
   ]

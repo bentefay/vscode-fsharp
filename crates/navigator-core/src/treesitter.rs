@@ -326,6 +326,9 @@ fn parse_impl_with_projection(source: &str, signature: bool, allow_projection: b
         })
         .collect();
     let mut tokens = Vec::new();
+    let mut partial_pattern_barriers = Vec::new();
+    let mut partial_pattern_proofs_complete =
+        !signature && projection.is_none() && !tree.root_node().has_error();
     let mut operator_uses = Vec::new();
     let mut operator_proofs_complete =
         !signature && projection.is_none() && !tree.root_node().has_error();
@@ -339,6 +342,27 @@ fn parse_impl_with_projection(source: &str, signature: bool, allow_projection: b
             "line_comment" | "block_comment" | "comment" | "xml_doc"
         ) {
             continue;
+        }
+        if matches!(n.kind(), "preproc_if" | "fsi_directive_decl")
+            || (n.kind() == "identifier"
+                && (raw(n, source).trim_matches('`').starts_with("op_")
+                    || raw(n, source).contains('|')))
+        {
+            partial_pattern_proofs_complete = false;
+        }
+        if matches!(
+            n.kind(),
+            "attributes"
+                | "exception_definition"
+                | "exception_defn"
+                | "type_definition"
+                | "type_extension"
+        ) {
+            if partial_pattern_barriers.len() == 2048 {
+                partial_pattern_proofs_complete = false;
+            } else {
+                partial_pattern_barriers.push(n.start_byte());
+            }
         }
         if matches!(n.kind(), "preproc_if" | "fsi_directive_decl" | "attributes")
             || (n.kind() == "identifier"
@@ -426,6 +450,10 @@ fn parse_impl_with_projection(source: &str, signature: bool, allow_projection: b
         .map(|(i, t)| (t.start, i))
         .collect();
     let parsed = ParsedFile {
+        partial_pattern_definitions: Vec::new(),
+        partial_pattern_heads: Vec::new(),
+        partial_pattern_barriers,
+        partial_pattern_proofs_complete,
         operator_uses,
         operator_bindings: Vec::new(),
         operator_proofs_complete,
@@ -607,6 +635,10 @@ fn rss_bytes() -> Option<u64> {
 }
 fn unavailable(source: &str, reason: &str) -> ParsedFile {
     ParsedFile {
+        partial_pattern_definitions: Vec::new(),
+        partial_pattern_heads: Vec::new(),
+        partial_pattern_barriers: Vec::new(),
+        partial_pattern_proofs_complete: false,
         operator_uses: Vec::new(),
         operator_bindings: Vec::new(),
         operator_proofs_complete: false,
@@ -1625,6 +1657,96 @@ impl Extractor<'_> {
             }
         }
     }
+    // A single ordinary partial recognizer, not a parameterized/multicase/member form.
+    fn partial_pattern_header(
+        &self,
+        node: Node<'_>,
+        left: Node<'_>,
+        header: Node<'_>,
+    ) -> Option<usize> {
+        if node.has_error()
+            || header.end_byte() - header.start_byte() > 512
+            || left.end_byte() - left.start_byte() > 1024
+            || field_children(node, "body").len() != 1
+        {
+            return None;
+        }
+        let cases = children(header)
+            .into_iter()
+            .filter(|n| n.kind() == "active_pattern_op_name")
+            .collect::<Vec<_>>();
+        let named = cases
+            .iter()
+            .filter(|n| raw(**n, self.source) != "_")
+            .copied()
+            .collect::<Vec<_>>();
+        if named.len() != 1 {
+            return None;
+        }
+        let name = raw(named[0], self.source);
+        if name.len() > 128
+            || !name.as_bytes().first().is_some_and(u8::is_ascii_uppercase)
+            || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+        {
+            return None;
+        }
+        let compact = raw(header, self.source)
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>();
+        if compact != format!("(|{name}|_|)") {
+            return None;
+        }
+        let mut remaining_children = 512usize;
+        let mut cursor = left.walk();
+        for child in left.children(&mut cursor) {
+            if remaining_children == 0 || crate::cancellation::is_cancelled() {
+                return None;
+            }
+            remaining_children -= 1;
+            if matches!(child.kind(), "inline" | "type_arguments") {
+                return None;
+            }
+        }
+        let args = children(left)
+            .into_iter()
+            .find(|n| n.kind() == "argument_patterns")?;
+        let args = children(args);
+        if args.len() != 1
+            || !simple_pattern_name(args[0]).is_some_and(|n| {
+                raw(n, self.source)
+                    .as_bytes()
+                    .first()
+                    .is_some_and(u8::is_ascii_lowercase)
+            })
+        {
+            return None;
+        }
+        let mut ancestor = Some(node);
+        for _ in 0..64 {
+            let Some(current) = ancestor else {
+                return self.token(named[0]);
+            };
+            if matches!(
+                current.kind(),
+                "type_definition" | "type_extension" | "member_defn"
+            ) {
+                return None;
+            }
+            let mut cursor = current.walk();
+            for child in current.children(&mut cursor) {
+                if remaining_children == 0 || crate::cancellation::is_cancelled() {
+                    return None;
+                }
+                remaining_children -= 1;
+                if matches!(child.kind(), "rec" | "and" | "inline" | "attributes") {
+                    return None;
+                }
+            }
+            ancestor = current.parent();
+        }
+        None
+    }
     fn operator_binding_names(
         &self,
         node: Node<'_>,
@@ -1876,6 +1998,19 @@ impl Extractor<'_> {
                         }
                         "active_pattern" => {
                             self.declare_active_pattern(c, visible, ctx);
+                            if self.parsed.partial_pattern_definitions.len() == 256 {
+                                self.parsed.partial_pattern_proofs_complete = false;
+                            } else if ctx.top
+                                && !recursive
+                                && group_start.is_none()
+                                && !prefix
+                                    .split_whitespace()
+                                    .any(|word| matches!(word, "inline" | "mutable" | "use"))
+                            {
+                                if let Some(token) = self.partial_pattern_header(node, left, c) {
+                                    self.parsed.partial_pattern_definitions.push(token);
+                                }
+                            }
                         }
                         "op_identifier" => {
                             self.non_value(c);
@@ -3422,6 +3557,18 @@ impl Extractor<'_> {
         let Some(constructor) = self.simple_value_token(*first) else {
             return;
         };
+        if parts.len() == 2
+            && self.parsed.qualifier(constructor).is_none()
+            && simple_pattern_name(parts[1])
+                .and_then(|n| self.token(n))
+                .is_some_and(|token| declarations.contains(&token))
+        {
+            if self.parsed.partial_pattern_heads.len() == 2048 {
+                self.parsed.partial_pattern_proofs_complete = false;
+            } else {
+                self.parsed.partial_pattern_heads.push(constructor);
+            }
+        }
         for (argument_index, arg) in parts.into_iter().skip(1).enumerate() {
             if let Some(binding) = simple_pattern_name(arg)
                 .and_then(|n| self.token(n))
@@ -7975,5 +8122,50 @@ type Factory =
         assert!(
             !parse("module M\n#if ACTIVE\nlet (+++) a b = a+b\n#endif\n").operator_proofs_complete
         );
+    }
+    #[test]
+    fn single_partial_pattern_facts_require_actual_single_payload_role_and_bound_inventory() {
+        let source="module M\nlet (|Hit|_|) value = Some value\nlet classify value = match value with | Hit captured -> captured | _ -> 0\n";
+        let parsed = parse(source);
+        assert_eq!(parsed.partial_pattern_definitions.len(), 1);
+        assert_eq!(parsed.partial_pattern_heads.len(), 1);
+        assert!(
+            parse(&source.replace("let (|Hit|_|)", "let inline(|Hit|_|)"))
+                .partial_pattern_definitions
+                .is_empty()
+        );
+        let long_name = "H".repeat(129);
+        assert!(parse(&source.replace("Hit", &long_name))
+            .partial_pattern_definitions
+            .is_empty());
+        assert!(
+            parse(&source.replace("let (|Hit|_|)", "let inline (|Hit|_|)"))
+                .partial_pattern_definitions
+                .is_empty()
+        );
+        assert!(parse(&source.replace("let (|Hit|_|)", "let rec (|Hit|_|)"))
+            .partial_pattern_definitions
+            .is_empty());
+        assert!(parsed.partial_pattern_proofs_complete);
+        for text in [
+            source.replace("Hit captured", "Hit captured _"),
+            source.replace("Hit captured -> captured", "Hit _ -> 0"),
+            source.replace("Hit captured", "Other.Hit captured"),
+        ] {
+            assert!(parse(&text).partial_pattern_heads.is_empty());
+        }
+        assert!(parse(&source.replace("(|Hit|_|)", "(|Hit|Miss|)"))
+            .partial_pattern_definitions
+            .is_empty());
+        assert!(
+            !parse(&(source.to_owned() + "let op_Hit x = x\n")).partial_pattern_proofs_complete
+        );
+        let declarations = format!(
+            "module M\n{}",
+            "let (|Hit|_|) value = Some value\n".repeat(257)
+        );
+        let capped = parse(&declarations);
+        assert_eq!(capped.partial_pattern_definitions.len(), 256);
+        assert!(!capped.partial_pattern_proofs_complete);
     }
 }
