@@ -6,6 +6,11 @@ labels and complete cross-file reference sets still require explicit compiler
 preparation. The default indexed providers expose only answers for which the
 engine can establish a binding and the requested reference domain.
 
+The [22 November pinned Navigator A/A measurement](performance-aa.md) records
+actual keyboard-to-choice/jump timing, unsaved-edit freshness and whole-editor
+PSS on unprepared Grace and a scoped FsToolkit holdout. It is a separate
+measurement-only checkpoint, not an updated coverage score or competitor claim.
+
 ## Fixed-corpus results
 
 These are fresh Linux native measurements in indexed mode. Both executables
