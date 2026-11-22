@@ -75,7 +75,7 @@
       "id": "references-lexical",
       "project": "References.fsproj",
       "files": {
-        "References.fs": "module ReferenceCases\nlet homonym = List.map (fun value -> value) [99]\nlet used = (* \ud83d\ude00 *) List.map (fun value -> value + 1) [20]\nlet unusedHomonym = List.map (fun neverUsed -> neverUsed) [7]\nlet unused = (* \ud83d\ude00 *) List.map (fun neverUsed -> 42) [0]\n",
+        "References.fs": "module ReferenceCases\nlet homonym = List.map (fun value -> value) [99]\nlet used = (* 😀 *) List.map (fun value -> value + 1) [20]\nlet unusedHomonym = List.map (fun neverUsed -> neverUsed) [7]\nlet unused = (* 😀 *) List.map (fun neverUsed -> 42) [0]\n",
         "References.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"References.fs\" /></ItemGroup></Project>\n"
       }
     },
@@ -109,6 +109,19 @@
         "App/Folder/Nested/Beta.fs": "module Beta\nlet fourth = 4\n",
         "Shared/Linked.fs": "module Linked\nlet fifth = 5\n",
         "App/TreeOrder.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Zebra.fs\" /><Compile Include=\"Folder/Zed.fs\" /><Compile Include=\"Alpha.fs\" /><Compile Include=\"Folder/Nested/Beta.fs\" /><Compile Include=\"../Shared/Linked.fs\"><Link>Links/Remote.fs</Link></Compile></ItemGroup></Project>\n"
+      }
+    },
+    {
+      "id": "exact-scope-rules",
+      "project": "ExactRules.fsproj",
+      "files": {
+        "Tuple.fs": "module TupleSlots\nlet other = List.map (fun (left, right) -> left) [(1, 2)]\nlet selected = List.map (fun (left, right) -> right) [(3, 4)]\n",
+        "Guard.fs": "module GuardScope\nlet value = 99\nlet selected input =\n    match input with\n    | Some value when value > 0 -> value\n    | Some value -> value\n    | None -> value\n",
+        "Union.fs": "module UnionIdentity\n[<RequireQualifiedAccess>]\ntype Parcel =\n    | Item of payload: int\n[<RequireQualifiedAccess>]\ntype Other =\n    | Item of payload: string\nlet selected = Parcel.Item 7\n",
+        "Alias.fs": "module AliasCapture\nmodule Original =\n    let marker = 11\nmodule Saved = Original\nmodule Nested =\n    module Original =\n        let marker = 22\n    let selected = Saved.marker\n",
+        "Recursion.fs": "module RecursiveBinding\nlet count = 99\nlet run () =\n    let rec count remaining =\n        if remaining <= 0 then 0 else count (remaining - 1)\n    count 3\n",
+        "Quoted.fs": "module QuotedBinding\nlet other = List.map (fun ``väl ue`` -> ``väl ue``) [1]\nlet selected = (* 😀 *) List.map (fun ``väl ue`` -> ``väl ue``) [2]\n",
+        "ExactRules.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Tuple.fs\" /><Compile Include=\"Guard.fs\" /><Compile Include=\"Union.fs\" /><Compile Include=\"Alias.fs\" /><Compile Include=\"Recursion.fs\" /><Compile Include=\"Quoted.fs\" /></ItemGroup></Project>\n"
       }
     }
   ],
@@ -1547,6 +1560,282 @@
         "kind": "authored-literal-compile-items",
         "explanation": "Five explicit Compile items in XML order, deliberately nonalphabetic and interleaving Folder with Alpha. Link defines the logical display path Links/Remote.fs; its physical target remains Shared/Linked.fs outside App. Flattened leaves preserve item order and repeated folder runs. Clicking a leaf must open its actual file URI. This proves neither evaluated MSBuild parity nor an active project context.",
         "source": "https://learn.microsoft.com/en-us/visualstudio/msbuild/common-msbuild-item-metadata"
+      }
+    },
+    {
+      "id": "tuple-second-slot-binding",
+      "ruleId": "tuple-second-slot-binding",
+      "fixture": "exact-scope-rules",
+      "query": {
+        "file": "Tuple.fs",
+        "line": 2,
+        "character": 46,
+        "token": "right"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Tuple.fs",
+          "range": {
+            "start": {
+              "line": 2,
+              "character": 36
+            },
+            "end": {
+              "line": 2,
+              "character": 41
+            }
+          },
+          "text": "right"
+        },
+        "forbidden": [
+          {
+            "file": "Tuple.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 30
+              },
+              "end": {
+                "line": 2,
+                "character": 34
+              }
+            },
+            "text": "left"
+          },
+          {
+            "file": "Tuple.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 33
+              },
+              "end": {
+                "line": 1,
+                "character": 38
+              }
+            },
+            "text": "right"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-language-binding",
+        "explanation": "The use of right in the second callback is bound by its second tuple-pattern slot, not the adjacent left slot or the first callback parameter. The complete source identifier UTF-16 range is authored from the source text before execution; forbidden declarations distinguish the selected binding from homonyms or adjacent slots. This is a strict exact F12 requirement, not a candidate-availability contract.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/pattern-matching"
+      }
+    },
+    {
+      "id": "match-guard-arm-binding",
+      "ruleId": "match-guard-arm-binding",
+      "fixture": "exact-scope-rules",
+      "query": {
+        "file": "Guard.fs",
+        "line": 4,
+        "character": 22,
+        "token": "value"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Guard.fs",
+          "range": {
+            "start": {
+              "line": 4,
+              "character": 11
+            },
+            "end": {
+              "line": 4,
+              "character": 16
+            }
+          },
+          "text": "value"
+        },
+        "forbidden": [
+          {
+            "file": "Guard.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 4
+              },
+              "end": {
+                "line": 1,
+                "character": 9
+              }
+            },
+            "text": "value"
+          },
+          {
+            "file": "Guard.fs",
+            "range": {
+              "start": {
+                "line": 5,
+                "character": 11
+              },
+              "end": {
+                "line": 5,
+                "character": 16
+              }
+            },
+            "text": "value"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-language-binding",
+        "explanation": "The guard belongs to the first Some arm and can use that arm’s value binder. The sibling arm binder and outer value are distinct. The complete source identifier UTF-16 range is authored from the source text before execution; forbidden declarations distinguish the selected binding from homonyms or adjacent slots. This is a strict exact F12 requirement, not a candidate-availability contract.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/match-expressions"
+      }
+    },
+    {
+      "id": "module-alias-captures-original-owner",
+      "ruleId": "module-alias-captures-original-owner",
+      "fixture": "exact-scope-rules",
+      "query": {
+        "file": "Alias.fs",
+        "line": 7,
+        "character": 25,
+        "token": "marker"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Alias.fs",
+          "range": {
+            "start": {
+              "line": 2,
+              "character": 8
+            },
+            "end": {
+              "line": 2,
+              "character": 14
+            }
+          },
+          "text": "marker"
+        },
+        "forbidden": [
+          {
+            "file": "Alias.fs",
+            "range": {
+              "start": {
+                "line": 6,
+                "character": 12
+              },
+              "end": {
+                "line": 6,
+                "character": 18
+              }
+            },
+            "text": "marker"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-language-binding",
+        "explanation": "Saved abbreviates the outer Original module at its declaration. The later nested Original module does not retarget Saved.marker. The complete source identifier UTF-16 range is authored from the source text before execution; forbidden declarations distinguish the selected binding from homonyms or adjacent slots. This is a strict exact F12 requirement, not a candidate-availability contract.",
+        "source": "https://fsharp.org/specs/language-spec/4.0/FSharpSpec-4.0-latest.pdf",
+        "sourceSection": "§10.4, p211: module abbreviation resolves its target at declaration"
+      }
+    },
+    {
+      "id": "recursive-self-binding",
+      "ruleId": "recursive-self-binding",
+      "fixture": "exact-scope-rules",
+      "query": {
+        "file": "Recursion.fs",
+        "line": 4,
+        "character": 38,
+        "token": "count"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Recursion.fs",
+          "range": {
+            "start": {
+              "line": 3,
+              "character": 12
+            },
+            "end": {
+              "line": 3,
+              "character": 17
+            }
+          },
+          "text": "count"
+        },
+        "forbidden": [
+          {
+            "file": "Recursion.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 4
+              },
+              "end": {
+                "line": 1,
+                "character": 9
+              }
+            },
+            "text": "count"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-language-binding",
+        "explanation": "Within the local let rec count body, the recursive call denotes that local recursive declaration, not the outer module value named count. The complete source identifier UTF-16 range is authored from the source text before execution; forbidden declarations distinguish the selected binding from homonyms or adjacent slots. This is a strict exact F12 requirement, not a candidate-availability contract.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/recursive-functions-the-rec-keyword"
+      }
+    },
+    {
+      "id": "quoted-unicode-callback-binding",
+      "ruleId": "quoted-unicode-callback-binding",
+      "fixture": "exact-scope-rules",
+      "query": {
+        "file": "Quoted.fs",
+        "line": 2,
+        "character": 54,
+        "token": "``väl ue``",
+        "tokenStart": 52
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Quoted.fs",
+          "range": {
+            "start": {
+              "line": 2,
+              "character": 38
+            },
+            "end": {
+              "line": 2,
+              "character": 48
+            }
+          },
+          "text": "``väl ue``"
+        },
+        "forbidden": [
+          {
+            "file": "Quoted.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 26
+              },
+              "end": {
+                "line": 1,
+                "character": 36
+              }
+            },
+            "text": "``väl ue``"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-language-binding",
+        "explanation": "The second callback’s quoted identifier denotes its own parameter. The first callback has a distinct same-spelled parameter. The astral comment precedes both selected spans, so UTF-16 offsets differ from Unicode scalar offsets; backtick delimiters are included in the source identifier span. The complete source identifier UTF-16 range is authored from the source text before execution; forbidden declarations distinguish the selected binding from homonyms or adjacent slots. This is a strict exact F12 requirement, not a candidate-availability contract.",
+        "source": "https://fsharp.org/specs/language-spec/4.0/FSharpSpec-4.0-latest.pdf",
+        "sourceSection": "§3.4, p27: double-backtick identifiers"
       }
     }
   ]

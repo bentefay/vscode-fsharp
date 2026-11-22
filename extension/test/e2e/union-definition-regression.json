@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "suite": "observed-failure-qualified-union-definition",
+  "provenance": {
+    "firstExecutedManifestSha256": "04ab67f62d45f049e9a6b45a3e1a1c314e5c81c8b2a1f7970dd32044ed19c8cd",
+    "observedOutcome": "Native response was incomplete with two candidates, including the forbidden Other.Item declaration; the authored exact Parcel.Item requirement remains unchanged.",
+    "coverageStatus": "Separate strict runnable regression; not a passing default case and not an expected-failure exemption."
+  },
+  "fixtures": [
+    {
+      "id": "exact-scope-rules",
+      "project": "ExactRules.fsproj",
+      "files": {
+        "Tuple.fs": "module TupleSlots\nlet other = List.map (fun (left, right) -> left) [(1, 2)]\nlet selected = List.map (fun (left, right) -> right) [(3, 4)]\n",
+        "Guard.fs": "module GuardScope\nlet value = 99\nlet selected input =\n    match input with\n    | Some value when value > 0 -> value\n    | Some value -> value\n    | None -> value\n",
+        "Union.fs": "module UnionIdentity\n[<RequireQualifiedAccess>]\ntype Parcel =\n    | Item of payload: int\n[<RequireQualifiedAccess>]\ntype Other =\n    | Item of payload: string\nlet selected = Parcel.Item 7\n",
+        "Alias.fs": "module AliasCapture\nmodule Original =\n    let marker = 11\nmodule Saved = Original\nmodule Nested =\n    module Original =\n        let marker = 22\n    let selected = Saved.marker\n",
+        "Recursion.fs": "module RecursiveBinding\nlet count = 99\nlet run () =\n    let rec count remaining =\n        if remaining <= 0 then 0 else count (remaining - 1)\n    count 3\n",
+        "Quoted.fs": "module QuotedBinding\nlet other = List.map (fun ``väl ue`` -> ``väl ue``) [1]\nlet selected = (* 😀 *) List.map (fun ``väl ue`` -> ``väl ue``) [2]\n",
+        "ExactRules.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Tuple.fs\" /><Compile Include=\"Guard.fs\" /><Compile Include=\"Union.fs\" /><Compile Include=\"Alias.fs\" /><Compile Include=\"Recursion.fs\" /><Compile Include=\"Quoted.fs\" /></ItemGroup></Project>\n"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "qualified-union-case-identity",
+      "ruleId": "qualified-union-case-identity",
+      "fixture": "exact-scope-rules",
+      "query": {
+        "file": "Union.fs",
+        "line": 7,
+        "character": 22,
+        "token": "Item"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Union.fs",
+          "range": {
+            "start": {
+              "line": 3,
+              "character": 6
+            },
+            "end": {
+              "line": 3,
+              "character": 10
+            }
+          },
+          "text": "Item"
+        },
+        "forbidden": [
+          {
+            "file": "Union.fs",
+            "range": {
+              "start": {
+                "line": 6,
+                "character": 6
+              },
+              "end": {
+                "line": 6,
+                "character": 10
+              }
+            },
+            "text": "Item"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-language-binding",
+        "explanation": "Parcel.Item constructs the qualified Parcel union case. Other.Item has a distinct owner and payload type; both owners require qualification. The complete source identifier UTF-16 range is authored from the source text before execution; forbidden declarations distinguish the selected binding from homonyms or adjacent slots. This is a strict exact F12 requirement, not a candidate-availability contract.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions"
+      }
+    }
+  ]
+}

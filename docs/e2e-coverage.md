@@ -1,10 +1,12 @@
 # Packaged editor coverage and remaining gates
 
-The current ordinary hover/tree slice extends verified main
-`db56caf48d8597cb016c1d4577b74b7bc4f0778b`: **19 required passes and one scoped
-signature failure across 20 scenarios**. The separate three-case prepared hover
-attempt remains **0/3 verified**, blocked before fresh usable editor responses.
-Positive rendered library documentation is not a passing feature here.
+The current language-rule slice extends verified main
+`75080a75dec2533fab4baaf3ddf9ba25e7830322`: **24 required passes and one scoped
+signature failure across 25 default scenarios**. A second known failure,
+qualified union-case identity, is preserved as a separate strict regression.
+The prepared-hover **0/3 verified** result from the preceding slice is unchanged
+and was not retried. These counts do not include unimplemented matrix rows or
+turn known failures into passing features.
 
 The preceding References slice extends source checkpoint
 `70b00733090db4ddc239109c60622897b0bfa09e`. Its final pinned Code 1.108.0
@@ -95,9 +97,9 @@ needs an ambiguity or safe-refusal negative where proof is unavailable.
 | Dirty linked range movement | `dirty-linked-shift`, baseline F12, unsaved edit, F12 | Current shifted declaration; forbid old range | Both phases pass |
 | Dirty linked rebinding | `dirty-linked-rebind`, baseline F12, unsaved edit, F12 | Current wrapper; forbid old binding range | Both phases pass |
 | One unproven candidate | `singleton-unproven-choice`, F12, offer, click | Exact singleton set remains incomplete; only selection jumps | Pass |
-| Tuple/destructuring slots | Planned: `tuple-slot`, F12 | Correct binder, forbid sibling | Pending |
-| Match/guard lifetime | Planned: `clause-scope`, F12 | Own clause binder, forbid adjacent clause | Pending |
-| Union case/field | Planned: `union-case`, F12 at construction/pattern use | Correct case or field declaration; reject homonym | Pending |
+| Tuple/destructuring slots | `tuple-second-slot-binding`, F12 | Second tuple callback binder; forbid adjacent slot and other callback | Pass; broader patterns pending |
+| Match/guard lifetime | `match-guard-arm-binding`, F12 in guard | Own arm binder; forbid outer and sibling-arm binders | Pass; post-match leakage pending |
+| Union case/field | `qualified-union-case-identity`, F12 at `Parcel.Item` | Exact Parcel case; forbid Other.Item | Known failure in separate strict regression; payload binders pending |
 | Active pattern | Planned: `active-pattern`, F12 at recognizer/case use | Correct declaration or explicit unsupported; reject union homonym | Pending |
 | Symbolic/custom operator | Planned: `operator-scope`, F12 | Full symbolic span, reject builtin/unrelated | Pending; literal integrity only |
 | Type parameter binding | Planned: `type-parameter`, F12 | Binder, forbid nominal homonym | Pending |
@@ -110,9 +112,9 @@ needs an ambiguity or safe-refusal negative where proof is unavailable.
 | Script boundaries | Planned: `script-load`, F12 | Ordered load/directive context or explicit unsupported | Pending |
 | Signature declaration toggle | Planned: `signature-toggle`, F12 on `.fsi` declaration | Paired implementation target under policy | Pending |
 | Selected linked context | Planned: `selected-linked`, actual tree context then F12 | Selected branch; forbid opposite | Pending |
-| Module alias capture | Planned: `alias-capture`, F12 | Captured target, forbid later-open capture | Pending |
-| Recursive group scope | Planned: `recursive-group`, F12 | Correct lifetime, forbid unrelated later binding | Pending |
-| Quoted/Unicode identifiers | Planned: `identifier-span`, F12 | Exact UTF-16 literal span at a real use | Pending; not a new binding rule |
+| Module alias capture | `module-alias-captures-original-owner`, F12 | Captured original owner; forbid later nested homonym | Pass |
+| Recursive group scope | `recursive-self-binding`, F12 | Local recursive self, forbid outer value | Pass for self-recursion; mutual groups pending |
+| Quoted/Unicode identifiers | `quoted-unicode-callback-binding`, F12 | Full quoted literal after astral prefix; forbid callback homonym | Pass; encoding contract, not another binding rule |
 | In-flight cancellation | Planned: `pending-cancel`, F12 then Escape while proven pending | No later jump/offer/picker; next request works | Pending; idle Escape is not this test |
 
 ## Public feature coverage
@@ -286,5 +288,63 @@ changes were made to obtain a green result.
 The next separable decision is to diagnose that prepared editor-child context
 and obtain the first rendered positive library hover without changing the
 certificate boundary. References edits/cancellation/restart and selected tree
-context remain separate gaps. Four more ordinary scenarios are needed even
-for the 24-case planning floor; scenario counts do not measure completeness.
+context remain separate gaps. The later language-rule slice reaches the 24-passing-case planning floor;
+scenario counts do not measure completeness.
+
+## Language-rule slice and union regression
+
+This test-only slice starts at `75080a75dec2533fab4baaf3ddf9ba25e7830322`.
+Six independently reviewed exact scenarios were first run together with all
+prior cases: **24 passed, one scoped signature failure reproduced, and one
+new required union case failed**. That first 26-scenario run remains failed.
+It has 28 phase records because of the two existing dirty baselines. No runtime
+or runner change was made. The five successful additions cover four binding
+rules (tuple slot, match guard, alias capture, self-recursion) plus a quoted
+Unicode/UTF-16 contract. An encoding variation is not a fifth binding rule.
+
+All five use actual trusted editor F12 and assert the active URI/start caret,
+with full native URI/range as secondary evidence and forbidden homonyms. The
+quoted callback uses an astral character before the identifier, so UTF-16
+coordinates differ from scalar offsets; its full backtick-delimited target
+is checked. This is not symbolic operator coverage.
+
+The valid union use `Parcel.Item 7` must target the Parcel case and exclude the
+Other type's identically named case. Instead, the unchanged package returned
+no exact locations and included both cases in full and likely candidate lists.
+The caret remained at the use. The assertion stopped before opening or checking
+the chooser: no candidate reachability or explicit-selection behavior is
+established for this failed case, and no wrong direct jump was observed.
+
+Its complete fixture and original strict exact expectation are preserved in
+[union-definition-regression.json](../extension/test/e2e/union-definition-regression.json).
+This separate runnable regression has no expected-failure or unavailable
+substitute and is not part of the passing required count. Its fixture remains
+identical to the six-file fixture in the default suite, so isolating the known
+failure does not alter the other cases' source context. Run it with the same
+pinned inputs and `FSHARP_E2E_MANIFEST` pointing to that manifest. A failed
+regression command is expected from the recorded product defect, not a green
+feature gate. The earlier signature failure and prepared-hover 0/3 attempts
+remain unchanged and separate.
+
+The strongest newly witnessed language gap is qualified union-case identity
+in the presence of a same-named case on another type. A separate runtime
+correctness checkpoint should diagnose that exact repro before generalizing
+to union payloads or broader inference. Other pending families in the matrix
+remain necessary; passing a 24-case floor is not language completeness or
+daily-use readiness.
+
+The final default run and its identical frozen-input repeat each passed all
+**24 required scenarios** and reproduced only
+the existing signature failure. Its 27 phase records include the two dirty
+baselines, not additional scenarios. The first failed union attempt remains
+failed; no runtime, runner or golden answer was changed to achieve this passing
+subset. Independent reviewers verified semantics, literal UTF-16 spans and
+actual keyboard/caret evidence.
+
+Inventory accounting at this checkpoint: 24 passing default scenarios, two
+known failing scenarios (one scoped in the default run, one separate), and
+three previously attempted prepared-hover scenarios still unverified. The
+matrix also lists 18 wholly pending rows: 13 definition behaviors and five
+public-feature behaviors. Partially covered rows retain their narrower gaps,
+such as union payloads, mutual recursion and dirty hover. These row counts are
+an inventory, not a fixed denominator for F# support or a coverage percentage.

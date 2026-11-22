@@ -1,13 +1,16 @@
 # Immutable packaged-editor navigation gate
 
-The current ordinary manifest contains **12 definition scenarios, 5 References
+The current ordinary manifest contains **17 definition scenarios, 5 References
 route scenarios, 2 hover safety scenarios and 1 project-tree scenario**. The
-corrected ordinary cohort and its identical frozen-input repeat each passed
-**19 required scenarios** and reproduced the
-one existing signature-candidate known failure separately. The separate prepared
-hover suite is **0/3 verified**: all three cases timed out before a fresh usable
-editor result, so positive rendered library documentation remains unverified. See
-[References details](#native-references-slice) for UI/range confidence boundaries.
+final default language-rule run and its identical frozen-input repeat each
+passed **24 required scenarios** and reproduced
+the existing scoped signature failure separately. A second known defect—the
+qualified union case—remains a strict separately runnable regression, not a
+passing unavailable case. See [language-rule details](#language-rule-slice).
+The separate prepared hover suite remains **0/3 verified** from the preceding
+slice; it was not retried here. Positive rendered library documentation remains
+unverified. See [References details](#native-references-slice) for UI/range
+confidence boundaries.
 
 The preceding definition-only slice contained 12 scenarios. The first
 extended pinned Code 1.108.0 run passed **11/12**, with a signature-hidden
@@ -140,9 +143,9 @@ Dirty edits use supported WorkspaceEdit, not simulated physical typing.
 
 ## Remaining scope
 
-The ordinary manifest has 20 scenarios: 19 pass and one is a known defect. At least
-4 more ordinary scenarios are needed even to reach the proposed 24-case floor, which
-is not a completeness claim. The [traceable matrix](../../../docs/e2e-coverage.md)
+The ordinary manifest has 25 scenarios: 24 pass and one is a scoped known
+defect. A separate qualified-union regression is also a known failure. The
+24-passing-case planning floor is reached; it is not a completeness claim. The [traceable matrix](../../../docs/e2e-coverage.md)
 records distinct language rules, explicit unsupported outcomes, References,
 hover and tree work, and the next decision. Provider-only support is not a
 packaged UI pass. In-flight cancellation needs a proven pending request;
@@ -274,3 +277,42 @@ prepared ownership suppression, or successful documentation rendering from
 these timeouts. The strict authored contracts are retained for a separately
 diagnosed prepared setup; there is no synthetic replacement catalog or relaxed
 expected outcome.
+
+## Language-rule slice
+
+Six strict F12 scenarios were authored against the twenty-case manifest from
+`75080a75dec2533fab4baaf3ddf9ba25e7830322`: five remain in the default suite and
+the failed union contract is retained separately. Together the authored cases
+cover five binding rules plus one identifier-encoding contract:
+
+- Tuple callback: the second destructured slot, excluding the first slot and
+  a same-named binder in another callback.
+- Match guard: its own arm binder, excluding outer and sibling-arm homonyms.
+- Separate failed qualified union regression: `Parcel.Item`, excluding `Other.Item`.
+- Module abbreviation: the captured original module, excluding a later nested
+  same-named module.
+- Recursive self-call: the local `let rec` binding, excluding an outer value.
+- Quoted Unicode callback: full backtick-delimited identifier and UTF-16
+  coordinates after an astral character, excluding another callback's binder.
+
+Independent semantic review authored/checked the targets without engine output.
+The runner is unchanged: trusted F12 must reach the focused editor, the fresh
+native result must match the entire authored URI/range, and the actual editor
+must jump to its URI/start caret without a candidate offer or wrong transition.
+Full end ranges remain native-secondary evidence. The quoted case is a real
+keyboard scenario, not merely the existing literal-integrity unit check.
+It does not add another lexical binding rule or establish symbolic operator
+support. Mutual recursion, post-match leakage, union payload binders and broader
+destructuring remain separate missing cases. No unsupported outcome substitutes
+for these exact contracts.
+
+The first six-addition run had 24 passes, the existing scoped signature failure,
+and one new required failure: `qualified-union-case-identity`. Both same-named
+union cases were offered as incomplete candidates instead of the required
+exact Parcel case. No wrong direct jump was observed; the assertion stopped
+before chooser reachability or selection. The strict contract and unchanged
+fixture are retained in [union-definition-regression.json](union-definition-regression.json).
+Use the optional manifest flag above to run that still-failing regression; it
+has no expected-failure exemption and is not scored as a passing unavailable
+case. The default suite retains the other five additions and all original
+source context. The first failed report remains preserved.

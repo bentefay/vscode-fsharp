@@ -165,3 +165,41 @@ test('opt-in prepared hover contract pins genuine assets and literal queries', (
     if (scenario.expected.kind === 'external') assert.ok(scenario.oracle.xmlDocId);
   }
 });
+
+// Scope-rule additions must not rewrite earlier accepted contracts.
+test('prior twenty cases and eleven fixtures remain frozen', () => {
+  const prior = {fixtures: manifest.fixtures.slice(0, 11), cases: manifest.cases.slice(0, 20)};
+  assert.equal(createHash('sha256').update(JSON.stringify(prior)).digest('hex'),
+    'f6343f11673432b33912ab20729ce7fdab3132ce1ee36301856f1cbc07b00d6b');
+});
+
+test('qualified union regression remains strict with the unchanged complete fixture', () => {
+  const regression = JSON.parse(fs.readFileSync(path.join(__dirname, 'union-definition-regression.json'), 'utf8'));
+  assert.equal(regression.schemaVersion, 1);
+  assert.equal(regression.provenance.firstExecutedManifestSha256,
+    '04ab67f62d45f049e9a6b45a3e1a1c314e5c81c8b2a1f7970dd32044ed19c8cd');
+  assert.equal(regression.fixtures.length, 1);
+  const fixture = manifest.fixtures.find(f => f.id === 'exact-scope-rules');
+  assert.deepEqual(regression.fixtures[0], fixture);
+  assert.equal(regression.cases.length, 1);
+  const scenario = regression.cases[0];
+  assert.equal(scenario.id, 'qualified-union-case-identity');
+  assert.equal(scenario.fixture, fixture.id);
+  assert.equal(scenario.expected.kind, 'exact');
+  assert.equal(scenario.expectedFailure, undefined);
+  assert.ok(!manifest.cases.some(c => c.id === scenario.id));
+  assert.deepEqual(scenario.query, {file: 'Union.fs', line: 7, character: 22, token: 'Item'});
+  assert.deepEqual(scenario.expected.target, {file: 'Union.fs', range: {
+    start: {line: 3, character: 6}, end: {line: 3, character: 10}}, text: 'Item'});
+  assert.deepEqual(scenario.expected.forbidden, [{file: 'Union.fs', range: {
+    start: {line: 6, character: 6}, end: {line: 6, character: 10}}, text: 'Item'}]);
+  const lines = fixture.files['Union.fs'].split('\n');
+  assert.equal(lines[2], 'type Parcel =');
+  assert.equal(lines[5], 'type Other =');
+  assertLiteralSpan(lines[scenario.query.line], scenario.query.character,
+    scenario.query.character + scenario.query.token.length, scenario.query.token, scenario.id);
+  for (const location of [scenario.expected.target, ...scenario.expected.forbidden]) {
+    assertLiteralSpan(lines[location.range.start.line], location.range.start.character,
+      location.range.end.character, location.text, scenario.id);
+  }
+});
