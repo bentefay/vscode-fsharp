@@ -41,6 +41,19 @@ test('each scenario has a distinct rule, explicit oracle and a real query token'
       assert.ok(['sidebar', 'peek'].includes(scenario.route));
       assert.equal(typeof scenario.declarationIncluded, 'boolean');
     }
+    if (scenario.operation === 'definitionFreshness') {
+      const edit = scenario.afterChoiceEdit;
+      assert.ok(edit && fixture.files[edit.file] && edit.text !== fixture.files[edit.file]);
+      assert.notEqual(edit.file, scenario.query.file, 'Origin stays unchanged');
+      assert.equal(edit.expected.kind, 'candidates');
+      assert.equal(edit.expected.candidateSet, 'exact');
+      assert.ok(edit.expected.required.some(x => JSON.stringify(x) === JSON.stringify(edit.expected.target)));
+      for (const location of edit.expected.required) {
+        assert.equal(location.file, edit.file);
+        assertLiteralSpan(edit.text.split('\n')[location.range.start.line], location.range.start.character, location.range.end.character, location.text, scenario.id);
+        assert.ok(!scenario.expected.required.some(x => JSON.stringify(x) === JSON.stringify(location)), 'All old target coordinates become obsolete');
+      }
+    }
     if (scenario.expectedFailure) assert.ok(scenario.expectedFailure.reason && scenario.expectedFailure.issue && scenario.expectedFailure.match, 'Expected failures need an explicit reproduced defect reference');
   }
 });

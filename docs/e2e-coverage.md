@@ -1044,3 +1044,17 @@ XFAIL** (35 passing phases including the two existing dirty baselines). This is
 not broader MSBuild evaluation, a performance comparison or normal-sandbox
 Ubuntu qualification. Native References and the other documented proof gaps
 remain separate.
+
+## Definition choice withdrawal and refresh
+
+The [Definition choice currentness checkpoint](definition-choice-currentness.md)
+adds a distinct actual-editor workflow, leaving all prior 33 cases unchanged.
+
+| Fixture / workflow | Action | Oracle | Observed status |
+| --- | --- | --- | --- |
+| `definition-choice-dirty-target` / visible choices followed by unsaved dependency range shift | F12 → rendered picker → supported dependency edit without UI clearing → fresh DOM old-row attempt → second F12 → deliberate current-row click | Old offer/picker withdrawn, no old click dispatched or stale navigation; exact shifted physical pair and actual current full-range selection | Pass, isolated and full-order |
+
+The gate now has **34 required scenarios plus the scoped signature XFAIL**.
+This adds withdrawal/refresh coverage, not retained-row activation or in-flight
+cancellation credit. The existing native References issue and Possible
+References tests remain independent; runtime and package are unchanged.

@@ -193,6 +193,15 @@
         "Consumer.fs": "module Consumer\nopen Wire\nlet shown = render \"value\"\n",
         "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ProjectExtensions><Compile Include=\"Wire.fsi\" /></ProjectExtensions><ItemGroup><Compile Include=\"Wire.fs\" /><Compile Include=\"Consumer.fs\" /></ItemGroup></Project>\n"
       }
+    },
+    {
+      "id": "definition-choice-dirty-target",
+      "project": "App.fsproj",
+      "files": {
+        "Types.fs": "module Types\ntype Person = { Name: string }\ntype Company = { Name: string }\n",
+        "Consumer.fs": "module Consumer\nopen Types\nlet lookup (items: Person list) = (List.head items).Name\n",
+        "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Types.fs\"/><Compile Include=\"Consumer.fs\"/></ItemGroup></Project>\n"
+      }
     }
   ],
   "cases": [
@@ -2816,6 +2825,124 @@
         "additionalSources": [
           "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files"
         ],
+        "reviewStatus": "independent-oracle-reviewed"
+      }
+    },
+    {
+      "id": "definition-choice-dirty-target-withdrawal",
+      "ruleId": "definition-choice.dependency-range-edit-withdrawal-and-refresh",
+      "fixture": "definition-choice-dirty-target",
+      "operation": "definitionFreshness",
+      "query": {
+        "file": "Consumer.fs",
+        "line": 2,
+        "character": 52,
+        "token": "Name"
+      },
+      "expected": {
+        "kind": "candidates",
+        "candidateSet": "exact",
+        "required": [
+          {
+            "file": "Types.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 16
+              },
+              "end": {
+                "line": 1,
+                "character": 20
+              }
+            },
+            "text": "Name"
+          },
+          {
+            "file": "Types.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 17
+              },
+              "end": {
+                "line": 2,
+                "character": 21
+              }
+            },
+            "text": "Name"
+          }
+        ],
+        "target": {
+          "file": "Types.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 16
+            },
+            "end": {
+              "line": 1,
+              "character": 20
+            }
+          },
+          "text": "Name"
+        }
+      },
+      "afterChoiceEdit": {
+        "file": "Types.fs",
+        "text": "module Types\n\ntype Person = { Name: string }\ntype Company = { Name: string }\n",
+        "expected": {
+          "kind": "candidates",
+          "candidateSet": "exact",
+          "required": [
+            {
+              "file": "Types.fs",
+              "range": {
+                "start": {
+                  "line": 2,
+                  "character": 16
+                },
+                "end": {
+                  "line": 2,
+                  "character": 20
+                }
+              },
+              "text": "Name"
+            },
+            {
+              "file": "Types.fs",
+              "range": {
+                "start": {
+                  "line": 3,
+                  "character": 17
+                },
+                "end": {
+                  "line": 3,
+                  "character": 21
+                }
+              },
+              "text": "Name"
+            }
+          ],
+          "target": {
+            "file": "Types.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 16
+              },
+              "end": {
+                "line": 2,
+                "character": 20
+              }
+            },
+            "text": "Name"
+          }
+        }
+      },
+      "oracle": {
+        "kind": "authored-dependency-range-currentness-and-rendered-withdrawal",
+        "explanation": "The typed items are Person list, making Person.Name the known semantic target. Default navigation through the uncatalogued List.head receiver retains exactly the two physical Name declarations as incomplete choices. After the picker is visible, a supported WorkspaceEdit inserts a blank line in preopened Types.fs without changing Consumer, its caret or disk. Both field ranges shift by one line. Require automatic removal of the old offer/picker, fresh DOM targeting to find no old row (no dispatched click), then a second actual F12 with exactly the shifted pair and deliberate Person.Name selection. This qualifies dismissal and refreshed explicit selection only; retained-row activation and in-flight cancellation remain unverified. No harness clearing occurs between these actions.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records",
         "reviewStatus": "independent-oracle-reviewed"
       }
     }
