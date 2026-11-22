@@ -4,6 +4,7 @@ pub mod cancellation;
 mod candidate_ranking;
 pub mod context;
 pub mod decompiler;
+mod demand_observation;
 mod document_navigation;
 mod foreground;
 mod helper;
@@ -91,6 +92,7 @@ struct Symbol {
 }
 pub struct Workspace {
     background: background::Background,
+    demand_observation: Option<demand_observation::Observation>,
     root: String,
     mode: Mode,
     model: Model,
@@ -234,6 +236,10 @@ impl Workspace {
             .map(str::to_string);
         let mut ws = Self {
             background: Default::default(),
+            demand_observation: demand_observation::Observation::new(
+                std::env::var("FSHARP_NAVIGATOR_TRACE").as_deref() == Ok("1"),
+                p,
+            ),
             watcher_reliable: false,
             watcher_overflow: Default::default(),
             session_id: format!(
@@ -615,6 +621,9 @@ impl Workspace {
 
     fn install_model(&mut self, model: Model) -> Result<()> {
         self.model = model;
+        if let Some(observation) = &mut self.demand_observation {
+            observation.invalidate();
+        }
         self.source_contexts.clear();
         self.instance_contexts.clear();
         self.covered_names.clear();
@@ -1047,6 +1056,12 @@ impl Workspace {
     }
     pub fn dispatch(&mut self, method: &str, p: &Value) -> Result<Value> {
         self.document_update_trace = None;
+        self.begin_demand_observation(method, p);
+        let result = self.dispatch_observed_body(method, p);
+        self.finish_demand_observation(&result);
+        result
+    }
+    fn dispatch_observed_body(&mut self, method: &str, p: &Value) -> Result<Value> {
         let _scope = self.cancellation.enter();
         if self.cancellation.is_cancelled() {
             self.document_navigation.clear();
@@ -1920,6 +1935,9 @@ impl Workspace {
                     rank(path, &self.query_domain)
                 })?;
         let mut truncated = selected.truncated;
+        if let Some(observation) = &mut self.demand_observation {
+            observation.selected(&selected.paths);
+        }
         // Seed at most eight nearby compilation inputs only when the bounded
         // indexed search has no eligible path. Warm suggestions scan rows once.
         if selected.paths.is_empty() {
@@ -1942,9 +1960,21 @@ impl Workspace {
                         .collect::<Vec<_>>()
                 })
                 .unwrap_or_default();
+            if let Some(observation) = &mut self.demand_observation {
+                observation.seed_start();
+            }
             for path in nearby {
                 self.cancellation.check()?;
+                if let Some(observation) = &mut self.demand_observation {
+                    observation.seed_attempt();
+                }
                 self.refresh_file(&path, false)?;
+                if let Some(observation) = &mut self.demand_observation {
+                    observation.seed_done(&path);
+                }
+            }
+            if let Some(observation) = &mut self.demand_observation {
+                observation.seed_end();
             }
             selected = self
                 .index
@@ -2993,6 +3023,9 @@ impl Workspace {
         self.helper = None;
         let value = result?;
         self.model = Model::from_evaluated(&self.root, &value)?;
+        if let Some(observation) = &mut self.demand_observation {
+            observation.invalidate();
+        }
         self.background.raw_model = false;
         for path in self.model.files.clone() {
             self.refresh_file(&path, false)?;

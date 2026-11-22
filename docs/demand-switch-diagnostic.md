@@ -1,5 +1,9 @@
 # Demand-switch diagnostic: observation prerequisite
 
+The subsequent [bounded observation implementation and trial](demand-switch-observation.md)
+adds the opt-in facility and records its single stopped cohort. The preflight
+below describes the earlier unchanged package, not the newly instrumented build.
+
 Audited 22 November 2026 from
 `66b1daff2eec57fa93f8d2342d423f8bada8ec68`, using the unchanged evaluation VSIX
 SHA-256 `1281401838752845c3c4cc9855752aef032256dff4935a39c17c23b519a5a19a`.

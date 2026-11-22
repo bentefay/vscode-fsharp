@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { existsSync } from 'node:fs';
 import { Backend } from './backend';
 import { OverlayQueue } from './overlays';
-import { trace, traceEnabled, traceEvents } from './trace';
+import { trace, traceEnabled, traceEvents, demandTraceConfig } from './trace';
 import { PossibleReferences, OccurrenceResult, occurrenceLocation, sameIdentity, sameLocation, validOccurrenceResult } from './possibleReferences';
 import { MetadataDocuments, metadataScheme, locationUri, VirtualDocument } from './virtualDocuments';
 
@@ -455,6 +455,7 @@ class Navigator implements vscode.Disposable {
         indexCacheMb: config.get<number>('indexCacheMb', 8),
         overlayBudgetMb: config.get<number>('overlayBudgetMb', 32),
         helperMemoryLimitMb: config.get<number>('helperMemoryLimitMb', 256),
+        ...(demandTraceConfig ? { diagnosticModelOrdinals: demandTraceConfig.modelOrdinals } : undefined),
       });
       const overlays = new OverlayQueue(ready, (method, params) => backend.request(method, params), error => this.report(error));
       session = { backend, ready, folder, overlays, sourceFiles: new Set() };
@@ -600,9 +601,10 @@ class Navigator implements vscode.Disposable {
       const params = {
         path: document.uri.fsPath, line: position.line, character: position.character,
         version, includeDeclaration, projectPath: this.selectedProjects.get(document.uri.toString())?.projectPath,
+        ...(demandTraceConfig && definitionRequest !== undefined ? { diagnosticWatchSlot: demandTraceConfig.watchSlot } : undefined),
       };
       let result = await cancellable(session.backend.request<QueryResult>(method, params,
-        cancellation.token, mode(folder.uri) === 'semantic' ? 120_000 : 30_000), cancellation.token);
+        cancellation.token, mode(folder.uri) === 'semantic' ? 120_000 : 30_000, definitionRequest), cancellation.token);
       while (definitionRequest !== undefined && mode(folder.uri) === 'indexed' && result.completeness !== 'exact'
         && !result.candidates?.length && (result.indexing?.phase === 'scanning' || result.indexing?.phase === 'indexing')) {
         if (cancellation.token.isCancellationRequested || document.isClosed || document.version !== version
@@ -616,7 +618,7 @@ class Navigator implements vscode.Disposable {
         await pause(Math.min(200, Math.max(50, result.indexing.retryAfterMs ?? 100)), cancellation.token);
         if (cancellation.token.isCancellationRequested || document.isClosed || document.version !== version
           || epoch !== this.epoch || definitionRequest !== this.definitionRequest) return undefined;
-        result = await cancellable(session.backend.request<QueryResult>(method, params, cancellation.token), cancellation.token);
+        result = await cancellable(session.backend.request<QueryResult>(method, params, cancellation.token, 30_000, definitionRequest), cancellation.token);
       }
       if (cancellation.token.isCancellationRequested || document.isClosed || document.version !== version || epoch !== this.epoch || (result.version !== undefined && result.version !== version)) return undefined;
       if (definitionRequest !== undefined && definitionRequest !== this.definitionRequest) return undefined;
@@ -650,10 +652,12 @@ class Navigator implements vscode.Disposable {
               if (!current()) return false;
               await this.synchronize(session, document);
               if (!current()) return false;
+              if (traceEnabled) trace('definitionSelectionValidation', { requestId: definitionRequest });
               const fresh = await session.backend.request<QueryResult>('navigation/definition', {
                 path: document.uri.fsPath, line: position.line, character: position.character,
                 version, projectPath: this.selectedProjects.get(document.uri.toString())?.projectPath,
-              }, selectionCancellation.token);
+                ...(demandTraceConfig ? { diagnosticWatchSlot: demandTraceConfig.watchSlot } : undefined),
+              }, selectionCancellation.token, 30_000, definitionRequest);
               if (!current() || (fresh.version !== undefined && fresh.version !== version)) return false;
               const values = fresh.completeness === 'exact' ? fresh.locations : fresh.candidates;
               return !!values?.some(value => {

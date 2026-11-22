@@ -272,6 +272,8 @@ fn main() -> anyhow::Result<()> {
         }
     });
     let mut workspace: Option<Workspace> = None;
+    let mut slice_sequence = 0u64;
+    let mut last_slice: Option<(u64, std::time::Instant, std::time::Instant, Value, Value)> = None;
     loop {
         let request = match receiver.try_recv() {
             Ok(request) => request,
@@ -284,7 +286,16 @@ fn main() -> anyhow::Result<()> {
                     if admission.lock().unwrap().foreground_count > 0 {
                         token.cancel();
                     }
+                    let slice_before = ws.demand_background_observation();
+                    let slice_started = slice_before.as_ref().map(|_| std::time::Instant::now());
                     ws.background_step(token)?;
+                    if let (Some(before), Some(started)) = (slice_before, slice_started) {
+                        let finished = std::time::Instant::now();
+                        if let Some(after) = ws.demand_background_observation() {
+                            slice_sequence += 1;
+                            last_slice = Some((slice_sequence, started, finished, before, after));
+                        }
+                    }
                     admission.lock().unwrap().background = None;
                 }
                 let delay = if workspace
@@ -316,6 +327,7 @@ fn main() -> anyhow::Result<()> {
         let _scope = request.token.enter();
         let result = request.token.check().and_then(|()| {
             if request.method == "workspace/open" {
+                last_slice = None;
                 Workspace::open(&request.params).and_then(|mut ws| {
                     ws.set_cancellation(request.token.clone());
                     let result = ws.stats()?;
@@ -323,6 +335,7 @@ fn main() -> anyhow::Result<()> {
                     Ok(result)
                 })
             } else if request.method == "shutdown" {
+                last_slice = None;
                 workspace = None;
                 Ok(json!({"shutdown":true}))
             } else if let Some(ws) = workspace.as_mut() {
@@ -363,6 +376,30 @@ fn main() -> anyhow::Result<()> {
                         .and_then(Workspace::document_update_trace)
                     {
                         response["documentUpdate"] = trace.clone();
+                    }
+                }
+                if request.method == "navigation/definition" && response.get("result").is_some() {
+                    if let Some(observation) =
+                        workspace.as_ref().and_then(Workspace::demand_observation)
+                    {
+                        response["demandSwitch"] = observation.clone();
+                        if let Some((id, slice_start, slice_end, before, after)) = &last_slice {
+                            let trace = &mut response["demandSwitch"];
+                            trace["lastCompletedSliceId"] = json!(id);
+                            trace["lastCompletedSliceMicros"] =
+                                json!(slice_end.duration_since(*slice_start).as_micros() as u64);
+                            trace["lastCompletedSliceEndBeforeDispatchMicros"] =
+                                json!(started.saturating_duration_since(*slice_end).as_micros()
+                                    as u64);
+                            trace["admissionInsideLastCompletedSlice"] =
+                                json!(admitted >= *slice_start && admitted <= *slice_end);
+                            trace["sliceBeforeGeneration"] = before["generation"].clone();
+                            trace["sliceAfterGeneration"] = after["generation"].clone();
+                            trace["sliceBeforeOrderSerial"] = before["orderSerial"].clone();
+                            trace["sliceAfterOrderSerial"] = after["orderSerial"].clone();
+                            trace["sliceBeforeCursor"] = before["cursor"].clone();
+                            trace["sliceAfterCursor"] = after["cursor"].clone();
+                        }
                     }
                 }
                 response["nativeTiming"] = json!({

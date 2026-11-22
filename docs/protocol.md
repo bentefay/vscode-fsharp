@@ -350,6 +350,52 @@ renderer work; elapsed time includes descheduling. Disabled tracing adds no
 phase clock reads or diagnostic source/path hashing. Timing does not change
 cache keys, invalidation, cancellation, or source-version checks.
 
+### Opt-in demand-switch observation
+
+With `FSHARP_NAVIGATOR_TRACE=1`, `workspace/open` may additionally specify
+`diagnosticModelOrdinals`: at most four integer model-file indices below
+100,000. A definition request selects one with `diagnosticWatchSlot`. These
+numeric selectors affect observations only. They never change project
+selection, ordering, budgets or navigation results. Invalid selectors disable
+the observation. No paths or source text are accepted as selectors or emitted
+in the new `demandSwitch` response envelope.
+
+The editor's test-only environment entry is
+`FSHARP_NAVIGATOR_TRACE_MODEL_ORDINALS` (a JSON array, at most 64 characters),
+with `FSHARP_NAVIGATOR_TRACE_WATCH_SLOT` (default `0`). It is ignored unless
+tracing is enabled. The adapter rejects duplicate ordinals and invalid slots.
+These are not workspace settings or a supported user navigation mode.
+
+The envelope records before/after background generation, order serial, original
+order-origin slot, cursor and watched order ordinal/state. Mapping is collected
+inside existing order construction and invalidated with that order/model.
+`pending` means the background cursor has not consumed that slot; it does not
+mean postings are absent. `postingStatus` remains `unknown`: no diagnostic
+database/source reads are added. Existing candidate lookup and bounded seeding
+report whether the watched file was selected initially, refresh attempt and
+completion counts, watched refresh completion, and seed duration. Refresh
+completion does not prove that contents changed or that seeding was necessary.
+
+At most four `candidateIndices` refer to **the final `result.candidates` array**,
+with an explicit truncation flag. `identityVerified` is always false in the
+native observation: an independent harness must match an index to its literal
+expected URI/range, check stable generation/order and reject missing/truncated
+identity before drawing conclusions. Exact results do not acquire a candidate
+identity witness through this facility. Error/cancelled requests omit the
+successful observation, and each dispatch clears the previous request's state.
+
+One optional latest-completed autonomous-slice record reports duration and
+whether request admission fell within its interval. This is temporal
+containment, not proof that the slice caused all queue time or delayed the
+watched target. Missing records are unknown. The adapter adds a client-only
+provider ID to its bounded transport trace, including continuations and
+separately marked selection revalidation; that ID is not sent to the daemon.
+It copies only whitelisted numeric, Boolean and fixed-enum observation fields.
+
+Default runs create no observation and add no diagnostic I/O or phase timers.
+Trace-on overhead is unquantified; instrumented durations are diagnostic, not
+user-facing benchmark results. See the [demand-switch observation](demand-switch-observation.md).
+
 A definition proof for a single-use ASCII parameter can also establish the
 complete declaration-inclusive reference answer at that cursor. When the cursor
 is on the use, the URI is at most 512 bytes and the cache has spare capacity,

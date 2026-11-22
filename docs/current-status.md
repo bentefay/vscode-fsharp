@@ -12,6 +12,9 @@ PSS on unprepared Grace and a scoped FsToolkit holdout. It is a separate
 measurement-only checkpoint, not an updated coverage score or competitor claim.
 The [demand-switch follow-up](demand-switch-diagnostic.md) stopped at its causal
 observation gate without running a new timing cohort or changing runtime.
+The [subsequent opt-in observation](demand-switch-observation.md) passed the
+ordinary editor gate and recorded one stopped switch/control pair. It did not
+justify a scheduling change or a performance-improvement claim.
 
 ## Fixed-corpus results
 

@@ -125,6 +125,9 @@ impl Workspace {
     pub(crate) fn reset_background_mode(&mut self) {
         let raw = self.background.raw_model;
         self.background = Default::default();
+        if let Some(observation) = &mut self.demand_observation {
+            observation.invalidate();
+        }
         self.background.raw_model = raw;
         if self.mode == Mode::Indexed && raw {
             self.model_loaded = false;
@@ -135,6 +138,9 @@ impl Workspace {
     pub(crate) fn finish_explicit_discovery(&mut self) {
         self.background.scan = None;
         self.background.index_order = None;
+        if let Some(observation) = &mut self.demand_observation {
+            observation.invalidate();
+        }
         self.background.indexed = 0;
         if self.background.requested {
             self.background.phase = "indexing";
@@ -154,6 +160,9 @@ impl Workspace {
     fn invalidate_background_model(&mut self) -> Result<()> {
         self.background.scan = None;
         self.background.index_order = None;
+        if let Some(observation) = &mut self.demand_observation {
+            observation.invalidate();
+        }
         self.background.watcher = None;
         self.background.phase = "scanning";
         self.background.reason = None;
@@ -178,6 +187,16 @@ impl Workspace {
         }
         Ok(())
     }
+    pub(crate) fn demand_order_status(&self) -> Value {
+        let observation = self.demand_observation.as_ref().unwrap();
+        json!({"generation":self.background.generation,"phase":self.background.phase,
+            "orderSerial":if observation.order_live { Some(observation.serial) } else { None },
+            "orderOriginSlot":observation.order_origin_slot,
+            "cursor":self.background.indexed,"slots":observation.watches.iter().map(|watch|
+                json!({"modelOrdinal":watch.model,"orderOrdinal":watch.order,
+                    "state":if !observation.order_live {"unconstructed"} else { match watch.order {Some(n) if n >= self.background.indexed => "pending", Some(_) => "consumed",None=>"absent"}}})
+                ).collect::<Vec<_>>()})
+    }
     fn prepare_background_index_order(&mut self) -> Result<()> {
         let lookup = self
             .model
@@ -188,10 +207,27 @@ impl Workspace {
             .collect::<HashMap<_, _>>();
         let mut seen = vec![false; self.model.files.len()];
         let mut order = Vec::with_capacity(self.model.files.len());
+        // Capture observations inside the existing construction pass. Nothing is
+        // published until all normal cancellation checks have succeeded.
+        let watched_models = self.demand_observation.as_ref().map(|observation| {
+            observation
+                .watches
+                .iter()
+                .map(|watch| watch.model)
+                .collect::<Vec<_>>()
+        });
+        let mut watched_positions = [None; 4];
         let mut add = |path: &str| {
             if let Some(&index) = lookup.get(path) {
                 if !seen[index] {
                     seen[index] = true;
+                    if let Some(models) = &watched_models {
+                        for (slot, model) in models.iter().enumerate() {
+                            if *model == index {
+                                watched_positions[slot] = Some(order.len());
+                            }
+                        }
+                    }
                     order.push(index);
                 }
             }
@@ -224,6 +260,14 @@ impl Workspace {
         for file in &self.model.files {
             self.cancellation.check()?;
             add(file);
+        }
+        if let Some(observation) = &mut self.demand_observation {
+            let origin_model = self
+                .background
+                .demand_origin
+                .as_deref()
+                .and_then(|origin| lookup.get(origin).copied());
+            observation.constructed(&watched_positions, &self.model.files, origin_model);
         }
         self.background.index_order = Some(order);
         Ok(())

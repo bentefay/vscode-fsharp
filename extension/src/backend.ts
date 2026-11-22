@@ -1,6 +1,6 @@
 import { spawn, ChildProcessWithoutNullStreams } from 'node:child_process';
 import * as vscode from 'vscode';
-import { trace, traceEnabled } from './trace';
+import { trace, traceEnabled, demandSwitchTraceFields } from './trace';
 
 interface DocumentUpdateTrace {
   documentKey?: string; version?: number; sourceHash?: string; bytes?: number; changed?: boolean;
@@ -10,6 +10,7 @@ interface DocumentUpdateTrace {
 }
 interface Pending {
   method: string;
+  providerRequestId?: number;
   resolve(value: unknown): void;
   reject(reason: Error): void;
   timer: ReturnType<typeof setTimeout>;
@@ -60,12 +61,14 @@ export class Backend implements vscode.Disposable {
   get pid(): number | undefined { return this.process.pid; }
   get closed(): boolean { return this.disposed; }
 
-  request<T>(method: string, params: unknown = {}, token?: vscode.CancellationToken, timeoutMs = 30_000): Promise<T> {
+  request<T>(method: string, params: unknown = {}, token?: vscode.CancellationToken, timeoutMs = 30_000, providerRequestId?: number): Promise<T> {
     if (this.disposed) return Promise.reject(new Error('F# Navigator engine is not running.'));
     if (token?.isCancellationRequested) return Promise.reject(new vscode.CancellationError());
     if (this.pending.size >= this.maxPendingRequests) return Promise.reject(new Error('F# Navigator request queue is full; no complete result is available.'));
     const id = this.nextId++;
-    if (traceEnabled) trace('transportRequest', { id, method, pid: this.process.pid });
+    const correlatedProvider = traceEnabled && typeof providerRequestId === 'number'
+      && Number.isSafeInteger(providerRequestId) && providerRequestId > 0 ? providerRequestId : undefined;
+    if (traceEnabled) trace('transportRequest', { id, method, pid: this.process.pid, providerRequestId: correlatedProvider });
     return new Promise<T>((resolve, reject) => {
       const finishWithError = (error: Error) => {
         const entry = this.pending.get(id);
@@ -82,6 +85,7 @@ export class Backend implements vscode.Disposable {
       };
       const timer = setTimeout(() => finishWithError(new Error(`F# Navigator timed out during ${method}; no complete result is available.`)), timeoutMs);
       const entry: Pending = { method, resolve: value => resolve(value as T), reject, timer };
+      if (correlatedProvider !== undefined) entry.providerRequestId = correlatedProvider;
       this.pending.set(id, entry);
       entry.cancellation = token?.onCancellationRequested(() => finishWithError(new vscode.CancellationError()));
       try { this.enqueue({ id, method, params }, id); }
@@ -130,7 +134,7 @@ export class Backend implements vscode.Disposable {
       const line = this.buffer.slice(0, end).trim();
       this.buffer = this.buffer.slice(end + 1);
       if (!line) continue;
-      let message: { id?: number; result?: unknown; error?: { message?: string; code?: number | string }; nativeTiming?: { queueMs?: number; dispatchMs?: number }; documentUpdate?: DocumentUpdateTrace; localProofAttempt?: { attempt?: number; documentVersion?: number; outcome?: string; parseMicros?: number; totalMicros?: number; visitedNodes?: number; parsedBytes?: number } | null };
+      let message: { id?: number; result?: unknown; error?: { message?: string; code?: number | string }; nativeTiming?: { queueMs?: number; dispatchMs?: number }; demandSwitch?: unknown; documentUpdate?: DocumentUpdateTrace; localProofAttempt?: { attempt?: number; documentVersion?: number; outcome?: string; parseMicros?: number; totalMicros?: number; visitedNodes?: number; parsedBytes?: number } | null };
       try { message = JSON.parse(line); }
       catch {
         this.fail(new Error('F# Navigator engine emitted an invalid protocol response.'));
@@ -141,7 +145,7 @@ export class Backend implements vscode.Disposable {
       const entry = this.pending.get(message.id);
       if (!entry) continue; // Cancelled or obsolete request.
       if (traceEnabled) trace('transportResponse', {
-        pid: this.process.pid, id: message.id, method: entry.method,
+        pid: this.process.pid, id: message.id, method: entry.method, providerRequestId: entry.providerRequestId,
         queueMs: message.nativeTiming?.queueMs, dispatchMs: message.nativeTiming?.dispatchMs,
         localProofAttempt: message.localProofAttempt?.attempt,
         localProofVersion: message.localProofAttempt?.documentVersion,
@@ -170,6 +174,7 @@ export class Backend implements vscode.Disposable {
         updateProofCacheEvicted: message.documentUpdate?.proofCacheEvicted,
         updateSnapshotMicros: message.documentUpdate?.snapshotMicros,
         updateTotalMicros: message.documentUpdate?.totalMicros,
+        ...demandSwitchTraceFields(message.demandSwitch),
       });
       this.pending.delete(message.id);
       clearTimeout(entry.timer);
