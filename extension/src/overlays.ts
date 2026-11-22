@@ -9,6 +9,8 @@ type Send = (method: string, params: unknown) => Promise<unknown>;
 /** At most one in-flight text snapshot and one latest document reference/path. */
 export class OverlayQueue {
   private readonly pending = new Map<string, OverlayDocument | null>();
+  // A lifecycle boundary must survive coalescing to a newer document reference.
+  private readonly pendingCloses = new Set<string>();
   private readonly acknowledged = new Map<string, number>();
   private running: Promise<void> | undefined;
   private disposed = false;
@@ -28,6 +30,7 @@ export class OverlayQueue {
   close(path: string): void {
     if (this.disposed) return;
     if (!this.pending.has(path) && !this.acknowledged.has(path) && this.activePath !== path) return;
+    this.pendingCloses.add(path);
     this.pending.set(path, null);
     this.start();
   }
@@ -58,9 +61,15 @@ export class OverlayQueue {
         active = [path, document];
         this.pending.delete(path);
         this.activePath = path;
-        if (!document || document.isClosed) {
+        if (this.pendingCloses.has(path) || !document || document.isClosed) {
+          this.pendingCloses.add(path);
           await this.send('document/close', { path });
+          if (this.disposed) return;
+          this.pendingCloses.delete(path);
           this.acknowledged.delete(path);
+          // A close ACK covers all earlier lifetimes. Prefer any newer pending
+          // state; otherwise reopen the document retained alongside the barrier.
+          if (document && !document.isClosed && !this.pending.has(path)) this.pending.set(path, document);
           this.activePath = undefined;
           active = undefined;
           continue;
@@ -69,20 +78,21 @@ export class OverlayQueue {
         const text = document.getText();
         if (Buffer.byteLength(text, 'utf8') > 8 * 1024 * 1024) throw new Error('F# Navigator cannot synchronize a document larger than 8 MiB. No current result is available.');
         await this.send(this.acknowledged.has(path) ? 'document/change' : 'document/open', { path, text, version });
+        if (this.disposed) return;
         this.acknowledged.set(path, version);
         this.activePath = undefined;
         active = undefined;
-        if (this.pending.get(path) === document && document.version === version) this.pending.delete(path);
+        if (!this.pendingCloses.has(path) && this.pending.get(path) === document && document.version === version) this.pending.delete(path);
       }
     } catch (error) {
       this.activePath = undefined;
       // Retain failed work for an explicit retry. A failed close must not leave
       // an old overlay silently active while a later query reports success.
-      if (active && !this.pending.has(active[0])) this.pending.set(...active);
+      if (!this.disposed && active && !this.pending.has(active[0])) this.pending.set(...active);
       this.failure = error;
       throw error;
     }
   }
 
-  dispose(): void { this.disposed = true; this.pending.clear(); this.acknowledged.clear(); }
+  dispose(): void { this.disposed = true; this.pending.clear(); this.pendingCloses.clear(); this.acknowledged.clear(); }
 }

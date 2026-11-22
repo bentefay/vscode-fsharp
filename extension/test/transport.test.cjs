@@ -178,3 +178,91 @@ test('failed synchronization rejects the barrier and retains failed close plus o
     { method: 'document/close', path: '/fixture/Retry.fs' },
   ]);
 });
+
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+
+function controlledOverlays(t) {
+  const calls = [], waiting = [];
+  const queue = new OverlayQueue(Promise.resolve(), (method, params) => {
+    const ack = deferred();
+    const call = { method, ...params, ack };
+    const waiter = waiting.shift();
+    if (waiter) waiter.resolve(call); else calls.push(call);
+    return ack.promise;
+  }, () => {});
+  t.after(() => queue.dispose());
+  return { queue, calls, next() {
+    if (calls.length) return Promise.resolve(calls.shift());
+    const waiter = deferred(); waiting.push(waiter); return waiter.promise;
+  } };
+}
+const overlayDocument = (version, text = `let value = ${version}`) => ({ version, isClosed: false, getText: () => text });
+
+for (const reopenedVersion of [1, 10]) test(`queued close survives reopening at version ${reopenedVersion} behind another document`, async t => {
+  const { queue, next } = controlledOverlays(t);
+  queue.schedule('A.fs', overlayDocument(10));
+  (await next()).ack.resolve(); await queue.flush();
+  queue.schedule('B.fs', overlayDocument(1)); const blocked = await next();
+  queue.close('A.fs');
+  let reads = 0;
+  for (let i = 0; i < 5000; i++) {
+    queue.close('A.fs');
+    queue.schedule('A.fs', { version: reopenedVersion, isClosed: false, getText() { reads++; return `let latest = ${i}`; } });
+  }
+  assert.equal(reads, 0);
+  blocked.ack.resolve();
+  const close = await next(); assert.equal(close.method, 'document/close'); assert.equal(close.path, 'A.fs');
+  assert.equal(reads, 0, 'New lifetime text waits for close acknowledgement');
+  close.ack.resolve();
+  const open = await next();
+  assert.equal(open.method, 'document/open'); assert.equal(open.version, reopenedVersion); assert.equal(open.text, 'let latest = 4999');
+  open.ack.resolve(); await queue.flush(); assert.equal(reads, 1);
+});
+
+test('close reopen close while another send is pending ends closed', async t => {
+  const { queue, next, calls } = controlledOverlays(t);
+  queue.schedule('A.fs', overlayDocument(10)); (await next()).ack.resolve(); await queue.flush();
+  queue.schedule('B.fs', overlayDocument(1)); const blocked = await next();
+  queue.close('A.fs'); queue.schedule('A.fs', overlayDocument(1)); queue.close('A.fs');
+  blocked.ack.resolve(); const close = await next(); assert.equal(close.method, 'document/close');
+  close.ack.resolve(); await queue.flush(); assert.equal(calls.length, 0);
+});
+
+test('failed close retains its barrier when a newer reopened document is pending', async t => {
+  const { queue, next } = controlledOverlays(t);
+  queue.schedule('A.fs', overlayDocument(10)); (await next()).ack.resolve(); await queue.flush();
+  queue.close('A.fs'); const close = await next();
+  queue.schedule('A.fs', overlayDocument(1));
+  const failure = assert.rejects(queue.flush(), /close rejected/); close.ack.reject(new Error('close rejected')); await failure;
+  const retry = queue.flush(); const closeAgain = await next(); assert.equal(closeAgain.method, 'document/close'); closeAgain.ack.resolve();
+  const open = await next(); assert.equal(open.method, 'document/open'); assert.equal(open.version, 1); open.ack.resolve(); await retry;
+});
+
+for (const rejectOld of [false, true]) test(`late old text acknowledgement (${rejectOld ? 'failure' : 'success'}) preserves close and newest lifetime`, async t => {
+  const { queue, next } = controlledOverlays(t);
+  const old = overlayDocument(10);
+  queue.schedule('A.fs', old); const active = await next();
+  queue.close('A.fs'); queue.schedule('A.fs', old);
+  if (rejectOld) {
+    const failure = assert.rejects(queue.flush(), /old rejected/); active.ack.reject(new Error('old rejected')); await failure;
+  } else active.ack.resolve();
+  const completed = queue.flush(); const close = await next(); assert.equal(close.method, 'document/close');
+  queue.schedule('A.fs', overlayDocument(1, 'let newest = 1')); close.ack.resolve();
+  const open = await next(); assert.equal(open.method, 'document/open'); assert.equal(open.text, 'let newest = 1'); open.ack.resolve(); await completed;
+});
+
+test('dispose during close ignores late acknowledgement and never reopens; replacement queue starts fresh', async t => {
+  const { queue, next, calls } = controlledOverlays(t);
+  queue.schedule('A.fs', overlayDocument(10)); (await next()).ack.resolve(); await queue.flush();
+  queue.close('A.fs'); const close = await next();
+  let reads = 0; queue.schedule('A.fs', { version: 1, isClosed: false, getText() { reads++; return 'let fresh = 1'; } });
+  queue.dispose(); close.ack.resolve(); await queue.flush();
+  queue.schedule('A.fs', overlayDocument(1)); await queue.flush();
+  assert.equal(reads, 0); assert.equal(calls.length, 0);
+  const replacement = controlledOverlays(t); replacement.queue.schedule('A.fs', overlayDocument(1));
+  const open = await replacement.next(); assert.equal(open.method, 'document/open'); open.ack.resolve(); await replacement.queue.flush();
+});
