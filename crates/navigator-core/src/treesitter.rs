@@ -1201,7 +1201,9 @@ impl Extractor<'_> {
                 }
             }
             "fun_expression" => {
-                let cs = children(node);
+                // Named trivia can follow the expression (including the next
+                // declaration's XML documentation); it is never the lambda body.
+                let cs = method_children(node);
                 let args = cs.iter().find(|c| c.kind() == "argument_patterns").copied();
                 if let Some(body) = cs
                     .iter()
@@ -5198,6 +5200,69 @@ fn is_type_node(k: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn trailing_lambda_documentation_keeps_structural_pattern_candidates() {
+        let source = "module M\nlet memoize f =\n    fun n ->\n        lock f (fun _ ->\n            match f n with\n            | true, res -> res\n            | _ ->\n                let res = 0\n                res)\n\n/// Next declaration\nlet next = 1\n";
+        let p = parse(source);
+        let locations: Vec<_> = p
+            .declarations
+            .iter()
+            .filter_map(|d| {
+                let t = &p.tokens[d.token];
+                (t.text == "res").then_some((t.line, t.column))
+            })
+            .collect();
+        assert_eq!(
+            locations,
+            [(5, 20), (7, 20)],
+            "{locations:?}; {:?}",
+            p.uncertain
+        );
+    }
+
+    #[test]
+    fn lambda_trivia_keeps_branch_and_nested_binding_scopes() {
+        for trivia in [
+            "",
+            "/// Next declaration",
+            "// Next declaration",
+            "(* Next declaration *)",
+        ] {
+            let source = format!("module M\nlet f = fun n ->\n    match n with\n    | true, res -> (fun res -> res) res\n    | _ -> let res = 0 in res\n{trivia}\nlet next = 1\n");
+            let p = parse(&source);
+            let binding = |line, column| {
+                let t = p.token_at(line, column).unwrap();
+                let d = p
+                    .local_binding(t)
+                    .unwrap_or_else(|| panic!("missing {line}:{column}; {:?}", p.declarations));
+                let token = &p.tokens[d.token];
+                (token.line, token.column)
+            };
+            assert_eq!(binding(3, 31), (3, 24), "{trivia}");
+            assert_eq!(binding(3, 36), (3, 12), "{trivia}");
+            assert_eq!(binding(4, 26), (4, 15), "{trivia}");
+            assert!(p
+                .declarations
+                .iter()
+                .filter(|d| p.tokens[d.token].text == "res")
+                .all(|d| d.scope_end <= source.find("\nlet next").unwrap()));
+        }
+    }
+
+    #[test]
+    fn lambda_trivia_does_not_declare_record_pattern_labels() {
+        let source = "module M\ntype R = { Label: int }\nlet f = fun n ->\n    match n with\n    | { Label = value } -> value\n/// Next declaration\nlet next = 1\n";
+        let p = parse(source);
+        assert!(!p
+            .declarations
+            .iter()
+            .any(|d| p.tokens[d.token].text == "Label"));
+        let use_token = p.token_at(4, 27).unwrap();
+        let d = p.local_binding(use_token).unwrap();
+        assert_eq!(p.tokens[d.token].text, "value");
+        assert_eq!(p.tokens[d.token].column, 16);
+    }
+
     #[test]
     fn nominal_type_and_import_components_are_separate_from_field_expression_roles() {
         let source="module M\nopen Outer.Artifact\ntype Event = Case of Artifact:Artifact.ArtifactEvent\ntype Holder = {Artifact:int}\nlet create Artifact = {Artifact=Artifact}\nlet read (holder:Holder) = holder.Artifact, nameof holder.Artifact\nlet literal = nameof Artifact\nlet typed (value:Outer.Artifact.Box<Inner.Artifact>) = value\n";

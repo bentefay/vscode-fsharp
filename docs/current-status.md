@@ -6,6 +6,14 @@ labels and complete cross-file reference sets still require explicit compiler
 preparation. The default indexed providers expose only answers for which the
 engine can establish a binding and the requested reference domain.
 
+The [lambda-trivia repair](lambda-trivia-recall.md) restores an omitted tuple
+binder in the held-out FsCheck workload. Both frozen eight-site runs improve
+from one exact, six choices and one miss to two exact and six choices: only the
+tuple changes, through an independently reviewed existing lexical proof. All
+34 required editor scenarios, the scoped signature XFAIL and six Grace
+clean/dirty/reverted controls were retained. Tuple picker selection was not
+tested; the actual F12 result was a correct direct jump. No speed claim follows.
+
 The [document-only availability qualification](foreign-buffer-membership.md#bounded-document-only-availability-rescue)
 restores proven local parameter Definition jumps when an unrelated dirty external
 buffer would otherwise trigger the membership refusal. Unsupported/cross-file

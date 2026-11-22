@@ -186,7 +186,7 @@ fn stamp(path: &str) -> Result<(u64, u64)> {
 // Both modes persist ParsedFile in bincode; its layout is part of the key.
 fn summary_revision(indexed: bool) -> &'static str {
     if indexed {
-        "treesitter-fsharp-0.3.13-summary8:"
+        "treesitter-fsharp-0.3.13-summary9:"
     } else {
         "lexical-summary5:"
     }

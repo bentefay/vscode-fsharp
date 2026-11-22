@@ -4533,6 +4533,54 @@ mod integration_tests {
     }
 
     #[test]
+    fn lambda_documentation_candidates_refresh_dirty_ranges_and_versions() {
+        let (root, mut ws) = fixture();
+        let main = root.join("Main.fs");
+        let source = "module Main\nlet f = fun n ->\n    match n with\n    | true, res -> res\n    | _ -> 0\n/// Next declaration\nlet next = 1\n";
+        fs::write(&main, source).unwrap();
+        ws.dispatch("workspace/index", &json!({})).unwrap();
+        let exact = ws
+            .dispatch(
+                "navigation/definition",
+                &json!({"path":main,"line":3,"character":19}),
+            )
+            .unwrap();
+        assert_eq!(exact["completeness"], "exact", "{exact}");
+        assert_eq!(
+            exact["locations"],
+            json!([{"uri":uri(main.to_str().unwrap()),"range":{"start":{"line":3,"character":12},"end":{"line":3,"character":15}}}])
+        );
+        // Exercise the explicitly incomplete raw-background candidate path.
+        ws.background.raw_model = true;
+        for (version, padding, line) in [(1, "", 3), (2, "// shifted\n", 4)] {
+            let text = format!("{padding}{source}");
+            ws.dispatch(
+                "document/open",
+                &json!({"path":main,"text":text,"version":version}),
+            )
+            .unwrap();
+            let query = json!({"path":main,"line":line,"character":19,"documentVersion":version});
+            let answer = ws.dispatch("navigation/definition", &query).unwrap();
+            assert_ne!(answer["completeness"], "exact", "{answer}");
+            assert_eq!(answer["locations"], json!([]), "{answer}");
+            assert_eq!(answer["candidateCompleteness"], "incomplete", "{answer}");
+            let candidates = answer["candidates"].as_array().unwrap();
+            assert!(candidates.iter().any(|c| c["uri"] == uri(main.to_str().unwrap()) && c["range"] == json!({"start":{"line":line,"character":12},"end":{"line":line,"character":15}})), "{answer}");
+            if version == 2 {
+                assert!(!candidates
+                    .iter()
+                    .any(|c| c["uri"] == uri(main.to_str().unwrap())
+                        && c["range"]["start"]["line"] == 3));
+                let stale = json!({"path":main,"line":line,"character":19,"documentVersion":1});
+                assert!(ws.dispatch("navigation/definition", &stale).is_err());
+            }
+        }
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn exact_ordered_opens_and_scoped_references_without_helper() {
         let (path, mut ws) = fixture();
         let main = path.join("Main.fs");
