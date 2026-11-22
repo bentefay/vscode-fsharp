@@ -405,6 +405,166 @@
           "lines": 8,
           "scope": "unsaved layout-only prefix; no semantic-rebind claim; close must restore disk target; process restart revalidates original disk inputs"
         }
+      ],
+      "references": [
+        {
+          "id": "references-local-part",
+          "operation": "navigation/references",
+          "query": {
+            "path": "src/Compiler/Facilities/RichText.fs",
+            "line": 15,
+            "character": 24,
+            "token": "part"
+          },
+          "expectedReferences": [
+            {
+              "path": "src/Compiler/Facilities/RichText.fs",
+              "range": {
+                "start": {
+                  "line": 15,
+                  "character": 13
+                },
+                "end": {
+                  "line": 15,
+                  "character": 17
+                }
+              },
+              "text": "part"
+            },
+            {
+              "path": "src/Compiler/Facilities/RichText.fs",
+              "range": {
+                "start": {
+                  "line": 15,
+                  "character": 24
+                },
+                "end": {
+                  "line": 15,
+                  "character": 28
+                }
+              },
+              "text": "part"
+            }
+          ],
+          "expectedReferencesWithoutDeclaration": [
+            {
+              "path": "src/Compiler/Facilities/RichText.fs",
+              "range": {
+                "start": {
+                  "line": 15,
+                  "character": 24
+                },
+                "end": {
+                  "line": 15,
+                  "character": 28
+                }
+              },
+              "text": "part"
+            }
+          ],
+          "includeDeclarationModes": [
+            true,
+            false
+          ],
+          "require": "exact-complete-set",
+          "prefix": "// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n",
+          "lines": 8,
+          "rebind": {
+            "line": 15,
+            "originalLine": "        | [| part |] -> part.Text",
+            "replacementLine": "        | [| part |] -> (let part = part in part.Text)",
+            "query": {
+              "path": "src/Compiler/Facilities/RichText.fs",
+              "line": 15,
+              "character": 13,
+              "token": "part"
+            },
+            "expectedReferences": [
+              {
+                "path": "src/Compiler/Facilities/RichText.fs",
+                "range": {
+                  "start": {
+                    "line": 15,
+                    "character": 13
+                  },
+                  "end": {
+                    "line": 15,
+                    "character": 17
+                  }
+                },
+                "text": "part"
+              },
+              {
+                "path": "src/Compiler/Facilities/RichText.fs",
+                "range": {
+                  "start": {
+                    "line": 15,
+                    "character": 36
+                  },
+                  "end": {
+                    "line": 15,
+                    "character": 40
+                  }
+                },
+                "text": "part"
+              }
+            ],
+            "expectedReferencesWithoutDeclaration": [
+              {
+                "path": "src/Compiler/Facilities/RichText.fs",
+                "range": {
+                  "start": {
+                    "line": 15,
+                    "character": 36
+                  },
+                  "end": {
+                    "line": 15,
+                    "character": 40
+                  }
+                },
+                "text": "part"
+              }
+            ],
+            "excludedReferences": [
+              {
+                "path": "src/Compiler/Facilities/RichText.fs",
+                "range": {
+                  "start": {
+                    "line": 15,
+                    "character": 29
+                  },
+                  "end": {
+                    "line": 15,
+                    "character": 33
+                  }
+                },
+                "text": "part"
+              },
+              {
+                "path": "src/Compiler/Facilities/RichText.fs",
+                "range": {
+                  "start": {
+                    "line": 15,
+                    "character": 44
+                  },
+                  "end": {
+                    "line": 15,
+                    "character": 48
+                  }
+                },
+                "text": "part"
+              }
+            ],
+            "originalSourceSha256": "660d75b12aa155a02b567559d8888ec044f998d9167426368220d1e68cf09db5",
+            "reboundSourceSha256": "06f03f12a1f68540fe2fe229977afb9bdc9a5f446d85b6d8d861df34a950d87f",
+            "rationale": "Nonrecursive inner let RHS sees outer array binder; its declaration and subsequent part.Text refer to the new inner binding. Query outer declaration."
+          },
+          "textHashes": {
+            "original": "660d75b12aa155a02b567559d8888ec044f998d9167426368220d1e68cf09db5",
+            "dirty": "f24fd3435626abc8f1449a195a0153cd638387598042e3adac99a953bb5e7df2",
+            "rebind": "06f03f12a1f68540fe2fe229977afb9bdc9a5f446d85b6d8d861df34a950d87f"
+          }
+        }
       ]
     }
   ]

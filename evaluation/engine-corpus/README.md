@@ -41,8 +41,7 @@ raw discovery and indexing completion, then checks its required cases. An eight
 comment-line unsaved prefix shifts a selected target; its old location must be
 absent from exact/full/likely outputs. Closing restores the original disk target
 and excludes the shifted target. A second process reopens the same cache and
-checks all required cases after readiness. This is layout-edit freshness, not a
-semantic rename/rebind test. No manual index or evaluated model is supplied.
+checks all required cases after readiness. Definition edits check layout freshness; the reference control below additionally checks a scoped rebind. No manual index or evaluated model is supplied.
 Source, project/import inputs and native binary are hashed before/after; source
 files are not edited on disk. Cached results never substitute for current checks.
 
@@ -51,7 +50,7 @@ as separately reported probes. Their failure is **not a required pass**. Signatu
 contracts and corresponding implementation declarations remain distinct; an
 implementation exact hit is reported separately from signature-policy success.
 Wrong exact targets, unlabelled candidates and malformed tiers remain failures.
-References and external-hover coverage are explicitly not gated by this subset.
+CE references and external hover remain outside this subset; the scoped part reference gate is described below.
 
 All corpus content stays outside the repository. The tracked manifests contain
 relative paths, hashes and literal target spans only; supply licensed upstream
@@ -88,3 +87,17 @@ compiler probes remain visible; the promoted tuple appears in both roles and
 must not be counted as two independent source sites. Required useful-result
 observations increase from 18 to 22; total initial/demand/required observations
 increase from 28 to 32. The original compiler `part` lifecycle is not replaced.
+
+The compiler `part` references control adds 16 protocol obligations: 14 exact
+sets and two stale-version rejections. Both includeDeclaration modes run at
+first request and ready in fresh/restarted processes, plus dirty-prefix, stale,
+nonrecursive inner-let rebind, and close/restored phases in the fresh process.
+Exact sets must carry current explicit documentVersion/version, document scope,
+local-lexical source, nonempty proof ID/sourceHash/proof.algorithm. A native
+acknowledgment sourceHash, when supplied, must agree; independently acknowledged
+text SHA256 must equal the frozen variant (native hashes use BLAKE3).
+Missing, extra, duplicate, shadowed or obsolete locations fail. Seven definition
+sites and all eight historical probes remain unchanged. Total required protocol
+observations are 48, including 32 definition observations. Compiler references
+precede the former first-definition request; this gate supplies no comparable
+first-definition timing claim.

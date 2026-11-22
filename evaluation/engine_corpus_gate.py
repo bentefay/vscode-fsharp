@@ -83,6 +83,8 @@ def validate(root, suite):
                 text = lines[entry['line']].encode('utf-16-le')[2*entry['character']:].decode('utf-16-le')[:len(token)]
             if text != token:
                 raise Blocked('Frozen literal span mismatch: ' + site['id'])
+    for case in suite.get('references', []):
+        reference_texts(root, case)
     return actual
 
 
@@ -127,6 +129,7 @@ def validate_contract(manifest):
     if manifest.get('schemaVersion') != 1 or len(ids) != len(REQUIRED_CONTRACTS) or set(ids) != set(REQUIRED_CONTRACTS):
         raise Blocked('Manifest must contain each frozen corpus exactly once')
     for suite in suites:
+        validate_reference_contract(suite)
         cases = suite.get('required', [])
         actual = {s.get('id'): s.get('require') for s in cases}
         if len(cases) != len(actual) or actual != REQUIRED_CONTRACTS[suite['id']]:
@@ -227,6 +230,136 @@ def audit_obligations(report, root, suite):
 
 
 
+def reference_texts(root, case):
+    clean = safe_path(root, case['query']['path']).read_text(encoding='utf-8-sig')
+    lines = clean.splitlines(keepends=True); rebind = case['rebind']; line = rebind['line']
+    if lines[line].rstrip('\r\n') != rebind['originalLine']:
+        raise Blocked('Reference rebind original source line differs')
+    ending = '\r\n' if lines[line].endswith('\r\n') else '\n' if lines[line].endswith('\n') else ''
+    lines[line] = rebind['replacementLine'] + ending
+    texts = {'original': clean, 'dirty': case['prefix'] + clean, 'rebind': ''.join(lines)}
+    for name, text in texts.items():
+        if hashlib.sha256(text.encode()).hexdigest() != case['textHashes'][name]:
+            raise Blocked('Reference variant text hash differs: ' + name)
+    for phase in ('first', 'dirty', 'rebind'):
+        variant = reference_variant(case, phase); text = texts['original' if phase == 'first' else phase]; source_lines = text.splitlines()
+        q = variant['query']
+        if not source_lines[q['line']].encode('utf-16-le')[2*q['character']:].decode('utf-16-le').startswith(q['token']):
+            raise Blocked('Reference query literal differs: ' + phase)
+        for target in variant['expectedReferences'] + variant['expectedReferencesWithoutDeclaration']:
+            a, z = target['range']['start'], target['range']['end']
+            if a['line'] != z['line'] or source_lines[a['line']].encode('utf-16-le')[2*a['character']:2*z['character']].decode('utf-16-le') != target['text']:
+                raise Blocked('Reference target literal differs: ' + phase)
+    return texts
+
+
+def reference_variant(case, phase):
+    variant = copy.deepcopy(case)
+    if phase in ('dirty', 'stale'):
+        variant['query']['line'] += case['lines']
+        for key in ('expectedReferences', 'expectedReferencesWithoutDeclaration'):
+            for item in variant[key]:
+                item['range']['start']['line'] += case['lines']
+                item['range']['end']['line'] += case['lines']
+    elif phase == 'rebind':
+        variant.update(copy.deepcopy(case['rebind']))
+    return variant
+
+
+def reference_forbidden(root, case, phase, epoch):
+    original = case['expectedReferences']
+    shifted = reference_variant(case, 'dirty')['expectedReferences']
+    rhs = case['rebind']['expectedReferencesWithoutDeclaration']
+    if phase in ('dirty', 'stale'):
+        targets = original
+    elif phase == 'rebind':
+        targets = case['expectedReferencesWithoutDeclaration'] + case['rebind']['excludedReferences']
+    elif phase == 'closed-restored' or epoch == 'restart':
+        targets = shifted + rhs
+    else:
+        targets = []
+    return [location(root, t) for t in targets]
+
+
+def score_references(response, expected, version, forbidden=(), stale=False):
+    if 'error' in response:
+        return {'passed': stale, 'classification': 'stale-rejected' if stale else 'protocol-error'}
+    value = response.get('result', {})
+    locations = value.get('locations', [])
+    candidates = value.get('candidates', []) + value.get('likelyCandidates', [])
+    if stale:
+        ok = value.get('completeness') in ('unavailable', 'incomplete') and not locations and not candidates
+        return {'passed': ok, 'classification': 'stale-rejected' if ok else 'stale-request-exposed-result'}
+    if value.get('version') != version or value.get('documentVersion') != version:
+        return {'passed': False, 'classification': 'stale-or-missing-document-version'}
+    if value.get('proofScope') != 'document' or value.get('source') != 'local-lexical' or not all(isinstance(x, str) and x.strip() for x in (value.get('documentProofId'), value.get('sourceHash'), value.get('proof', {}).get('algorithm'))):
+        return {'passed': False, 'classification': 'missing-or-wrong-document-proof'}
+    if any(t in locations + candidates for t in forbidden):
+        return {'passed': False, 'classification': 'stale-or-shadowed-reference'}
+    canonical = lambda items: sorted(json.dumps(x, sort_keys=True) for x in items)
+    ok = value.get('completeness') == 'exact' and not candidates and canonical(locations) == canonical(expected)
+    return {'passed': ok, 'classification': 'exact-reference-set' if ok else 'missing-or-incorrect-reference-set', 'expectedCount': len(expected), 'actualCount': len(locations)}
+
+
+def validate_reference_contract(suite):
+    cases = suite.get('references', [])
+    expected_ids = ['references-local-part'] if suite['id'] == 'compiler' else []
+    if [s.get('id') for s in cases] != expected_ids:
+        raise Blocked('Required reference case set differs from frozen contract')
+    for case in cases:
+        if case.get('operation') != 'navigation/references' or case.get('require') != 'exact-complete-set' or case.get('includeDeclarationModes') != [True, False]:
+            raise Blocked('Reference operation/strength/declaration modes changed')
+        path = 'src/Compiler/Facilities/RichText.fs'
+        spans = lambda items: [(x['path'], x['range']['start']['line'], x['range']['start']['character'], x['range']['end']['line'], x['range']['end']['character']) for x in items]
+        if spans(case['expectedReferences']) != [(path, 15, 13, 15, 17), (path, 15, 24, 15, 28)] or spans(case['expectedReferencesWithoutDeclaration']) != [(path, 15, 24, 15, 28)]:
+            raise Blocked('Frozen complete part reference set changed')
+        if spans(case['rebind']['expectedReferences']) != [(path, 15, 13, 15, 17), (path, 15, 36, 15, 40)] or spans(case['rebind']['expectedReferencesWithoutDeclaration']) != [(path, 15, 36, 15, 40)]:
+            raise Blocked('Frozen rebind reference set changed')
+        if case.get('lines') != 8 or case.get('prefix', '').count('\n') != 8:
+            raise Blocked('Reference prefix shift changed')
+
+
+def audit_reference_obligations(report, root, suite):
+    cases = {s['id']: s for s in suite.get('references', [])}
+    phases = {'fresh': ['first', 'ready', 'dirty', 'stale', 'rebind', 'closed-restored'], 'restart': ['first', 'ready']}
+    expected = {(epoch, phase, sid, include) for epoch, names in phases.items() for phase in names for sid in cases for include in (True, False)}
+    observed = {}; failures = []; versions = {}; texts = {}; native_hashes = {}; ready = set()
+    for row in report.get('rows', []):
+        epoch = row.get('epoch'); method = row.get('method'); params = row.get('params') or {}; response = row.get('response', {})
+        keypath = (epoch, params.get('path'))
+        if method in ('document/open', 'document/change') and 'error' not in response:
+            versions[keypath] = params.get('version'); texts[keypath] = hashlib.sha256(params.get('text', '').encode()).hexdigest()
+            native_hashes[keypath] = response.get('result', {}).get('sourceHash')
+        elif method == 'document/close' and 'error' not in response:
+            versions.pop(keypath, None); texts.pop(keypath, None)
+        if method == 'workspace/stats':
+            v = response.get('result', {}); bg = v.get('background', {})
+            if bg.get('phase') == 'ready' and bg.get('discoveryComplete') is True and bg.get('indexComplete') is True and not v.get('indexErrors'):
+                ready.add(epoch)
+        if row.get('phase') != 'reference':
+            continue
+        phase = row.get('referencePhase'); include = params.get('includeDeclaration'); key = (epoch, phase, row.get('site'), include)
+        observed[key] = observed.get(key, 0) + 1
+        if key not in expected or type(include) is not bool:
+            failures.append('Unexpected reference observation: ' + str(key)); continue
+        case = cases[row['site']]; variant = reference_variant(case, phase); q = variant['query']; current = versions.get(keypath); stale = phase == 'stale'
+        desired_text = 'dirty' if phase in ('dirty', 'stale') else 'rebind' if phase == 'rebind' else 'original'
+        if phase != 'first' and epoch not in ready:
+            failures.append('Reference phase before verified ready: ' + str(key))
+        if method != 'navigation/references' or params.get('path') != str(safe_path(root, q['path'])) or params.get('line') != q['line'] or params.get('character') != q['character'] or current is None or params.get('documentVersion') != (current-1 if stale else current) or texts.get(keypath) != case['textHashes'][desired_text]:
+            failures.append('Reference request/version/text differs: ' + str(key))
+        if not stale and native_hashes.get(keypath) is not None and response.get('result', {}).get('sourceHash') != native_hashes[keypath]:
+            failures.append('Reference source hash differs from acknowledged native hash: ' + str(key))
+        targets = [location(root, t) for t in variant['expectedReferences' if include else 'expectedReferencesWithoutDeclaration']]
+        scored = score_references(response, targets, current, reference_forbidden(root, case, phase, epoch), stale)
+        if not scored['passed'] or row.get('scoring', {}).get('passed') is not True:
+            failures.append('Required reference result absent/unscored/incorrect: ' + str(key) + ': ' + scored['classification'])
+    for key in expected:
+        if observed.get(key) != 1:
+            failures.append('Reference phase must occur exactly once: ' + str(key))
+    return {'expected': len(expected), 'observed': sum(observed.values()), 'exactSetExpected': sum(k[1] != 'stale' for k in expected), 'staleRejectionExpected': sum(k[1] == 'stale' for k in expected), 'failures': failures}
+
+
 def finalize_reports(reports, roots, selected, known=None):
     errors = report_set_errors(reports, [s['id'] for s in selected])
     if errors:
@@ -235,6 +368,9 @@ def finalize_reports(reports, roots, selected, known=None):
     for report in reports:
         audit = audit_obligations(report, roots[report['id']], contracts[report['id']])
         report['obligationAudit'] = audit
+        refs_audit = audit_reference_obligations(report, roots[report['id']], contracts[report['id']])
+        report['referenceObligationAudit'] = refs_audit
+        report.setdefault('failures', []).extend(refs_audit['failures'])
         report.setdefault('failures', []).extend(audit['failures'])
         if known is not None:
             ids = [s['id'] for s in known.get(report['id'], {}).get('cases', [])]
@@ -254,10 +390,10 @@ def run_suite(binary, root, suite, cache, known, timeout):
     for epoch in ['fresh', 'restart']:
         session = Session([str(binary), 'daemon'], timeout=timeout, sample_interval=.2)
         versions = {}
-        def call(method, params=None):
+        def call(method, params=None, allow_error=False):
             response, _ = session.call(method, params)
             report['rows'].append({'epoch': epoch, 'method': method, 'params': params, 'response': response})
-            if 'error' in response:
+            if 'error' in response and not allow_error:
                 raise RuntimeError(method + ': ' + str(response['error']))
             return response
         def opened(path):
@@ -278,8 +414,23 @@ def run_suite(binary, root, suite, cache, known, timeout):
             if not required and result['classification'] in ('wrong-exact', 'stale-target', 'unproven-exact-locations', 'unlabelled-candidates', 'invalid-likely-subset', 'stale-or-missing-document-version'):
                 fail(epoch + '/' + phase + ': ' + result['classification'])
             return result
+        def reference_query(case, phase, include):
+            variant = reference_variant(case, phase); q = variant['query']; path = safe_path(root, q['path']); opened(path)
+            stale = phase == 'stale'; version = versions[path]
+            response = call('navigation/references', {'path': str(path), 'line': q['line'], 'character': q['character'], 'documentVersion': version-1 if stale else version, 'includeDeclaration': include}, allow_error=stale)
+            expected = [location(root, t) for t in variant['expectedReferences' if include else 'expectedReferencesWithoutDeclaration']]
+            result = score_references(response, expected, version, reference_forbidden(root, case, phase, epoch), stale)
+            report['rows'][-1].update(site=case['id'], phase='reference', referencePhase=phase, scoring=result)
+            if not result['passed']:
+                fail(epoch + '/reference/' + phase + '/' + str(include) + ': ' + result['classification'])
+        def reference_pair(case, phase):
+            for include in (True, False):
+                reference_query(case, phase, include)
+
         try:
             call('workspace/open', {'root': str(safe_path(root, suite['workspace'])), 'mode': 'indexed', 'cacheDir': str(cache)})
+            for case in suite.get('references', []):
+                reference_pair(case, 'first')
             query(suite['required'][0], 'first-response', required=False)
             trigger = suite['discoveryTrigger']
             if trigger['id'] != suite['required'][0]['id']:
@@ -303,6 +454,8 @@ def run_suite(binary, root, suite, cache, known, timeout):
                     previous['range']['end']['line'] += control['lines']
                     forbidden = [location(root, previous)]
                 query(site, 'ready', forbidden)
+            for case in suite.get('references', []):
+                reference_pair(case, 'ready')
             if epoch == 'fresh':
                 for site in known:
                     outcome = query(site, 'known-failure-probe', required=False)
@@ -320,6 +473,18 @@ def run_suite(binary, root, suite, cache, known, timeout):
                     query(shifted, 'dirty', [location(root, original['expected'])])
                     call('document/close', {'path': str(provider)}); versions.pop(provider)
                     query(original, 'closed-restored', [location(root, shifted['expected'])])
+            if epoch == 'fresh':
+                for case in suite.get('references', []):
+                    texts = reference_texts(root, case); path = safe_path(root, case['query']['path']); opened(path)
+                    versions[path] += 1
+                    call('document/change', {'path': str(path), 'version': versions[path], 'text': texts['dirty']})
+                    reference_pair(case, 'dirty')
+                    reference_pair(case, 'stale')
+                    versions[path] += 1
+                    call('document/change', {'path': str(path), 'version': versions[path], 'text': texts['rebind']})
+                    reference_pair(case, 'rebind')
+                    call('document/close', {'path': str(path)}); versions.pop(path)
+                    reference_pair(case, 'closed-restored')
             stats = call('workspace/stats')['result']
             for key in ['compilerLaunches', 'helperStarts', 'decompilerStarts']:
                 if stats.get(key) != 0:
@@ -346,7 +511,7 @@ def main(argv=None):
     p.add_argument('--suite', action='append', choices=['grace', 'fscheck', 'compiler'])
     p.add_argument('--timeout', type=float, default=30)
     args = p.parse_args(argv)
-    report = {'schemaVersion': 1, 'status': 'blocked', 'manifestSha256': digest(MANIFEST), 'knownFailuresSha256': digest(KNOWN), 'runnerSha256': digest(__file__), 'suites': [], 'limitations': ['Native correctness/availability only, not UI or timing benchmark.', 'Layout-only dirty edit; no binding-changing freshness claim.', 'Known-failure probes are never counted as required passes.']}
+    report = {'schemaVersion': 1, 'status': 'blocked', 'manifestSha256': digest(MANIFEST), 'knownFailuresSha256': digest(KNOWN), 'runnerSha256': digest(__file__), 'suites': [], 'limitations': ['Native correctness/availability only, not UI or timing benchmark.', 'Definition edits are layout-only; the part reference control additionally checks a nested nonrecursive-let rebind.', 'Known-failure probes are never counted as required passes.']}
     try:
         manifest = json.loads(MANIFEST.read_text()); known = json.loads(KNOWN.read_text())
         validate_contract(manifest)

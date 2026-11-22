@@ -8,7 +8,7 @@ import unittest
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from unittest.mock import patch
-from engine_corpus_gate import Blocked, inventory, safe_path, score, main, validate, validate_contract, report_set_errors, finalize_reports, location, validate_known_contract, lifecycle_controls
+from engine_corpus_gate import Blocked, inventory, safe_path, score, main, validate, validate_contract, report_set_errors, finalize_reports, location, validate_known_contract, lifecycle_controls, score_references, reference_variant, reference_forbidden, audit_reference_obligations, validate_reference_contract
 
 GOLD = {'uri': 'file:///source/A.fs', 'range': {'start': {'line': 1, 'character': 4}, 'end': {'line': 1, 'character': 7}}}
 OLD = {'uri': 'file:///source/A.fs', 'range': {'start': {'line': 0, 'character': 4}, 'end': {'line': 0, 'character': 7}}}
@@ -114,7 +114,10 @@ class PinTests(unittest.TestCase):
 class ObligationTests(unittest.TestCase):
     def setUp(self):
         self.manifest = json.loads((Path(__file__).parent/'engine-corpus/manifest.json').read_text())
-        self.suite = self.manifest['suites'][2]
+        self.suite = copy.deepcopy(self.manifest['suites'][2])
+        # Definition-auditor unit fixtures are intentionally isolated; main's
+        # contract validator independently requires the real reference case.
+        self.suite['references'] = []
         self.root = Path('/portable-source')
 
     def report(self):
@@ -230,6 +233,106 @@ class ObligationTests(unittest.TestCase):
             report = self.report()
             report['rows'] = [r for r in report['rows'] if not (r.get('phase') == 'ready' if mode == 'case' else r.get('method') == 'workspace/stats')]
             self.assertFalse(self.finalize(report))
+
+
+class ReferenceGateTests(unittest.TestCase):
+    @staticmethod
+    def proof(version):
+        return {'documentVersion': version, 'proofScope': 'document', 'source': 'local-lexical', 'documentProofId': 'unit-proof', 'sourceHash': 'unit-source-hash', 'proof': {'algorithm': 'unit-algorithm'}}
+
+    def setUp(self):
+        data = json.loads((Path(__file__).parent/'engine-corpus/manifest.json').read_text())
+        self.suite = data['suites'][2]; self.case = copy.deepcopy(self.suite['references'][0]); self.root = Path('/portable-reference-source')
+        # Synthetic transport text witnesses only; no F# source execution.
+        self.texts = {'original': 'original', 'dirty': 'dirty', 'rebind': 'rebind'}
+        self.case['textHashes'] = {k: hashlib.sha256(v.encode()).hexdigest() for k, v in self.texts.items()}
+        self.suite['references'] = [self.case]
+
+    def report(self):
+        rows = []; path = str(self.root/self.case['query']['path'])
+        for epoch, phases in [('fresh', ['first', 'ready', 'dirty', 'stale', 'rebind', 'closed-restored']), ('restart', ['first', 'ready'])]:
+            for phase in phases:
+                text_kind = 'dirty' if phase in ('dirty', 'stale') else 'rebind' if phase == 'rebind' else 'original'
+                version = 2 if phase in ('dirty', 'stale') else 3 if phase == 'rebind' else 1
+                rows.append({'epoch': epoch, 'method': 'document/open', 'params': {'path': path, 'version': version, 'text': self.texts[text_kind]}, 'response': {'result': {}}})
+                if phase != 'first':
+                    rows.append({'epoch': epoch, 'method': 'workspace/stats', 'response': {'result': {'background': {'phase': 'ready', 'discoveryComplete': True, 'indexComplete': True}}}})
+                variant = reference_variant(self.case, phase); q = variant['query']
+                for include in (True, False):
+                    expected = [location(self.root, t) for t in variant['expectedReferences' if include else 'expectedReferencesWithoutDeclaration']]
+                    response = {'error': {'message': 'stale version'}} if phase == 'stale' else {'result': {'completeness': 'exact', 'locations': expected, 'version': version, **self.proof(version)}}
+                    rows.append({'epoch': epoch, 'method': 'navigation/references', 'phase': 'reference', 'referencePhase': phase, 'site': self.case['id'], 'params': {'path': path, 'line': q['line'], 'character': q['character'], 'documentVersion': version-1 if phase == 'stale' else version, 'includeDeclaration': include}, 'response': response, 'scoring': {'passed': True}})
+        return {'id': 'compiler', 'rows': rows}
+
+    def audit(self, report):
+        return audit_reference_obligations(report, self.root, self.suite)
+
+    def test_native_acknowledged_source_hash_mismatch_fails(self):
+        report = self.report()
+        report['rows'][0]['response']['result']['sourceHash'] = 'different-current-native-hash'
+        self.assertTrue(self.audit(report)['failures'])
+
+    def test_missing_or_forged_document_provenance_fails_raw_audit(self):
+        for key, replacement in [('documentVersion', None), ('proofScope', 'project'), ('source', 'indexed'), ('documentProofId', ''), ('sourceHash', ''), ('proof', {})]:
+            report = self.report()
+            row = next(r for r in report['rows'] if r['method'] == 'navigation/references')
+            row['response']['result'][key] = replacement
+            self.assertTrue(self.audit(report)['failures'], key)
+
+    def test_exact_set_requires_every_range_no_extras_or_duplicates(self):
+        expected = [GOLD, OLD]
+        for actual in [[], [GOLD], [GOLD, GOLD], [GOLD, OLD, OLD]]:
+            response = {'result': {'completeness': 'exact', 'locations': actual, 'version': 1, **self.proof(1)}}
+            self.assertFalse(score_references(response, expected, 1)['passed'])
+        self.assertTrue(score_references({'result': {'completeness': 'exact', 'locations': [OLD, GOLD], 'version': 1, **self.proof(1)}}, expected, 1)['passed'])
+
+    def test_unavailable_or_candidates_never_satisfy_exact_reference_set(self):
+        for value in [{'completeness': 'unavailable', 'locations': [], 'version': 1}, {'completeness': 'unavailable', 'candidates': [GOLD], 'candidateCompleteness': 'incomplete', 'version': 1}, {'completeness': 'exact', 'locations': [GOLD], 'candidates': [OLD], 'version': 1}]:
+            self.assertFalse(score_references({'result': value}, [GOLD], 1)['passed'])
+
+    def test_stale_version_never_exposes_complete_empty_or_locations(self):
+        self.assertTrue(score_references({'error': {}}, [], 2, stale=True)['passed'])
+        for value in [{}, {'completeness': 'exact', 'locations': []}, {'completeness': 'unavailable', 'locations': [GOLD]}]:
+            self.assertFalse(score_references({'result': value}, [], 2, stale=True)['passed'])
+
+    def test_original_and_rebind_contract_sets_cannot_be_reduced(self):
+        data = json.loads((Path(__file__).parent/'engine-corpus/manifest.json').read_text()); suite = data['suites'][2]
+        validate_reference_contract(suite)
+        for key in ['expectedReferences', 'expectedReferencesWithoutDeclaration']:
+            broken = copy.deepcopy(suite); broken['references'][0][key].pop()
+            with self.assertRaises(Blocked): validate_reference_contract(broken)
+        broken = copy.deepcopy(suite); broken['references'] = []
+        with self.assertRaises(Blocked): validate_reference_contract(broken)
+
+    def test_all_sixteen_protocol_observations_are_required(self):
+        result = self.audit(self.report()); self.assertEqual(result['failures'], [])
+        self.assertEqual((result['expected'], result['observed'], result['exactSetExpected'], result['staleRejectionExpected']), (16, 16, 14, 2))
+
+    def test_every_phase_and_declaration_mode_individually_required(self):
+        for phase in ['first', 'ready', 'dirty', 'stale', 'rebind', 'closed-restored']:
+            for include in (True, False):
+                report = self.report(); report['rows'] = [r for r in report['rows'] if not (r.get('referencePhase') == phase and r.get('params', {}).get('includeDeclaration') is include)]
+                self.assertTrue(self.audit(report)['failures'])
+
+    def test_wrong_set_with_success_flag_and_unscored_answer_fail(self):
+        for mode in ['wrong', 'unscored']:
+            report = self.report(); row = next(r for r in report['rows'] if r.get('referencePhase') == 'dirty')
+            if mode == 'wrong': row['response']['result']['locations'] = []
+            else: row.pop('scoring')
+            self.assertTrue(self.audit(report)['failures'])
+
+    def test_rebind_excludes_inner_homonyms(self):
+        expected = [location(self.root, t) for t in self.case['rebind']['expectedReferences']]
+        forbidden = reference_forbidden(self.root, self.case, 'rebind', 'fresh')
+        inner = location(self.root, self.case['rebind']['excludedReferences'][0])
+        self.assertIn(inner, forbidden)
+        response = {'result': {'completeness': 'exact', 'locations': expected + [inner], 'version': 3}}
+        self.assertFalse(score_references(response, expected, 3, forbidden)['passed'])
+
+    def test_changed_text_or_version_witness_fails(self):
+        for key, value in [('version', 99), ('text', 'not-the-acknowledged-variant')]:
+            report = self.report(); row = next(r for r in report['rows'] if r.get('method') == 'document/open'); row['params'][key] = value
+            self.assertTrue(self.audit(report)['failures'])
 
 
 if __name__ == '__main__':
