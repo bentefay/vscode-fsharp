@@ -4,13 +4,13 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const same = (a,b) => JSON.stringify(a) === JSON.stringify(b);
 const sorted = values => values.map(x=>JSON.stringify(x)).sort();
-exports.exercise = async ({vscode,renderer,api,test,c,roots,wait,current,norm,noWrongNavigation}) => {
+exports.exercise = async ({vscode,renderer,api,test,c,roots,wait,current,norm,noWrongNavigation,preserveNativeRows=false}) => {
   const target=t=>({uri:vscode.Uri.file(path.join(roots[test.fixture],t.file)).toString(),range:t.range});
   const dom=()=>renderer.evaluate(`(()=>{const visible=n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden';};const panes=[...document.querySelectorAll('.pane')].filter(p=>visible(p)&&/^references\\b/i.test((p.querySelector('.pane-header')?.innerText||'').trim()));const rows=panes.flatMap(p=>[...p.querySelectorAll('.monaco-list-row')].filter(visible).map(n=>{const r=n.getBoundingClientRect(),x=r.x+Math.min(90,r.width/2),y=r.y+r.height/2,h=document.elementFromPoint(x,y);return{text:n.innerText,aria:n.getAttribute('aria-label'),level:n.getAttribute('aria-level'),expanded:n.getAttribute('aria-expanded'),highlights:[...n.querySelectorAll('.highlight')].map(x=>x.textContent),point:{x,y},hit:!!h&&(h===n||n.contains(h))};}));const messages=[...document.querySelectorAll('.monaco-editor-overlaymessage,.peekview-widget')].filter(visible).map(n=>n.innerText);const notices=[...document.querySelectorAll('.notification-list-item')].filter(visible).map(n=>({text:n.innerText,buttons:[...n.querySelectorAll('button,.monaco-button')].filter(visible).map(b=>{const r=b.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2,h=document.elementFromPoint(x,y);return{text:b.innerText.trim(),point:{x,y},hit:!!h&&(h===b||b.contains(h))};})}));const possible=[...document.querySelectorAll('.pane')].find(p=>visible(p)&&/possible references/i.test(p.querySelector('.pane-header')?.innerText||''));return{panes:panes.map(p=>p.innerText),rows,messages,notices,possible:possible?{text:possible.innerText,rows:[...possible.querySelectorAll('.monaco-list-row')].filter(visible).map(n=>{const r=n.getBoundingClientRect(),x=r.x+Math.min(90,r.width/2),y=r.y+r.height/2,h=document.elementFromPoint(x,y);return{text:n.innerText,point:{x,y},hit:!!h&&(h===n||n.contains(h))};})}:null};})()`);
   try {
-  await vscode.commands.executeCommand('references-view.clearHistory');
+  if(!preserveNativeRows){await vscode.commands.executeCommand('references-view.clearHistory');
   await vscode.commands.executeCommand('references-view.clear');
-  await wait(async()=>!(await dom()).rows.some(r=>r.highlights?.includes(test.query.token)),'previous native reference rows cleared');
+  await wait(async()=>!(await dom()).rows.some(r=>r.expanded===null),'previous native reference rows cleared');}
   await vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
   assert.deepEqual(current(),c.origin);
   const before=api.lastResult;c.route=test.route;c.referenceNativeSnapshots=[];

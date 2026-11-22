@@ -338,3 +338,25 @@ certificate is current because its files still hash correctly.
 See the [qualification evidence boundary](../../../docs/e2e-coverage.md#fresh-explicit-prepared-hover-qualification)
 and [preparation requirements](../../../docs/prepared-metadata.md#environment-bound-preparation-and-editor-qualification).
 The ordinary 24-pass matrix and both known failures are unchanged.
+
+## Opt-in References currentness regressions
+
+The default manifest remains unchanged at 24 required passes plus its scoped
+signature failure. `reference-currentness-regression.json` contains two strict
+interaction contracts, **not additional passing cases**. Select it with
+`FSHARP_E2E_MANIFEST` through the same protected command and a fresh private
+output directory. No runtime test barrier or new runtime behavior is introduced.
+
+The native sidebar case observed an old-line click after the native response
+already contained current post-edit ranges. Its row-count/label observer cannot
+distinguish a transient replacement race from a persistent view defect. The
+Possible References case passed in isolation, including visible row removal,
+old-command refusal and a refreshed target click, but did not repeat in the
+full suite: selection failed before the edit. A preceding setup attempt also
+failed because old native rows survived the token-specific initial-clear
+check; that check now waits for all native leaf rows to disappear.
+
+Neither interaction earns required-pass or cancellation credit. The command
+replay is not a stale-row pointer click, and a timeout is not cancellation.
+Both failed attempts and the isolated success remain private. See the
+[qualification and exact boundaries](../../../docs/e2e-coverage.md#references-currentness-qualification).

@@ -34,7 +34,7 @@ test('each scenario has a distinct rule, explicit oracle and a real query token'
       assert.ok(query.character >= tokenStart && query.character < tokenStart + query.token.length, 'Caret must be inside the authored full token');
       assert.equal(files[query.file].split('\n')[query.line].slice(tokenStart, tokenStart + query.token.length), query.token, scenario.id);
     }
-    const referenceCase = scenario.operation === 'references';
+    const referenceCase = ['references', 'referenceFreshness'].includes(scenario.operation);
     assert.ok((scenario.operation === 'projectTree' ? ['ordered-tree'] : scenario.operation === 'hover' ? ['suppressed', 'external', 'unavailable'] : referenceCase ? ['exact', 'incomplete'] : ['exact', 'candidates', 'unavailable']).includes(scenario.expected.kind));
     if (scenario.operation === 'hover' && scenario.expected.kind !== 'external') { assert.equal(scenario.expected.ownership, scenario.expected.kind === 'suppressed' ? 'workspace' : 'unknown'); assert.equal(scenario.expected.completeness, scenario.expected.kind === 'suppressed' ? 'exact' : 'unavailable'); }
     if (referenceCase) {
@@ -61,7 +61,7 @@ test('fixtures are portable source-only inputs and expected ranges identify none
       ...(expected.references || []).map(location => ({location, files: edited})),
       ...(expected.possibleRequired || []).map(location => ({location, files: edited})),
       ...(expected.possibleTarget ? [{location: expected.possibleTarget, files: edited}] : []),
-      ...(scenario.operation === 'references' ? [scenario.oracle.declaration, ...scenario.oracle.uses, ...(scenario.oracle.excludedHomonyms || []), ...(scenario.oracle.unrelatedSameNameOccurrences || [])].map(location => ({location, files: edited})) : []),
+      ...(['references', 'referenceFreshness'].includes(scenario.operation) ? [scenario.oracle.declaration, ...scenario.oracle.uses, ...(scenario.oracle.excludedHomonyms || []), ...(scenario.oracle.unrelatedSameNameOccurrences || [])].map(location => ({location, files: edited})) : []),
       ...(expected.target ? [{location: expected.target, files: edited}] : []),
       ...(expected.forbidden || []).map(location => ({location, files: fixture.files})),
       ...(scenario.edit ? [{location: scenario.edit.baseline.expected.target, files: fixture.files}] : [])];
@@ -71,7 +71,7 @@ test('fixtures are portable source-only inputs and expected ranges identify none
       const line = files[location.file].split('\n')[start.line];
       assertLiteralSpan(line, start.character, end.character, location.text, scenario.id);
     }
-    if (expected.kind === 'exact' && scenario.operation !== 'references') assert.ok(expected.target);
+    if (expected.kind === 'exact' && !['references', 'referenceFreshness'].includes(scenario.operation)) assert.ok(expected.target);
     if (expected.kind === 'candidates') {
       assert.ok(expected.required.length >= 1);
       assert.ok(expected.required.some(x => JSON.stringify(x) === JSON.stringify(expected.target)));
@@ -201,5 +201,24 @@ test('qualified union regression remains strict with the unchanged complete fixt
   for (const location of [scenario.expected.target, ...scenario.expected.forbidden]) {
     assertLiteralSpan(lines[location.range.start.line], location.range.start.character,
       location.range.end.character, location.text, scenario.id);
+  }
+});
+
+// Interaction extensions preserve every pre-existing scenario and fixture.
+test('all twenty-five prior cases and fixtures remain frozen', () => {
+  assert.equal(createHash('sha256').update(JSON.stringify({fixtures:manifest.fixtures,cases:manifest.cases.slice(0,25)})).digest('hex'),'dafd2910175293c8e552b2a5a1d746bdd261e61d168b6d3a44edfaf659f53f31');
+});
+
+test('two reference interaction plans have independent current UTF-16 sets and one-line edits', () => {
+  const regression=JSON.parse(fs.readFileSync(path.join(__dirname,'reference-currentness-regression.json'),'utf8'));assert.equal(regression.cases.length,2);assert.deepEqual(regression.cases.map(c=>c.id),['references-native-post-edit-repeat','references-possible-post-edit-currentness']);for(const c of regression.cases){assert.equal(c.expectedFailure,undefined);assert.ok(!manifest.cases.some(x=>x.id===c.id));}for(const f of regression.fixtures)assert.deepEqual(f,manifest.fixtures.find(x=>x.id===f.id));const interactions=[...manifest.cases.filter(c=>c.operation==='referenceFreshness'),...regression.cases];assert.equal(interactions.length,2);
+  for(const c of interactions){
+    const fixture=manifest.fixtures.find(f=>f.id===c.fixture),plan=c.interaction;assert.equal(plan.edit.prefix,'// Reference shift\n');assert.ok(fixture.files[plan.edit.file]);
+    assert.equal(plan.repeats,plan.kind==='native-post-edit-repeat'?2:1);
+    const files={...fixture.files,[plan.edit.file]:plan.edit.prefix+fixture.files[plan.edit.file]},after=plan.after,q=after.query,start=q.tokenStart??q.character;assertLiteralSpan(files[q.file].split('\n')[q.line],start,start+q.token.length,q.token,c.id);assert.ok(q.character>=start&&q.character<start+q.token.length);
+    const old=c.expected.references||c.expected.possibleRequired,newSet=after.expected.references||after.expected.possibleRequired;assert.equal(newSet.length,old.length);
+    for(let i=0;i<old.length;i++){const expected=JSON.parse(JSON.stringify(old[i]));if(expected.file===plan.edit.file){expected.range.start.line++;expected.range.end.line++;}assert.deepEqual(newSet[i],expected);const t=newSet[i];assertLiteralSpan(files[t.file].split('\n')[t.range.start.line],t.range.start.character,t.range.end.character,t.text,c.id);}
+    const oracle=after.oracle;assert.equal(oracle.knownUsageCount,oracle.uses.length);const authored=[oracle.declaration,...oracle.uses,...(oracle.unrelatedSameNameOccurrences||[])];assert.deepEqual(newSet.map(x=>JSON.stringify(x)).sort(),authored.map(x=>JSON.stringify(x)).sort());
+    for(const t of oracle.excludedHomonyms||[]){assertLiteralSpan(files[t.file].split('\n')[t.range.start.line],t.range.start.character,t.range.end.character,t.text,c.id);assert.ok(!newSet.some(x=>JSON.stringify(x)===JSON.stringify(t)));}
+    if(plan.kind==='possible-post-edit-command')assert.deepEqual(after.expected.possibleTarget,newSet.find(x=>x.file==='Consumer.fs'));
   }
 });

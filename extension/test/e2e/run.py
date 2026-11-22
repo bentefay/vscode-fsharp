@@ -55,10 +55,10 @@ def main():
         if case.get('expectedFailure'):
             assert case['expectedFailure'].get('reason') and case['expectedFailure'].get('issue') and case['expectedFailure'].get('match'), 'Expected failures require a scoped reason and error match'
     output.mkdir(parents=True, exist_ok=False)
-    inputs = [code, vsix, manifest_path, HERE/'run.py', HERE/'host.cjs', HERE/'renderer.cjs', HERE/'referenceUi.cjs', HERE/'hoverUi.cjs', HERE/'treeUi.cjs']
+    inputs = [code, vsix, manifest_path, HERE/'run.py', HERE/'host.cjs', HERE/'renderer.cjs', HERE/'referenceUi.cjs', HERE/'referenceFreshness.cjs', HERE/'hoverUi.cjs', HERE/'treeUi.cjs']
     if descriptor_path: inputs.append(descriptor_path)
     hashes = {str(p): digest(p) for p in inputs}
-    for p in [manifest_path, HERE/'run.py', HERE/'host.cjs', HERE/'renderer.cjs', HERE/'referenceUi.cjs', HERE/'hoverUi.cjs', HERE/'treeUi.cjs']:
+    for p in [manifest_path, HERE/'run.py', HERE/'host.cjs', HERE/'renderer.cjs', HERE/'referenceUi.cjs', HERE/'referenceFreshness.cjs', HERE/'hoverUi.cjs', HERE/'treeUi.cjs']:
         shutil.copy2(p, output/p.name)
     if descriptor_path: shutil.copy2(descriptor_path, output/'prepared-descriptor.json')
     with zipfile.ZipFile(vsix) as archive:

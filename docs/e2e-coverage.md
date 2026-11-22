@@ -132,7 +132,7 @@ runner's immutable input snapshot/hash set.
 | Unused binder / zero semantic uses | `references-unused-sidebar` and `references-unused-peek` | Declaration-only result, actual movement from interior caret; no incomplete warning | Pass; not an empty native UI claim |
 | Incomplete cross-file references | `references-incomplete-explicit-possible`, actual sidebar shortcut | Empty native result view plus scope-not-searched warning | Pass; stable uncertified context, not pending-discovery timing |
 | Possible References action | Same fixture, click warning action | Four reachable physical occurrences including unrelated homonyms; explicit full-range selection | Pass; not semantic completeness |
-| Repeats and currentness | `reference-edits`, linked edit/delete/rebind, repeated action | Deduplication, updated rows, stale rows cannot navigate | Pending |
+| Repeats and currentness | Separate `reference-currentness-regression.json`: native repeat and Possible References shift | Current rendered/clicked ranges, removal and captured-command refusal | Not qualified: native stale-coordinate click; Possible References isolated pass did not repeat in full suite. Linked/delete/rebind remain pending |
 | Reference cancellation/restart | Same fixture, actual pending cancel/restart | No late stale publication/navigation | Pending; sidebar non-cancellable token differs from Shift+F12 |
 | External library hover | Separate `hover-core-list-map` and `hover-framework-string-test`, Show Hover | Pinned name and discriminating signature/docs in actual widget | Fresh prepared run: framework documentation passes; List.map owner proof fails. Original generation remains blocked |
 | Hover suppression | `hover-local-parameter-suppressed`; `hover-unprepared-homonym-unavailable`; separate prepared framework homonym | Fresh exact workspace suppression versus explicit unknown/unavailable; no speculative widget | Ordinary two pass; fresh prepared collision passes; stale catalog pending |
@@ -399,3 +399,116 @@ rerun here. Normal-sandbox Ubuntu qualification, dirty/restart hover, union
 precision and the signature failure remain open. The next narrow hover decision
 is to diagnose why the validated inventory/catalog still cannot prove this
 `List.map` use's owner, preserving workspace exclusion and all strict oracles.
+
+## References currentness qualification
+
+This test-only checkpoint starts at
+`8a5e1c2fd452ff83eb4ab2713ad0814d57b7853b`. Existing deterministic held-response
+markers belong to mocked adapter/transport tests. No existing production
+request hold/release hook was established for the packaged keyboard route.
+Consequently this checkpoint does not qualify in-flight cancellation,
+supersession, or publication after a pending native request. Idle picker
+dismissal and a timeout are not substitutes.
+
+Two bounded post-edit interaction cases were authored from existing independent
+reference oracles. The first full run preserved all 24 required scenarios and
+reproduced the scoped signature failure, but both new interactions failed.
+The 26 passing phase records include the two existing dirty baselines, not two
+additional passing scenarios. No runtime files or package bytes changed.
+
+### Native sidebar stale-coordinate activation: strict regression
+
+`references-native-post-edit-repeat` first invokes actual Shift+Alt+F12 and
+clicks both declaration and use rows. A supported unsaved `WorkspaceEdit`
+inserts one comment line; the disk remains unchanged. It then issues a second
+actual shortcut without clearing native rows. The fresh native response is
+exact at document version 2 with ranges `3:34–39` and `3:43–48` (zero-based
+UTF-16). Nevertheless, the actual click on the first hit-testable sidebar row
+opened **old caret `2:34`**, then the test timed out waiting for `3:34`.
+The wrong coordinate is directly recorded; the timeout alone is not the proof.
+
+The observer checked row count, label, highlights and hit testing. Those values
+can be identical across a line shift, so they do not establish rendered result
+generation. The native `lastResult` export precedes UI completion. This run
+cannot distinguish a transient view-replacement race from a persistent native
+References-view defect. It must not be relabelled a passed currentness test,
+a native-computation error, or a harmless observer-only failure.
+
+The complete original case and oracle are preserved in
+[reference-currentness-regression.json](../extension/test/e2e/reference-currentness-regression.json),
+a separate strict manifest that is not a required-pass or expected-failure
+credit. Its planned second post-edit repeat was never reached. Run it through
+the existing protected `test e2e` route with `FSHARP_E2E_MANIFEST` pointing to
+that file and fresh private output. No runtime fix, added wait, cleared view
+between repeats, or weakened target is used to make it green.
+
+### Independent Possible References interaction
+
+The first attempt at this second interaction was blocked at setup: the initial
+clear observer searched only for the new token, so old rows for a different
+token survived its check. The preserved failed report shows those rows under
+“No results.” This is not evidence of a Possible References computation defect.
+The sole correction requires **all native leaf rows absent** after the already
+supported initial clear commands. It does not clear rows between the native
+regression's post-edit repeats.
+
+The Possible References case requires actual sidebar input, the explicit
+incomplete-scope warning action, four labelled physical occurrences, and a
+pointer-selected consumer range. After the consumer's unsaved one-line shift,
+old custom rows must visibly disappear. The saved command from the previously
+shown row is replayed and must not navigate. That replay is a **supported
+command-level check**, not an actual stale-row pointer click. A new actual
+References shortcut and warning action must render the exact authored physical
+set, including unrelated homonyms, and an explicit click must select the
+consumer's new full range `2:20–31`, never its former `1:20–31`.
+
+These sets remain incomplete semantic references. Edits use supported API
+insertion, not physical typing. This layout-shift case does not qualify
+delete/rebind, linked edits, restart, native stale-row refusal or genuine
+in-flight cancellation. The qualified-union, signature and prepared List.map
+gaps remain separate. Normal-sandbox Ubuntu, Nix, performance and competitor
+claims are outside this checkpoint. Raw attempts and packages remain private.
+
+### Final bounded outcome
+
+After the one initial-clear observer correction, the Possible References
+interaction passed in isolation: both actual shortcuts and warning actions,
+row removal, captured-command refusal and current full-range selection were
+observed. In the subsequent full-suite run it failed at the **baseline** row
+selection, before any edit: the expected labelled hit-tested row was observed,
+but the pointer action produced no selection event and the original editor
+caret remained unchanged. This is neither a stale jump nor cancellation proof.
+Whether the observed coordinate ceased to be actionable before dispatch or
+another selection path failed is unresolved. No further observer correction
+or editor run was attempted.
+
+**Zero new interactions are qualified as required passes.** Both original
+interaction cases remain in the separate strict regression manifest without
+expected-failure metadata or downgraded goldens. The default manifest is
+byte-identical to the starting revision: 24 required scenarios plus the scoped
+signature failure. Those 24 passed in both full attempts; the two dirty
+baselines yield 26 passing phase records per attempt. The new Possible
+References interaction has one isolated pass and two failed full-suite attempts
+(one initial-clear setup failure, one pre-edit selection failure). The native
+interaction has one failed attempt and was not rerun.
+
+Independent review verified literal UTF-16 oracles, frozen prior cases, the
+actual stale native caret, the isolated success, and the final no-movement
+failure. The highest-value next correctness step is to establish a rendered
+reference-row generation and click-delivery witness, then distinguish the
+native stale-view lifecycle from the nonrepeatable Possible References
+selection. Do not implement a semantic/runtime fix from these incomplete
+attributions or claim genuine pending cancellation.
+
+Validation used pinned Code 1.108.0 and unchanged evaluation VSIX SHA-256
+`8c3b8d8bb5e2c3ff929a1818f8376be1cecb2516d4f4219e33c6bc155ae17f66`,
+with bundled native SHA-256
+`2a6f87bee913867f6d4219a20d73e917e527341e7d3c80d6441d89a6c74241f6`.
+The original `128140…` preview is unchanged. Final protected aggregate checks
+passed: 3 Python, 43 Node tooling/manifest, 323 Rust (5 ignored), and 108
+adapter/transport tests, plus TypeScript and formatting. These lower-level
+tests do not add editor interaction passes. The restored default manifest was
+not launched a third time; its unchanged cases passed in both full attempts
+on the same test implementation, with the initial-clear correction in the
+second attempt. Private evidence inventory SHA-256:
+`6c381f7431868a37fa7424cf45d652098b031ad7c68cb2e3457414ae644af80e`.

@@ -18,6 +18,10 @@ justify a scheduling change or a performance-improvement claim.
 The [held-state PSS qualification](held-state-pss.md) stopped before measurement:
 Solution-view initialization did not request background indexing. The +8 MiB
 precision guard remains unverified; runtime was unchanged.
+The [References currentness qualification](e2e-coverage.md#references-currentness-qualification)
+retained the 24 ordinary passing contracts but added no qualified pass: a native
+sidebar click opened an old range, and an isolated Possible References success
+did not repeat in the full suite. Both strict tests remain separate regressions.
 
 ## Fixed-corpus results
 
