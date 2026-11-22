@@ -26,6 +26,11 @@ The [bounded row/click diagnostic](e2e-coverage.md#bounded-rendered-row-and-clic
 confirmed delivery of the native stale-row click and separately observed a
 Possible References pointer sequence crossing moving rows. Native command
 publication responsibility remains unresolved; runtime is unchanged.
+The [Possible References pointer qualification](e2e-coverage.md#possible-references-pointer-qualification)
+subsequently passed four fixed isolated/full-order runs with fresh stable-row
+targeting and trusted same-row click delivery. Only that interaction is now
+required, bringing the default gate to 25 passes plus the signature known
+failure; native References currentness remains open.
 
 ## Fixed-corpus results
 

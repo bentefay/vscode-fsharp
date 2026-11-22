@@ -1,10 +1,11 @@
 # Immutable packaged-editor navigation gate
 
 The current ordinary manifest contains **17 definition scenarios, 5 References
-route scenarios, 2 hover safety scenarios and 1 project-tree scenario**. The
-final default language-rule run and its identical frozen-input repeat each
-passed **24 required scenarios** and reproduced
-the existing scoped signature failure separately. A second known defect—the
+route scenarios, 1 References currentness interaction, 2 hover safety scenarios
+and 1 project-tree scenario**. Two fixed full-order qualification runs passed
+**25 required scenarios** and reproduced the scoped signature failure separately.
+The new interaction also passed two isolated runs on the same bytes.
+The preceding language-rule runs passed 24 required scenarios. A second known defect—the
 qualified union case—remains a strict separately runnable regression, not a
 passing unavailable case. See [language-rule details](#language-rule-slice).
 The original prepared hover generation remains **0/3 verified**. A separate
@@ -341,9 +342,11 @@ The ordinary 24-pass matrix and both known failures are unchanged.
 
 ## Opt-in References currentness regressions
 
-The default manifest remains unchanged at 24 required passes plus its scoped
-signature failure. `reference-currentness-regression.json` contains two strict
-interaction contracts, **not additional passing cases**. Select it with
+At the initial currentness checkpoint, the default manifest retained 24
+required passes plus its scoped signature failure.
+`reference-currentness-regression.json` preserved two strict interaction
+contracts with no additional pass credit at that point. The later Possible
+References qualification below promotes only one unchanged contract. Select it with
 `FSHARP_E2E_MANIFEST` through the same protected command and a fresh private
 output directory. No runtime test barrier or new runtime behavior is introduced.
 
@@ -356,7 +359,8 @@ full suite: selection failed before the edit. A preceding setup attempt also
 failed because old native rows survived the token-specific initial-clear
 check; that check now waits for all native leaf rows to disappear.
 
-Neither interaction earns required-pass or cancellation credit. The command
+That initial checkpoint earned neither interaction required-pass credit;
+cancellation remains unqualified after the later pointer qualification. The command
 replay is not a stale-row pointer click, and a timeout is not cancellation.
 Both failed attempts and the isolated success remain private. See the
 [qualification and exact boundaries](../../../docs/e2e-coverage.md#references-currentness-qualification).
@@ -370,4 +374,21 @@ and keep resulting reports private. DOM node identity is not command generation;
 truncation prevents exhaustive absence claims, and observer/layout work affects
 timing. See the [one-cohort results](../../../docs/e2e-coverage.md#bounded-rendered-row-and-click-witness):
 the native stale activation was confirmed, and a separate Possible References
-gesture crossed moving rows. Neither strict regression became a required pass.
+gesture crossed moving rows. Neither strict regression became a required pass
+in that diagnostic; the later qualification below is separate.
+
+### Qualified Possible References targeting
+
+The `references-possible-post-edit-currentness` interaction is now required.
+It uses a fresh exact target after three matching animation-frame observations
+within the existing readiness deadline, with no relevant active animation. It
+then requires trusted down/up/click on the same row and the authored current
+full-range selection. No displaced click is retried. Four fixed fresh-profile
+runs (isolated/full/full/isolated) passed before promotion. This does not change
+the native References click path.
+
+The strict regression manifest retains the original case as historical oracle
+provenance; it is not a second coverage credit. Its native stale-coordinate case
+remains open. Earlier failure descriptions above remain historical evidence.
+See [qualification scope](../../../docs/e2e-coverage.md#possible-references-pointer-qualification),
+including the distinction between rendered clicks and captured-command replay.

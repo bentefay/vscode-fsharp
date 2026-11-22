@@ -26,6 +26,18 @@ exports.connect = async function (port) {
       window.__fsnavReferenceWitness={describe,record,rows,read:()=>({events,dropped,rows:rows(),boundary:'DOM node identity is not provider generation; capped read-only observer, renderer clock only'}),stop:()=>{observer.disconnect();for(const type of ['mousedown','mouseup','click'])document.removeEventListener(type,pointer,true);}};
       record({kind:'armed',rows:rows()});return true;
     })()`); },
+    async beginPossibleStability(config) { return evaluate(`(()=>{
+      window.__fsnavPossibleStability?.stop();const config=${JSON.stringify(config)},w=window.__fsnavReferenceWitness;let stopped=false,raf,previous=null,count=0,dropped=0;const frames=[];
+      const inspect=()=>{const pane=[...document.querySelectorAll('.pane')].find(p=>/possible references/i.test(p.querySelector('.pane-header')?.innerText||''));if(!pane)return null;
+        const rows=[...pane.querySelectorAll('.monaco-list-row')].map(n=>{const d=w.describe(n),r=n.getBoundingClientRect(),point={x:r.x+Math.min(90,r.width/2),y:r.y+r.height/2},h=document.elementFromPoint(point.x,point.y);return{witness:d,text:n.innerText,point,hit:r.width>0&&r.height>0&&!!h&&(h===n||n.contains(h))};});
+        const matches=(r,t)=>r.text.includes(t.path)&&r.text.includes(t.label+t.path);const target=rows.find(r=>matches(r,config.target));let animations=[];for(let n=pane;n;n=n.parentElement)animations.push(...n.getAnimations());animations.push(...pane.getAnimations({subtree:true}));const active=animations.some(a=>a.pending||a.playState==='running');
+        const ready=/incomplete/i.test(pane.innerText)&&/unrelated|same.name/i.test(pane.innerText)&&config.required.every(t=>rows.some(r=>r.hit&&matches(r,t)))&&(!config.exactCount||rows.length===config.required.length)&&target?.hit&&target.witness.connected&&!active;
+        return{ready,activeAnimations:active,target,signature:ready?JSON.stringify(target.witness):null};};
+      const tick=at=>{if(stopped)return;const s=inspect();count=s?.ready?(s.signature===previous?count+1:1):0;previous=s?.signature||null;const frame={at,count,...s};if(frames.length<360)frames.push(frame);else dropped++;raf=requestAnimationFrame(tick);};raf=requestAnimationFrame(tick);
+      window.__fsnavPossibleStability={read:()=>{const live=inspect();return{frames,dropped,count,live,qualified:count>=3&&live?.ready&&live.signature===previous};},stop:()=>{stopped=true;cancelAnimationFrame(raf);}};return true;
+    })()`); },
+    async readPossibleStability() { return evaluate('window.__fsnavPossibleStability?.read()'); },
+    async stopPossibleStability() { return evaluate('window.__fsnavPossibleStability?.stop()'); },
     async markReferenceWitness(kind, intended) { return evaluate(`(()=>{const w=window.__fsnavReferenceWitness;if(!w)return;const intended=${JSON.stringify(intended||null)},p=intended?.point;w.record({kind:${JSON.stringify(kind)},intended,hitRow:p?w.describe(document.elementFromPoint(p.x,p.y)?.closest('.monaco-list-row')):null,rows:w.rows()});})()`); },
     async endReferenceWitness() { return evaluate(`(()=>{const w=window.__fsnavReferenceWitness;if(!w)return null;w.record({kind:'end',rows:w.rows()});const r=w.read();w.stop();return r;})()`); },
     async key(key, modifiers = 0) { const code = key === 'F12' ? 123 : key === 'Escape' ? 27 : undefined; assert.ok(code); for (const type of ['keyDown', 'keyUp']) await send('Input.dispatchKeyEvent', { type, key, code: key, windowsVirtualKeyCode: code, modifiers }); },

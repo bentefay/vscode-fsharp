@@ -1,6 +1,11 @@
 # Packaged editor coverage and remaining gates
 
-The current language-rule slice extends verified main
+The current default gate has **25 required passing scenarios and one scoped
+signature failure**. The [Possible References pointer qualification](#possible-references-pointer-qualification)
+adds one post-edit interaction; it does not close native References currentness
+or in-flight cancellation.
+
+The preceding language-rule slice extends verified main
 `75080a75dec2533fab4baaf3ddf9ba25e7830322`: **24 required passes and one scoped
 signature failure across 25 default scenarios**. A second known failure,
 qualified union-case identity, is preserved as a separate strict regression.
@@ -132,7 +137,7 @@ runner's immutable input snapshot/hash set.
 | Unused binder / zero semantic uses | `references-unused-sidebar` and `references-unused-peek` | Declaration-only result, actual movement from interior caret; no incomplete warning | Pass; not an empty native UI claim |
 | Incomplete cross-file references | `references-incomplete-explicit-possible`, actual sidebar shortcut | Empty native result view plus scope-not-searched warning | Pass; stable uncertified context, not pending-discovery timing |
 | Possible References action | Same fixture, click warning action | Four reachable physical occurrences including unrelated homonyms; explicit full-range selection | Pass; not semantic completeness |
-| Repeats and currentness | Separate `reference-currentness-regression.json`: native repeat and Possible References shift | Current rendered/clicked ranges, removal and captured-command refusal | Not qualified: native stale-coordinate click; Possible References isolated pass did not repeat in full suite. Linked/delete/rebind remain pending |
+| Repeats and currentness | Required `references-possible-post-edit-currentness`; separate native repeat regression | Current rendered/clicked ranges, removal and captured-command refusal | Possible References shift passes in four fixed contexts with same-row trusted clicks; native stale-coordinate failure remains. Linked/delete/rebind remain pending |
 | Reference cancellation/restart | Same fixture, actual pending cancel/restart | No late stale publication/navigation | Pending; sidebar non-cancellable token differs from Shift+F12 |
 | External library hover | Separate `hover-core-list-map` and `hover-framework-string-test`, Show Hover | Pinned name and discriminating signature/docs in actual widget | Fresh prepared run: framework documentation passes; List.map owner proof fails. Original generation remains blocked |
 | Hover suppression | `hover-local-parameter-suppressed`; `hover-unprepared-homonym-unavailable`; separate prepared framework homonym | Fresh exact workspace suppression versus explicit unknown/unavailable; no speculative widget | Ordinary two pass; fresh prepared collision passes; stale catalog pending |
@@ -602,3 +607,81 @@ acceptance gate remains separate; no performance or CI qualification is claimed.
 Protocol SHA-256: `6da052c987487a2104dd1c6f9d06747e8a0469654bd68d4305724a0dd7bbb2bb`.
 Private 73-file evidence inventory SHA-256:
 `a10a1f05dc57a9e3dd5e45ccabe9a0971b1ddcce5685b33999fbecb6d8902fd1`.
+
+## Possible References pointer qualification
+
+From `aea0756832567e8febcefc4e1b47ca6369e473c2`, one test-only variant addressed
+the previously observed pointer sequence crossing moving rows. The original
+semantic/physical target oracle was unchanged. The old failures remain in
+private evidence and the preceding sections; they are not retroactively passes.
+The native stale-coordinate case was not run or modified in this checkpoint.
+
+Only the `possible-post-edit-command` interaction uses the new boundary. Within
+the existing five-second possible-row readiness deadline, it requires the full
+authored row set and incomplete disclaimer, a connected exact path/label target,
+a live hit on that row, and identical node/text/attributes/rectangle across
+three consecutive animation-frame observations. Running or pending animations
+in the pane subtree or its ancestors prevent qualification. The final live
+snapshot must still match. This is an observed recent layout boundary, not a
+guarantee against later layout work or proof of provider generation.
+
+The test uses the fresh target point once. Trusted mouse-down, mouse-up and
+click must all reach the same intended row and hit target, followed by the
+original URI/full-range assertion. A displaced click fails; there is no silent
+retry, alternate command, extra fixed sleep, extended deadline, or relaxed
+target. The existing ordinary Possible References route is unchanged. Runtime
+and VSIX bytes are unchanged.
+
+Before results, the schedule was frozen as **isolated, full-order, full-order,
+isolated**, each in a fresh disposable Code 1.108.0 profile. Full-order means
+the prior default 25 scenarios followed by this exact interaction; the native
+regression is separate. All four used identical harness, fixture and package
+bytes, with the unchanged `8c3b8d8b…` evaluation VSIX. The stop rule was first
+failure with no replacement run or second variant. All four completed green.
+
+| Observed contract | Result |
+| --- | --- |
+| New interaction across fixed contexts | 4/4 passed |
+| Baseline and edited target gestures | 8/8 trusted down/up/click on the intended row, then correct full range |
+| Baseline consumer range | Zero-based UTF-16 `1:20–31` |
+| Unsaved one-line-shift consumer range | `2:20–31`; previous target absent from refreshed set |
+| Edit identity and cleanup | New document version, unchanged disk, rendered custom rows removed, clean revert in each run |
+| Prior required scenarios in each full-order run | 24/24 passed; signature expected failure reproduced |
+
+Each full-order run has **25 required passes plus the scoped signature failure**,
+or 27 passing phase records plus one expected-failure phase because two existing
+cases have dirty baselines. This is one newly qualified interaction, not a new
+semantic binding rule. Both native and Possible References still expose their
+previously documented completeness boundaries.
+
+The default manifest now appends only the qualified case. Its fixture, query,
+expected set and edit oracle equal the original strict case. The historical
+strict manifest remains unchanged, including the native failing regression;
+its copy of this case is not a second coverage credit. Independent review
+checked all eight stability receipts and trusted pointer sequences, original
+UTF-16 targets, current dirty versions, row removal and frozen inputs.
+
+Captured old-row command replay remains a separate adapter-level check: after
+visible invalidation it did not navigate. It is **not** an actual stale-row
+pointer click, an edit during acceptance, or cancellation while native work is
+pending. This qualification also does not cover linked/delete/rebind/restart,
+every layout, other editor versions, or a general click-success rate. Layout
+observation may influence timing; no speed result is claimed.
+
+The native next step remains separate: determine the captured row-command range
+after an observed builtin refresh and a separately identified deliberate
+activation, retaining the first stale activation as a failure. Neither DOM-node
+reuse nor current native output establishes that command's freshness. No native
+fix or additional instrumentation is implemented here. Normal-sandbox Ubuntu
+acceptance remains pending a suitable supported desktop.
+
+The promoted tree passed protected aggregate checks: 3 Python, 43 Node
+tooling/manifest, 323 Rust (5 ignored), 108 adapter/transport tests, TypeScript
+and formatting. No extra editor run followed promotion: the promoted case and
+harness are the same ones used in the fixed cohort. Package SHA-256:
+`8c3b8d8bb5e2c3ff929a1818f8376be1cecb2516d4f4219e33c6bc155ae17f66`.
+Protocol SHA-256:
+`bc8e09f8a458faff1821d7185d7a1b02ae0b62be03bfe25296b82134ed7f15be`.
+Private 263-file evidence inventory SHA-256:
+`9e28646c15d18183e9f8c89625a0617e3ba076e1fc52a6ebb421c50315199739`.
+No binaries, profiles or raw reports are published.
