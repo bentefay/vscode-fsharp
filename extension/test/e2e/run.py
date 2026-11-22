@@ -29,10 +29,16 @@ def main():
     assert len(fixture_ids) == len(set(fixture_ids)) and all(re.fullmatch(r'[A-Za-z0-9_-]+', x) for x in fixture_ids)
     for fixture in manifest['fixtures']:
         assert fixture['project'] in fixture['files']
+        if fixture.get('workspaceFolder'): relative_file(fixture['workspaceFolder'])
         for name, text in fixture['files'].items(): relative_file(name); assert isinstance(text, str)
     for case in manifest['cases']:
         fixture = next(f for f in manifest['fixtures'] if f['id'] == case['fixture'])
         assert case['query']['file'] in fixture['files'] and case['expected']['kind'] in ('exact', 'candidates', 'unavailable')
+        if case.get('edit'):
+            assert case['edit']['file'] in fixture['files'] and isinstance(case['edit']['text'], str)
+            if case['edit'].get('baseline'):
+                assert case['edit']['baseline']['query']['file'] in fixture['files']
+                assert case['edit']['baseline']['expected']['kind'] in ('exact', 'candidates', 'unavailable')
         if case.get('expectedFailure'):
             assert case['expectedFailure'].get('reason') and case['expectedFailure'].get('issue') and case['expectedFailure'].get('match'), 'Expected failures require a scoped reason and error match'
     output.mkdir(parents=True, exist_ok=False)
@@ -53,7 +59,7 @@ def main():
            and k not in {'SSH_AUTH_SOCK', 'GIT_ASKPASS', 'SSH_ASKPASS', 'FSHARP_BACKEND_PATH', 'FSHARP_TEST_VSIX'}}
     try:
         with tempfile.TemporaryDirectory(prefix='fsnav-packaged-e2e-') as td:
-            temp = Path(td); roots = {}; fixtures = temp/'fixtures'; fixtures.mkdir()
+            temp = Path(td); roots = {}; workspace_roots = {}; fixtures = temp/'fixtures'; fixtures.mkdir()
             for key in ('XDG_CACHE_HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME', 'XDG_RUNTIME_DIR', 'TMPDIR'):
                 private = temp/key.lower(); private.mkdir(mode=0o700); env[key] = str(private)
             env['TMP'] = env['TMPDIR']; env['TEMP'] = env['TMPDIR']
@@ -61,11 +67,14 @@ def main():
             report['fixtureAncestors'] = [str(p) for p in fixtures.parents]
             for fixture in manifest['fixtures']:
                 root = fixtures/fixture['id']; root.mkdir(); roots[fixture['id']] = str(root)
+                workspace_roots[fixture['id']] = str(root/fixture.get('workspaceFolder', '.'))
                 for name, text in fixture['files'].items():
                     dest = root/relative_file(name); dest.parent.mkdir(parents=True, exist_ok=True); dest.write_text(text)
             source_hashes = {str(p.relative_to(fixtures)): digest(p) for p in fixtures.rglob('*') if p.is_file()}
             shutil.copytree(fixtures, output/'fixtures')
-            workspace = temp/'Suite.code-workspace'; workspace.write_text(json.dumps({'folders': [{'name': k, 'path': v} for k, v in roots.items()]}))
+            assert all(Path(folder).is_dir() for folder in workspace_roots.values()), 'Declared workspace folders must exist'
+            report['fixtureRoots'] = roots; report['workspaceRoots'] = workspace_roots
+            workspace = temp/'Suite.code-workspace'; workspace.write_text(json.dumps({'folders': [{'name': k, 'path': v} for k, v in workspace_roots.items()]}))
             user, extensions, probe = temp/'user', temp/'extensions', temp/'probe'
             (user/'User').mkdir(parents=True); extensions.mkdir(); probe.mkdir()
             settings = {'telemetry.telemetryLevel': 'off', 'update.mode': 'none', 'extensions.autoUpdate': False,

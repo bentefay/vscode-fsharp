@@ -21,6 +21,55 @@
         "Conditional.fs": "module Conditional\ntype Person = { Label: string }\ntype Company = { Label: string }\n#if FEATURE\nlet inspect item = item.Label\n#else\nlet inspect item = item.Label\n#endif\n",
         "Conditional.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Conditional.fs\" /></ItemGroup></Project>\n"
       }
+    },
+    {
+      "id": "signature-visible",
+      "project": "App.fsproj",
+      "files": {
+        "Wire.fsi": "module Wire\nval render: text: string -> string\n",
+        "Wire.fs": "module Wire\nlet render text = text\nlet concealed = 99\n",
+        "Consumer.fs": "module Consumer\nopen Wire\nlet shown = render \"value\"\n",
+        "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Wire.fsi\" /><Compile Include=\"Wire.fs\" /><Compile Include=\"Consumer.fs\" /></ItemGroup></Project>\n"
+      }
+    },
+    {
+      "id": "signature-hidden",
+      "project": "App.fsproj",
+      "files": {
+        "Wire.fsi": "module Wire\nval render: text: string -> string\n",
+        "Wire.fs": "module Wire\nlet render text = text\nlet concealed = 99\n",
+        "Consumer.fs": "module Consumer\nopen Wire\nlet rejected = concealed\n",
+        "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Wire.fsi\" /><Compile Include=\"Wire.fs\" /><Compile Include=\"Consumer.fs\" /></ItemGroup></Project>\n"
+      }
+    },
+    {
+      "id": "linked-conditional-context",
+      "project": "A/App.fsproj",
+      "files": {
+        "Shared/Shared.fs": "module Shared\n#if FEATURE\nlet marker = 1\n#else\nlet marker = 2\n#endif\nlet selected = marker\n",
+        "A/Consumer.fs": "module ConsumerA\nlet value = Shared.selected\n",
+        "B/Consumer.fs": "module ConsumerB\nlet value = Shared.selected\n",
+        "A/App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework><DefineConstants>FEATURE</DefineConstants></PropertyGroup><ItemGroup><Compile Include=\"../Shared/Shared.fs\" /><Compile Include=\"Consumer.fs\" /></ItemGroup></Project>\n",
+        "B/App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework><DefineConstants>OTHER</DefineConstants></PropertyGroup><ItemGroup><Compile Include=\"../Shared/Shared.fs\" /><Compile Include=\"Consumer.fs\" /></ItemGroup></Project>\n"
+      }
+    },
+    {
+      "id": "dirty-linked-provider",
+      "project": "App/App.fsproj",
+      "workspaceFolder": "App",
+      "files": {
+        "Shared/Provider.fs": "module Provider\nlet lookup value = value + 1\n",
+        "App/Consumer.fs": "module Consumer\nopen Provider\nlet answer = lookup 41\n",
+        "App/App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"../Shared/Provider.fs\" /><Compile Include=\"Consumer.fs\" /></ItemGroup></Project>\n"
+      }
+    },
+    {
+      "id": "singleton-unproven",
+      "project": "App.fsproj",
+      "files": {
+        "Single.fs": "module Single\ntype Item = { Code: string }\nlet read (items: Item list) = (List.head items).Code\n",
+        "App.fsproj": "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><Compile Include=\"Single.fs\" /></ItemGroup></Project>\n"
+      }
     }
   ],
   "cases": [
@@ -47,7 +96,8 @@
               "line": 1,
               "character": 37
             }
-          }
+          },
+          "text": "value"
         },
         "forbidden": [
           {
@@ -61,7 +111,8 @@
                 "line": 1,
                 "character": 23
               }
-            }
+            },
+            "text": "value"
           }
         ]
       },
@@ -94,7 +145,8 @@
               "line": 1,
               "character": 10
             }
-          }
+          },
+          "text": "marker"
         },
         "forbidden": [
           {
@@ -108,7 +160,8 @@
                 "line": 1,
                 "character": 10
               }
-            }
+            },
+            "text": "marker"
           }
         ]
       },
@@ -141,7 +194,8 @@
               "line": 1,
               "character": 20
             }
-          }
+          },
+          "text": "Name"
         },
         "forbidden": [
           {
@@ -155,7 +209,8 @@
                 "line": 2,
                 "character": 21
               }
-            }
+            },
+            "text": "Name"
           }
         ]
       },
@@ -189,7 +244,8 @@
                 "line": 1,
                 "character": 20
               }
-            }
+            },
+            "text": "Name"
           },
           {
             "file": "Records.fs",
@@ -202,7 +258,8 @@
                 "line": 2,
                 "character": 21
               }
-            }
+            },
+            "text": "Name"
           }
         ],
         "target": {
@@ -216,8 +273,10 @@
               "line": 1,
               "character": 20
             }
-          }
-        }
+          },
+          "text": "Name"
+        },
+        "candidateSet": "exact"
       },
       "oracle": {
         "kind": "authored-candidate-safety-contract",
@@ -250,7 +309,8 @@
                 "line": 1,
                 "character": 20
               }
-            }
+            },
+            "text": "Name"
           },
           {
             "file": "Records.fs",
@@ -263,7 +323,8 @@
                 "line": 2,
                 "character": 21
               }
-            }
+            },
+            "text": "Name"
           }
         ]
       },
@@ -297,7 +358,8 @@
                 "line": 1,
                 "character": 21
               }
-            }
+            },
+            "text": "Label"
           },
           {
             "file": "Conditional.fs",
@@ -310,7 +372,8 @@
                 "line": 2,
                 "character": 22
               }
-            }
+            },
+            "text": "Label"
           }
         ],
         "target": {
@@ -324,13 +387,364 @@
               "line": 1,
               "character": 21
             }
-          }
-        }
+          },
+          "text": "Label"
+        },
+        "candidateSet": "exact"
       },
       "oracle": {
         "kind": "authored-candidate-safety-contract",
         "explanation": "The query is physically inside a conditional branch with an untyped receiver. Current prefix declarations are plausible candidates only; the test does not certify branch activity or exact binding.",
         "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-directives"
+      }
+    },
+    {
+      "id": "signature-public-consumer",
+      "ruleId": "signature.public-consumer-interface-target",
+      "fixture": "signature-visible",
+      "query": {
+        "file": "Consumer.fs",
+        "line": 2,
+        "character": 12,
+        "token": "render"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Wire.fsi",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 4
+            },
+            "end": {
+              "line": 1,
+              "character": 10
+            }
+          },
+          "text": "render"
+        },
+        "forbidden": [
+          {
+            "file": "Wire.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 4
+              },
+              "end": {
+                "line": 1,
+                "character": 10
+              }
+            },
+            "text": "render"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-language-rule-and-navigation-policy",
+        "navigationPolicy": "signature-first external-consumer definition, not declaration toggle or implementation navigation",
+        "explanation": "The paired preceding Wire.fsi exposes render. For this suite external-consumer Go to Definition deliberately targets the public signature declaration, with the implementation range forbidden. F# specifies the public surface, not an editor target: signature-first is an explicit authored product policy, not a claim that the language mandates editor navigation. This preserves the existing signature-boundary consumer target contract; implementation targeting is a policy mismatch here, not necessarily a different semantic symbol.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files",
+        "policyEvidence": [
+          "fixtures/signature-boundaries/expectations.json:create_use -> signature_create_def",
+          "crates/navigator-core/src/typeflow.rs:signature_pairs_separate_public_identity_from_definition_toggle"
+        ]
+      }
+    },
+    {
+      "id": "signature-hidden-consumer",
+      "ruleId": "signature.omitted-implementation-not-exported",
+      "fixture": "signature-hidden",
+      "query": {
+        "file": "Consumer.fs",
+        "line": 2,
+        "character": 15,
+        "token": "concealed"
+      },
+      "expected": {
+        "kind": "unavailable",
+        "forbidden": [
+          {
+            "file": "Wire.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 4
+              },
+              "end": {
+                "line": 2,
+                "character": 13
+              }
+            },
+            "text": "concealed"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-unsupported-safety-contract",
+        "explanation": "concealed exists in Wire.fs but is omitted from the matching preceding signature, so it is inaccessible to the consumer. This use is intentionally invalid F#; it is not an exact-reference oracle. The explicit UI contract is refusal without offering the hidden implementation as a visible export or jumping to it.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files"
+      },
+      "expectedFailure": {
+        "reason": "Known indexed candidate-visibility defect: an implementation declaration omitted from its signature is collected as an incomplete suggestion. Exact navigation remains withheld.",
+        "issue": "docs/e2e-coverage.md#signature-hidden-candidate-defect",
+        "match": "signature-hidden-consumer forbidden candidate Wire.fs 2:4-2:13"
+      }
+    },
+    {
+      "id": "linked-conditional-context-unknown",
+      "ruleId": "project.linked-conditional-context-required",
+      "fixture": "linked-conditional-context",
+      "query": {
+        "file": "Shared/Shared.fs",
+        "line": 6,
+        "character": 15,
+        "token": "marker"
+      },
+      "expected": {
+        "kind": "unavailable",
+        "forbidden": [
+          {
+            "file": "Shared/Shared.fs",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 4
+              },
+              "end": {
+                "line": 2,
+                "character": 10
+              }
+            },
+            "text": "marker"
+          },
+          {
+            "file": "Shared/Shared.fs",
+            "range": {
+              "start": {
+                "line": 4,
+                "character": 4
+              },
+              "end": {
+                "line": 4,
+                "character": 10
+              }
+            },
+            "text": "marker"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-context-safety-contract",
+        "explanation": "The same physical source is compiled by two projects with different FEATURE settings. Without a selected evaluated project instance the query has two possible branch bindings. This test supplies no selected project or evaluated defines and requires unavailable/no forced jump; neither branch is promoted from physical spelling.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-directives"
+      }
+    },
+    {
+      "id": "dirty-linked-shift",
+      "ruleId": "dirty.linked-outside-root-current-range",
+      "fixture": "dirty-linked-provider",
+      "query": {
+        "file": "App/Consumer.fs",
+        "line": 2,
+        "character": 13,
+        "token": "lookup"
+      },
+      "edit": {
+        "file": "Shared/Provider.fs",
+        "text": "module Provider\n// Equivalent body edit shifts the public declaration.\nlet lookup value = (value + 1)\n",
+        "baseline": {
+          "query": {
+            "file": "App/Consumer.fs",
+            "line": 2,
+            "character": 13,
+            "token": "lookup"
+          },
+          "expected": {
+            "kind": "exact",
+            "target": {
+              "file": "Shared/Provider.fs",
+              "range": {
+                "start": {
+                  "line": 1,
+                  "character": 4
+                },
+                "end": {
+                  "line": 1,
+                  "character": 10
+                }
+              },
+              "text": "lookup"
+            }
+          }
+        }
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Shared/Provider.fs",
+          "range": {
+            "start": {
+              "line": 2,
+              "character": 4
+            },
+            "end": {
+              "line": 2,
+              "character": 10
+            }
+          },
+          "text": "lookup"
+        },
+        "forbidden": [
+          {
+            "file": "Shared/Provider.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 4
+              },
+              "end": {
+                "line": 1,
+                "character": 10
+              }
+            },
+            "text": "lookup"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-language-rule-and-dirty-currentness-contract",
+        "explanation": "The unsaved provider is physically outside the workspace root but explicitly linked before the unchanged consumer. An equivalent parenthesized body and comment line move the same binding; only its current declaration range is valid. Baseline actual F12 must establish the former target before the unsaved edit; consumer text/version and all disk files must stay unchanged. This is independently authored source binding/currentness using an unqualified module use after explicit open Provider; no external receiver-term certificate is assumed, without generated evaluated metadata or compiler execution.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules"
+      }
+    },
+    {
+      "id": "dirty-linked-rebind",
+      "ruleId": "dirty.linked-rebound-current-declaration",
+      "fixture": "dirty-linked-provider",
+      "query": {
+        "file": "App/Consumer.fs",
+        "line": 2,
+        "character": 13,
+        "token": "lookup"
+      },
+      "edit": {
+        "file": "Shared/Provider.fs",
+        "text": "module Provider\nlet lookupCore value = value + 1\n\nlet lookup value = lookupCore value\n",
+        "baseline": {
+          "query": {
+            "file": "App/Consumer.fs",
+            "line": 2,
+            "character": 13,
+            "token": "lookup"
+          },
+          "expected": {
+            "kind": "exact",
+            "target": {
+              "file": "Shared/Provider.fs",
+              "range": {
+                "start": {
+                  "line": 1,
+                  "character": 4
+                },
+                "end": {
+                  "line": 1,
+                  "character": 10
+                }
+              },
+              "text": "lookup"
+            }
+          }
+        }
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Shared/Provider.fs",
+          "range": {
+            "start": {
+              "line": 3,
+              "character": 4
+            },
+            "end": {
+              "line": 3,
+              "character": 10
+            }
+          },
+          "text": "lookup"
+        },
+        "forbidden": [
+          {
+            "file": "Shared/Provider.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 4
+              },
+              "end": {
+                "line": 1,
+                "character": 10
+              }
+            },
+            "text": "lookup"
+          }
+        ]
+      },
+      "oracle": {
+        "kind": "authored-language-rule-and-dirty-currentness-contract",
+        "explanation": "The old lookup declaration is renamed lookupCore and a new lookup wrapper is introduced. The unchanged consumer with explicit open Provider now names the new lookup declaration. The old range must disappear from exact and suggested targets even though lookupCore remains at the old start. Baseline actual F12 must establish the former target before the unsaved edit; consumer text/version and all disk files must stay unchanged. This is independently authored source binding/currentness using an unqualified module use after explicit open Provider; no external receiver-term certificate is assumed, without generated evaluated metadata or compiler execution.",
+        "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules"
+      }
+    },
+    {
+      "id": "singleton-unproven-choice",
+      "ruleId": "candidate.singleton-is-not-exact",
+      "fixture": "singleton-unproven",
+      "query": {
+        "file": "Single.fs",
+        "line": 2,
+        "character": 48,
+        "token": "Code"
+      },
+      "expected": {
+        "kind": "candidates",
+        "required": [
+          {
+            "file": "Single.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 14
+              },
+              "end": {
+                "line": 1,
+                "character": 18
+              }
+            },
+            "text": "Code"
+          }
+        ],
+        "target": {
+          "file": "Single.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 14
+            },
+            "end": {
+              "line": 1,
+              "character": 18
+            }
+          },
+          "text": "Code"
+        },
+        "candidateSet": "exact"
+      },
+      "oracle": {
+        "kind": "authored-candidate-safety-contract",
+        "explanation": "List.head has the language result Item, but this unprepared indexed request has no certified library identity/type. Exactly one local Code declaration is collected. A singleton unproven result remains incomplete, with no jump at offer or picker time and navigation only after deliberate selection. This is a presentation/proof-boundary obligation, not an assertion that the F# compiler is ambiguous.",
+        "source": "https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-listmodule.html#head"
       }
     }
   ]
