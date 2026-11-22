@@ -4905,6 +4905,39 @@ mod integration_tests {
     }
 
     #[test]
+    fn cold_singleton_array_match_references_are_document_closed() {
+        let (root, mut ws) = fixture();
+        let path = root.join("Main.fs");
+        let source = "module Cases\nlet read (items:int[]) =\n    match items with\n    | [| part |] -> part + 1\n    | _ -> let part = 9 in part\n";
+        for i in 0..520 {
+            fs::write(root.join(format!("padding{i}.txt")), "").unwrap();
+        }
+        ws.dispatch(
+            "document/open",
+            &json!({"path":path,"text":source,"version":1}),
+        )
+        .unwrap();
+        let declaration = json!({"uri":uri(path.to_str().unwrap()),"range":{"start":{"line":3,"character":9},"end":{"line":3,"character":13}}});
+        let usage = json!({"uri":uri(path.to_str().unwrap()),"range":{"start":{"line":3,"character":19},"end":{"line":3,"character":23}}});
+        for include in [true, false] {
+            let result = ws.dispatch("navigation/references", &json!({"path":path,"line":3,"character":20,"version":1,"includeDeclaration":include})).unwrap();
+            assert_eq!(result["completeness"], "exact", "{result}");
+            let expected = if include {
+                json!([declaration, usage])
+            } else {
+                json!([usage])
+            };
+            assert_eq!(result["locations"], expected, "{result}");
+            assert_eq!(result["proofScope"], "document");
+            assert_eq!(result["documentVersion"], 1);
+        }
+        assert!(!ws.model_loaded);
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn exact_ordered_opens_and_scoped_references_without_helper() {
         let (path, mut ws) = fixture();
         let main = path.join("Main.fs");
