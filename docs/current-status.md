@@ -6,6 +6,10 @@ labels and complete cross-file reference sets still require explicit compiler
 preparation. The default indexed providers expose only answers for which the
 engine can establish a binding and the requested reference domain.
 
+The [singleton-array Definition route](singleton-array-definition.md) reuses the
+existing complete arm-binding certificate for a proven same-document jump. It
+does not broaden conditional, tuple or project-context proofs.
+
 The [post-conditional candidate repair](post-conditional-candidates.md) reuses an
 existing validated physical parse to recover the compiler's frozen tuple binder
 after `#endif`. This is incomplete candidate recall, not exact binding or active

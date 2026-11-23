@@ -8,7 +8,7 @@ use std::{
 };
 use tree_sitter::{Node, ParseOptions, Parser};
 
-pub const PROOF_VERSION: &str = "document-local-lexical-binder-v3";
+pub const PROOF_VERSION: &str = "document-local-lexical-binder-v4";
 pub const PARSER_FINGERPRINT: &str = "tree-sitter-fsharp-0.3.13:00943a441bd59446ed9d321f3e0e09402ec3069c623890fc0b1893717d001302:abi15";
 const MAX_SOURCE_BYTES: usize = 256 * 1024;
 const MAX_NODES: usize = 50_000;
@@ -188,7 +188,7 @@ fn lambda<'a>(n: Node<'a>, s: &str) -> Option<(Node<'a>, Vec<Node<'a>>)> {
     }
     Some((cs[1], parameters(cs[0], s)?))
 }
-// References only: one unguarded ordinary match arm, never a generic pattern
+// One unguarded ordinary match arm, never a generic pattern
 // binder or a computation-expression rule. The whole RHS must still pass Work.
 fn singleton_array_rule<'a>(n: Node<'a>, s: &str) -> Option<(Node<'a>, Node<'a>)> {
     if n.kind() != "rule" || n.has_error() || n.child_by_field_name("guard").is_some() {
@@ -805,7 +805,7 @@ fn query_impl(
                     local_refs: argument_lambda(n),
                     match_arm: false,
                 });
-            } else if matches!(operation, Operation::References { .. }) {
+            } else {
                 if let Some((body, binder)) = singleton_array_rule(n, source) {
                     candidates.push(Candidate {
                         node: n,
@@ -867,6 +867,7 @@ fn query_impl(
             let sole_use = match uses.as_slice() {
                 &[(start, end)]
                     if operation == Operation::Definition
+                        && !candidate.match_arm
                         && start == selected.start_byte()
                         && end == selected.end_byte()
                         && start <= offset
@@ -1063,11 +1064,17 @@ mod tests {
             )
             .unwrap();
             assert_eq!(uses.locations, answer.locations[1..]);
-            assert!(ask(&source, Operation::Definition).is_none());
+            assert_eq!(
+                ask(&source, Operation::Definition).unwrap().declaration,
+                answer.declaration
+            );
         }
         let utf16 = "module M\r\nlet read items =\r\n    match items with\r\n    | [| item |] -> (\"😀\", (*cursor*)item)\r\n    | _ -> (\"\", 0)\r\n";
         let answer = ask(utf16, REFS).unwrap();
         assert_eq!(answer.locations.len(), 2);
+        let definition = ask(utf16, Operation::Definition).unwrap();
+        assert_eq!(definition.locations[0].range, answer.declaration);
+        assert!(definition.sole_use.is_none());
         assert_eq!(
             answer.locations[1].range,
             Range {
@@ -1081,6 +1088,41 @@ mod tests {
                 }
             }
         );
+    }
+
+    #[test]
+    fn singleton_array_definition_respects_nested_bindings_and_token_roles() {
+        for (body, expected) in [
+            ("(fun part -> part) (*cursor*)part", Some(9)),
+            ("(let part = (*cursor*)part in part)", Some(9)),
+            ("(fun part -> (*cursor*)part) part", Some(25)),
+            ("(let part = part in (*cursor*)part)", None),
+            ("receiver.(*cursor*)part", None),
+            ("{ (*cursor*)part = 1 }", None),
+        ] {
+            let source = format!("module M\nlet f items =\n    match items with\n    | [| part |] -> {body}\n    | _ -> 0\n");
+            let answer = ask(&source, Operation::Definition);
+            if let Some(character) = expected {
+                // Nested lambda proof has its own conservative eligibility;
+                // refusal is safe, but it must never bind to the outer arm.
+                if character == 25 && answer.is_none() {
+                    continue;
+                }
+                let answer = answer.unwrap_or_else(|| panic!("missing outer proof: {body}"));
+                assert_eq!(
+                    answer.locations[0].range,
+                    Range {
+                        start: Position { line: 3, character },
+                        end: Position {
+                            line: 3,
+                            character: character + 4
+                        }
+                    }
+                );
+            } else {
+                assert!(answer.is_none(), "unsupported role must refuse: {body}");
+            }
+        }
     }
 
     #[test]
@@ -1105,20 +1147,26 @@ mod tests {
             let marked = format!("{}(*cursor*){}", &rule[..use_at], &rule[use_at..]);
             let source =
                 format!("module M\nlet read items =\n    match items with\n    | {marked}\n");
-            assert!(ask(&source, REFS).is_none(), "{rule}");
+            for op in [REFS, Operation::Definition] {
+                assert!(ask(&source, op).is_none(), "{rule}");
+            }
         }
         for marked in [
             "[| (*cursor*)part |] -> part | _ -> part",
             "[| part |] -> (*cursor*)part | _ -> part",
         ] {
             let source = format!("module M\nlet f items = match items with {marked}\n");
-            assert!(ask(&source, REFS).is_none(), "{marked}");
+            for op in [REFS, Operation::Definition] {
+                assert!(ask(&source, op).is_none(), "{marked}");
+            }
         }
         for prefix in ["#if FLAG\n", "#nowarn \"40\"\n"] {
             let source = format!(
                 "module M\n{prefix}let f items = match items with [| part |] -> (*cursor*)part\n"
             );
-            assert!(ask(&source, REFS).is_none());
+            for op in [REFS, Operation::Definition] {
+                assert!(ask(&source, op).is_none());
+            }
         }
     }
 

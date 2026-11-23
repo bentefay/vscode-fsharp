@@ -101,3 +101,8 @@ sites and all eight historical probes remain unchanged. Total required protocol
 observations are 48, including 32 definition observations. Compiler references
 precede the former first-definition request; this gate supplies no comparable
 first-definition timing claim.
+
+The singleton-array Definition promotion strengthens compiler `part` from useful
+candidates to exact at its existing four required lifecycle boundaries. Its
+authored URI/range and the seven-site denominator are unchanged; `idx` remains
+useful-only. See [qualification](../../docs/singleton-array-definition.md).

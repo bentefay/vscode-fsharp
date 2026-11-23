@@ -4757,11 +4757,12 @@ mod integration_tests {
     fn ready_context_limit_source_candidates(conditional: bool) {
         let (root, mut ws) = fixture();
         let main = root.join("Main.fs");
-        let ordinary = "module Main\nlet f parts =\n    match parts with\n    | [| part |] -> part\n    | _ -> 0\nlet part = 2\n";
-        // Keep literal query/ranges identical while placing both declarations
-        // after a conditional boundary; branch bodies stay unsupported.
+        let ordinary = "module Main\nlet f parts =\n    match parts with\n    | [| part |] when true -> part\n    | _ -> 0\nlet part = 2\n";
+        // The ordinary arm is guarded to retain the candidate-only fallback.
+        // The conditional source separately keeps declarations after a boundary.
         let physical = "#if UNKNOWN\n#endif\nlet f parts = match parts with\n    | [| part |] -> part\n    | _ -> 0\nlet part = 2\n";
         let source = if conditional { physical } else { ordinary };
+        let use_column = if conditional { 20 } else { 30 };
         fs::write(&main, source).unwrap();
         let mut compile = String::from("<Compile Include=\"Main.fs\"/>");
         for i in 0..17 {
@@ -4789,7 +4790,7 @@ mod integration_tests {
             &json!({"path":main,"version":1,"text":source}),
         )
         .unwrap();
-        let query = json!({"path":main,"line":3,"character":20,"documentVersion":1});
+        let query = json!({"path":main,"line":3,"character":use_column,"documentVersion":1});
         let _first = ws.dispatch("navigation/definition", &query).unwrap();
         let pending = ws.dispatch("navigation/definition", &query).unwrap();
         let expected = json!({"uri":uri(main.to_str().unwrap()),"range":{"start":{"line":3,"character":9},"end":{"line":3,"character":13}}});
@@ -4833,7 +4834,7 @@ mod integration_tests {
             &json!({"path":main,"version":2,"text":moved}),
         )
         .unwrap();
-        let moved_query = json!({"path":main,"line":4,"character":20,"documentVersion":2});
+        let moved_query = json!({"path":main,"line":4,"character":use_column,"documentVersion":2});
         let shifted = ws.dispatch("navigation/definition", &moved_query).unwrap();
         assert_eq!(shifted["candidateCompleteness"], "incomplete");
         assert_eq!(shifted["locations"], json!([]));
@@ -4856,7 +4857,8 @@ mod integration_tests {
             &json!({"path":main,"version":3,"text":renamed}),
         )
         .unwrap();
-        let renamed_query = json!({"path":main,"line":3,"character":21,"documentVersion":3});
+        let renamed_query =
+            json!({"path":main,"line":3,"character":use_column+1,"documentVersion":3});
         let renamed_answer = ws
             .dispatch("navigation/definition", &renamed_query)
             .unwrap();
@@ -4884,7 +4886,7 @@ mod integration_tests {
         let closed = ws
             .dispatch(
                 "navigation/definition",
-                &json!({"path":main,"line":3,"character":20}),
+                &json!({"path":main,"line":3,"character":use_column}),
             )
             .unwrap();
         let full = closed["candidates"].as_array().unwrap();
@@ -4901,6 +4903,113 @@ mod integration_tests {
         assert_eq!(closed["candidateCompleteness"], "incomplete");
         assert_eq!(ws.index.counters.helper_starts, 0);
         drop(ws);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn singleton_array_document_definition_tracks_current_overlay() {
+        let (root, mut ws) = fixture();
+        let path = root.join("Main.fs");
+        let source = "module Cases\ntype RichText(parts: string[]) =\n    member _.Text =\n        match parts with\n        | [| part |] -> part.Length\n        | _ -> 0\n";
+        fs::write(&path, source).unwrap();
+        let at =
+            |line, col, version| json!({"path":path,"line":line,"character":col,"version":version});
+        let target = |line, col, len| json!({"uri":uri(path.to_str().unwrap()),"range":{"start":{"line":line,"character":col},"end":{"line":line,"character":col+len}}});
+        for (version, text, line, col, len) in [
+            (1, source.to_string(), 4, 24, 4),
+            (2, format!("// shift\n{source}"), 5, 24, 4),
+            (
+                3,
+                source.replace("part.Length", "(let part = part in part.Length)"),
+                4,
+                36,
+                4,
+            ),
+            (4, source.replace("part", "entry"), 4, 25, 5),
+        ] {
+            ws.dispatch(
+                if version == 1 {
+                    "document/open"
+                } else {
+                    "document/change"
+                },
+                &json!({"path":path,"text":text,"version":version}),
+            )
+            .unwrap();
+            let request = at(line, col, version);
+            let result = ws
+                .dispatch("navigation/documentDefinition", &request)
+                .unwrap();
+            assert_eq!(result["completeness"], "exact", "{result}");
+            assert_eq!(result["locations"], json!([target(line, 13, len)]));
+            assert_eq!(result["proofScope"], "document");
+            assert_eq!(
+                result["sourceHash"],
+                blake3::hash(text.as_bytes()).to_hex().to_string()
+            );
+            assert_eq!(result["documentVersion"], version);
+            if version > 1 {
+                assert!(ws
+                    .dispatch("navigation/documentDefinition", &at(line, col, version - 1))
+                    .is_err());
+            }
+            for include in [true, false] {
+                let mut references = request.clone();
+                references["includeDeclaration"] = json!(include);
+                let refs = ws.dispatch("navigation/references", &references).unwrap();
+                assert_eq!(
+                    refs["locations"],
+                    if include {
+                        json!([target(line, 13, len), target(line, col, len)])
+                    } else {
+                        json!([target(line, col, len)])
+                    }
+                );
+                assert_eq!(refs["completeness"], "exact");
+            }
+        }
+        let cancelled = cancellation::CancellationToken::new();
+        cancelled.cancel();
+        ws.set_cancellation(cancelled);
+        assert!(ws
+            .dispatch("navigation/documentDefinition", &at(4, 25, 4))
+            .is_err());
+        ws.set_cancellation(cancellation::CancellationToken::new());
+        ws.dispatch("document/close", &json!({"path":path}))
+            .unwrap();
+        assert!(ws
+            .dispatch("navigation/documentDefinition", &at(4, 25, 4))
+            .is_err());
+        ws.dispatch(
+            "document/open",
+            &json!({"path":path,"text":source,"version":5}),
+        )
+        .unwrap();
+        let reopened = ws
+            .dispatch("navigation/documentDefinition", &at(4, 24, 5))
+            .unwrap();
+        assert_eq!(reopened["locations"], json!([target(4, 13, 4)]));
+        assert_eq!(
+            reopened["sourceHash"],
+            blake3::hash(source.as_bytes()).to_hex().to_string()
+        );
+        assert!(!ws.model_loaded);
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        drop(ws);
+        let mut restarted = Workspace::open(&json!({"root":root,"mode":"indexed"})).unwrap();
+        restarted
+            .dispatch(
+                "document/open",
+                &json!({"path":path,"text":source,"version":1}),
+            )
+            .unwrap();
+        let result = restarted
+            .dispatch("navigation/documentDefinition", &at(4, 24, 1))
+            .unwrap();
+        assert_eq!(result["locations"], json!([target(4, 13, 4)]));
+        assert_eq!(result["completeness"], "exact");
+        assert_eq!(result["proofScope"], "document");
+        drop(restarted);
         fs::remove_dir_all(root).unwrap();
     }
 

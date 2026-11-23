@@ -512,6 +512,31 @@ mod tests {
     }
 
     #[test]
+    fn singleton_array_definition_does_not_seed_compact_references() {
+        let source = overlay("module M\nlet f items =\n    match items with\n    | [| part |] -> part\n    | _ -> 0\n".into());
+        let mut nav = DocumentNavigation::default();
+        let token = CancellationToken::new();
+        let at = Position {
+            line: 3,
+            character: 20,
+        };
+        let answer = nav
+            .query(&source, at, false, true, &token)
+            .unwrap()
+            .unwrap();
+        assert_eq!(answer["completeness"], "exact");
+        assert_eq!(nav.cache.entries.len(), 1);
+        assert!(nav
+            .cache
+            .entries
+            .iter()
+            .all(|e| !e.compact_references && !e.key.references));
+        let refs = nav.query(&source, at, true, true, &token).unwrap().unwrap();
+        assert_eq!(refs["locations"].as_array().unwrap().len(), 2);
+        assert!(nav.cache.entries.iter().all(|e| !e.compact_references));
+    }
+
+    #[test]
     fn unused_formals_multiple_uses_and_long_uris_never_seed_reference_entries() {
         let token = CancellationToken::new();
         for (body, position, long_uri) in [
