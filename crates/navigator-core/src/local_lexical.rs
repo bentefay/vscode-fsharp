@@ -996,6 +996,21 @@ mod tests {
         include_declaration: true,
     };
     #[test]
+    fn ordinary_local_let_references_close_only_its_continuation() {
+        for (source, declaration, usage) in [
+            ("module Cases\nlet describe value =\n    let piece = string value\n    (*cursor*)piece\n", (2,8), (3,4)),
+            ("module Cases\nlet describe (name: string) =\n    match name.LastIndexOf '.' with\n    | -1 -> []\n    | index ->\n        let piece = name.Substring(index + 1)\n        [(*cursor*)piece]\n", (5,12), (6,9)),
+        ] {
+            let location = |(line,character)| Location {uri:"file:///Main.fs".into(),range:Range{start:Position{line,character},end:Position{line,character:character+5}}};
+            for include_declaration in [true,false] {
+                let answer=ask(source,Operation::References{include_declaration}).expect("closed ordinary local-let references");
+                assert_eq!(answer.locations, if include_declaration {vec![location(declaration),location(usage)]} else {vec![location(usage)]});
+            }
+            assert!(ask(source,Operation::Definition).is_none(),"Definition route unchanged");
+        }
+    }
+
+    #[test]
     fn singleton_array_definition_uses_existing_closed_arm_certificate() {
         for source in [
             "module Cases\nlet read items =\n    match items with\n    | [| part |] -> (*cursor*)part + 1\n    | _ -> 0\n",
