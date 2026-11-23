@@ -995,6 +995,22 @@ mod tests {
         include_declaration: true,
     };
     #[test]
+    fn singleton_array_definition_uses_existing_closed_arm_certificate() {
+        for source in [
+            "module Cases\nlet read items =\n    match items with\n    | [| part |] -> (*cursor*)part + 1\n    | _ -> 0\n",
+            "module Cases\ntype RichText(parts: string[]) =\n    member _.Text =\n        match parts with\n        | [| part |] -> (*cursor*)part.Length\n        | _ -> 0\n",
+        ] {
+            let answer = ask(source, Operation::Definition).expect("closed arm definition");
+            let line = if source.contains("type RichText") { 4 } else { 3 };
+            let character = if line == 4 { 13 } else { 9 };
+            assert_eq!(answer.locations, vec![Location { uri: "file:///Main.fs".into(), range: Range {
+                start: Position { line, character }, end: Position { line, character: character + 4 }
+            }}]);
+            assert!(answer.sole_use.is_none(), "arm proof must not seed compact references");
+        }
+    }
+
+    #[test]
     fn singleton_array_references_close_only_the_selected_arm() {
         for (body, use_column) in [
             ("part + 1", 20),

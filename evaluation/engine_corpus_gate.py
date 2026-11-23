@@ -18,7 +18,7 @@ KNOWN = HERE / 'engine-corpus/known-failures.json'
 REQUIRED_CONTRACTS = {
     'grace': {'closed-lambda-range': 'exact', 'module_value_use_26_serialize': 'useful'},
     'fscheck': {'crossfile-common-takeWhilePlusLast': 'useful', 'local-tuple-match-res': 'exact', 'local-recursive-loop': 'exact'},
-    'compiler': {'local-array-pattern-part': 'useful', 'tuple-match-idx': 'useful'},
+    'compiler': {'local-array-pattern-part': 'exact', 'tuple-match-idx': 'useful'},
 }
 
 

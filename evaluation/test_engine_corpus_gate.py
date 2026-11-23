@@ -107,7 +107,7 @@ class PinTests(unittest.TestCase):
         data = json.loads((Path(__file__).parent/'engine-corpus/manifest.json').read_text())
         self.assertEqual([s['id'] for s in data['suites']], ['grace', 'fscheck', 'compiler'])
         self.assertEqual([len(s['required']) for s in data['suites']], [2, 3, 2])
-        self.assertEqual(data['suites'][2]['required'][0]['require'], 'useful')
+        self.assertEqual(data['suites'][2]['required'][0]['require'], 'exact')
         self.assertTrue(all(s['lifecycle']['lines'] == 8 for s in data['suites']))
 
 

@@ -337,7 +337,7 @@
             },
             "text": "part"
           },
-          "require": "useful"
+          "require": "exact"
         },
         {
           "id": "tuple-match-idx",
