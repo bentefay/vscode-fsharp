@@ -1,5 +1,9 @@
 # Current implementation and validation
 
+Ordinary immutable expression-local `let` bindings now have a bounded References-only
+proof; see [scope, fail-first gates and native qualification](local-let-references.md).
+Definition and the private preview package are unchanged by this checkpoint.
+
 Updated 22 November 2026. The Rust engine answers both fixed synthetic reference
 queries missed by the imported prototype. On the Grace project, many record
 labels and complete cross-file reference sets still require explicit compiler

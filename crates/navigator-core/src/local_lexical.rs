@@ -8,7 +8,7 @@ use std::{
 };
 use tree_sitter::{Node, ParseOptions, Parser};
 
-pub const PROOF_VERSION: &str = "document-local-lexical-binder-v4";
+pub const PROOF_VERSION: &str = "document-local-lexical-binder-v5";
 pub const PARSER_FINGERPRINT: &str = "tree-sitter-fsharp-0.3.13:00943a441bd59446ed9d321f3e0e09402ec3069c623890fc0b1893717d001302:abi15";
 const MAX_SOURCE_BYTES: usize = 256 * 1024;
 const MAX_NODES: usize = 50_000;
@@ -151,7 +151,7 @@ struct Candidate<'a> {
     body: Node<'a>,
     parameters: Vec<Node<'a>>,
     local_refs: bool,
-    match_arm: bool,
+    restricted_body: bool,
 }
 fn function<'a>(n: Node<'a>, s: &str) -> Option<(Node<'a>, Node<'a>, Vec<Node<'a>>)> {
     if n.kind() != "function_or_value_defn"
@@ -235,6 +235,63 @@ fn singleton_array_rule<'a>(n: Node<'a>, s: &str) -> Option<(Node<'a>, Node<'a>)
     }
     None
 }
+// A local value's complete name domain is its explicit continuation, not its
+// initializer. Reuse Work only after certifying this narrow nonrecursive shape.
+fn local_value_continuation<'a>(n: Node<'a>, s: &str) -> Option<(Node<'a>, Node<'a>)> {
+    if n.kind() != "declaration_expression" || n.has_error() || !local_function(n) {
+        return None;
+    }
+    let next = n.child_by_field_name("in")?;
+    let cs = children(n);
+    if cs.len() != 2 || cs[1].id() != next.id() || cs[0].kind() != "function_or_value_defn" {
+        return None;
+    }
+    let def = cs[0];
+    if !token(def, "let")
+        || ["rec", "and", "use", "let!", "use!", "inline", "mutable"]
+            .iter()
+            .any(|k| token(def, k))
+    {
+        return None;
+    }
+    let ds = children(def);
+    if ds.len() != 2
+        || ds[0].kind() != "value_declaration_left"
+        || def.child_by_field_name("body")?.id() != ds[1].id()
+    {
+        return None;
+    }
+    let left = ds[0];
+    if ["mutable", "inline"].iter().any(|k| token(left, k)) {
+        return None;
+    }
+    let parts = children(left);
+    if parts.len() != 1 {
+        return None;
+    }
+    let mut binder = parts[0];
+    for _ in 0..8 {
+        if binder.has_error() || binder.is_missing() {
+            return None;
+        }
+        if binder.kind() == "identifier" {
+            return ordinary_name(raw(binder, s)).then_some((next, binder));
+        }
+        if !matches!(
+            binder.kind(),
+            "identifier_pattern" | "long_identifier_or_op" | "long_identifier"
+        ) {
+            return None;
+        }
+        let nested = children(binder);
+        if nested.len() != 1 {
+            return None;
+        }
+        binder = nested[0];
+    }
+    None
+}
+
 fn local_function(n: Node<'_>) -> bool {
     let mut child = n;
     while let Some(parent) = child.parent() {
@@ -795,7 +852,7 @@ fn query_impl(
                     body,
                     parameters: params,
                     local_refs: local_function(n),
-                    match_arm: false,
+                    restricted_body: false,
                 });
             } else if let Some((body, params)) = lambda(n, source) {
                 candidates.push(Candidate {
@@ -803,16 +860,21 @@ fn query_impl(
                     body,
                     parameters: params,
                     local_refs: argument_lambda(n),
-                    match_arm: false,
+                    restricted_body: false,
                 });
             } else {
-                if let Some((body, binder)) = singleton_array_rule(n, source) {
+                let binding = singleton_array_rule(n, source).or_else(|| {
+                    matches!(operation, Operation::References { .. })
+                        .then(|| local_value_continuation(n, source))
+                        .flatten()
+                });
+                if let Some((body, binder)) = binding {
                     candidates.push(Candidate {
                         node: n,
                         body,
                         parameters: vec![binder],
                         local_refs: true,
-                        match_arm: true,
+                        restricted_body: true,
                     });
                 }
             }
@@ -842,7 +904,7 @@ fn query_impl(
                 })
                 .collect();
             let mut uses = Vec::new();
-            work.reject_case_separators = candidate.match_arm;
+            work.reject_case_separators = candidate.restricted_body;
             if !work.expr(
                 candidate.body,
                 &env,
@@ -867,7 +929,7 @@ fn query_impl(
             let sole_use = match uses.as_slice() {
                 &[(start, end)]
                     if operation == Operation::Definition
-                        && !candidate.match_arm
+                        && !candidate.restricted_body
                         && start == selected.start_byte()
                         && end == selected.end_byte()
                         && start <= offset
@@ -1007,6 +1069,104 @@ mod tests {
                 assert_eq!(answer.locations, if include_declaration {vec![location(declaration),location(usage)]} else {vec![location(usage)]});
             }
             assert!(ask(source,Operation::Definition).is_none(),"Definition route unchanged");
+        }
+    }
+
+    #[test]
+    fn ordinary_local_let_references_preserve_shadow_and_initializer_identity() {
+        let range = |line, character| Range {
+            start: Position { line, character },
+            end: Position {
+                line,
+                character: character + 5,
+            },
+        };
+        for (body, column) in [
+            ("(fun piece -> piece) (*cursor*)piece", 25),
+            ("(let piece = (*cursor*)piece in piece)", 17),
+        ] {
+            let source = format!("module M\nlet f value =\n    let piece = value\n    {body}\n");
+            let answer = ask(&source, REFS).unwrap();
+            let loc = |line, character| Location {
+                uri: "file:///Main.fs".into(),
+                range: Range {
+                    start: Position { line, character },
+                    end: Position {
+                        line,
+                        character: character + 5,
+                    },
+                },
+            };
+            assert_eq!(answer.locations, vec![loc(2, 8), loc(3, column)]);
+        }
+        let source="module M\nlet f value =\n    let piece = value\n    let piece = (*cursor*)piece\n    piece\n";
+        let answer = ask(source, REFS).unwrap();
+        assert_eq!(
+            answer
+                .locations
+                .iter()
+                .map(|l| l.range.clone())
+                .collect::<Vec<_>>(),
+            vec![range(2, 8), range(3, 16)]
+        );
+        let inner="module M\nlet f value =\n    let piece = value\n    let piece = piece\n    (*cursor*)piece\n";
+        let answer = ask(inner, REFS).unwrap();
+        assert_eq!(
+            answer
+                .locations
+                .iter()
+                .map(|l| l.range.clone())
+                .collect::<Vec<_>>(),
+            vec![range(3, 8), range(4, 4)]
+        );
+        let utf16="module M\r\nlet f value =\r\n    let piece = value\r\n    (\"😀\", (*cursor*)piece)\r\n";
+        let answer = ask(utf16, REFS).unwrap();
+        assert_eq!(
+            answer.locations[1].range.start,
+            Position {
+                line: 3,
+                character: 11
+            }
+        );
+        assert_eq!(
+            answer.locations[1].range.end,
+            Position {
+                line: 3,
+                character: 16
+            }
+        );
+    }
+
+    #[test]
+    fn ordinary_local_let_references_refuse_unsupported_domains_and_roles() {
+        for source in [
+            "module M\nlet piece = 1\nlet f () = (*cursor*)piece\n",
+            "module M\ntype C() =\n    let piece = 1\n    member _.P = (*cursor*)piece\n",
+            "module M\nlet f piece =\n    let piece = (*cursor*)piece\n    piece\n",
+            "module M\nlet f value =\n    let piece = value\n    receiver.(*cursor*)piece\n",
+            "module M\nlet f value =\n    let piece = value\n    { (*cursor*)piece = value }\n",
+            "module M\nlet f value =\n    let piece = value\n    C.M((*cursor*)piece=1)\n",
+            "module M\nlet f value = seq { let piece = value in yield (*cursor*)piece }\n",
+            "module M\nlet f value = match value with | true -> let piece = value in piece | _ -> (*cursor*)piece\n",
+            "module M\nlet f value = match value with | true -> let piece = value in (*cursor*)piece | _ -> piece\n",
+            "module M\nlet f value =\n    let piece = value\n    piece\nlet g () = (*cursor*)piece\n",
+            "module M\n#if FLAG\nlet f value = let piece = value in (*cursor*)piece\n#endif\n",
+        ] { assert!(ask(source,REFS).is_none(),"{source}"); }
+        for binding in [
+            "let mutable piece = value",
+            "let rec piece = value",
+            "use piece = value",
+            "let! piece = value",
+            "let piece: int = value",
+            "let (piece) = value",
+            "let (piece,other) = value",
+            "let [| piece |] = value",
+            "let [<Literal>] piece = 1",
+            "let inline piece = value",
+            "let piece = value and other = value",
+        ] {
+            let source = format!("module M\nlet f value =\n    {binding}\n    (*cursor*)piece\n");
+            assert!(ask(&source, REFS).is_none(), "{binding}");
         }
     }
 

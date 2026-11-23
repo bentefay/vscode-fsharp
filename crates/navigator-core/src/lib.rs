@@ -4907,6 +4907,129 @@ mod integration_tests {
     }
 
     #[test]
+    fn ordinary_local_let_document_references_track_overlay_lifecycle() {
+        let (root, mut ws) = fixture();
+        let path = root.join("Main.fs");
+        let source = "module Cases\nlet describe value =\n    let piece = value\n    piece\n";
+        fs::write(&path, source).unwrap();
+        let target = |line, col, len| json!({"uri":uri(path.to_str().unwrap()),"range":{"start":{"line":line,"character":col},"end":{"line":line,"character":col+len}}});
+        for (version, text, decl_line, use_line, use_col, len) in [
+            (1, source.to_string(), 2, 3, 4, 5),
+            (2, format!("// shifted\n{source}"), 3, 4, 4, 5),
+            (
+                3,
+                source.replace("    piece\n", "    (let piece = piece in piece)\n"),
+                2,
+                3,
+                17,
+                5,
+            ),
+            (4, source.replace("piece", "component"), 2, 3, 4, 9),
+        ] {
+            ws.dispatch(
+                if version == 1 {
+                    "document/open"
+                } else {
+                    "document/change"
+                },
+                &json!({"path":path,"text":text,"version":version}),
+            )
+            .unwrap();
+            for include in [true, false] {
+                let answer=ws.dispatch("navigation/references",&json!({"path":path,"line":use_line,"character":use_col,"version":version,"includeDeclaration":include})).unwrap();
+                assert_eq!(answer["completeness"], "exact", "{answer}");
+                assert_eq!(answer["proofScope"], "document");
+                assert_eq!(answer["documentVersion"], version);
+                assert_eq!(
+                    answer["sourceHash"],
+                    blake3::hash(text.as_bytes()).to_hex().to_string()
+                );
+                assert_eq!(
+                    answer["locations"],
+                    if include {
+                        json!([target(decl_line, 8, len), target(use_line, use_col, len)])
+                    } else {
+                        json!([target(use_line, use_col, len)])
+                    }
+                );
+            }
+            if version > 1 {
+                assert!(ws.dispatch("navigation/references",&json!({"path":path,"line":use_line,"character":use_col,"version":version-1})).is_err());
+            }
+            let definition = ws
+                .dispatch(
+                    "navigation/documentDefinition",
+                    &json!({"path":path,"line":use_line,"character":use_col,"version":version}),
+                )
+                .unwrap();
+            assert_eq!(
+                definition["documentProofMiss"], true,
+                "References must not seed Definition"
+            );
+        }
+        let cancelled = cancellation::CancellationToken::new();
+        cancelled.cancel();
+        ws.set_cancellation(cancelled);
+        assert!(ws
+            .dispatch(
+                "navigation/references",
+                &json!({"path":path,"line":3,"character":4,"version":4})
+            )
+            .is_err());
+        ws.set_cancellation(cancellation::CancellationToken::new());
+        ws.dispatch("document/close", &json!({"path":path}))
+            .unwrap();
+        assert!(ws
+            .dispatch(
+                "navigation/references",
+                &json!({"path":path,"line":3,"character":4,"version":4})
+            )
+            .is_err());
+        ws.dispatch(
+            "document/open",
+            &json!({"path":path,"text":source,"version":5}),
+        )
+        .unwrap();
+        let reopened = ws
+            .dispatch(
+                "navigation/references",
+                &json!({"path":path,"line":3,"character":4,"version":5,"includeDeclaration":true}),
+            )
+            .unwrap();
+        assert_eq!(
+            reopened["locations"],
+            json!([target(2, 8, 5), target(3, 4, 5)])
+        );
+        assert_eq!(
+            reopened["sourceHash"],
+            blake3::hash(source.as_bytes()).to_hex().to_string()
+        );
+        assert!(!ws.model_loaded);
+        assert_eq!(ws.index.counters.helper_starts, 0);
+        drop(ws);
+        let mut restarted = Workspace::open(&json!({"root":root,"mode":"indexed"})).unwrap();
+        restarted
+            .dispatch(
+                "document/open",
+                &json!({"path":path,"text":source,"version":1}),
+            )
+            .unwrap();
+        let answer = restarted
+            .dispatch(
+                "navigation/references",
+                &json!({"path":path,"line":3,"character":4,"version":1,"includeDeclaration":true}),
+            )
+            .unwrap();
+        assert_eq!(answer["completeness"], "exact");
+        assert_eq!(
+            answer["locations"],
+            json!([target(2, 8, 5), target(3, 4, 5)])
+        );
+        drop(restarted);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn singleton_array_document_definition_tracks_current_overlay() {
         let (root, mut ws) = fixture();
         let path = root.join("Main.fs");
