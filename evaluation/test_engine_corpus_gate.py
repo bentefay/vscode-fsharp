@@ -236,13 +236,14 @@ class ObligationTests(unittest.TestCase):
 
 
 class ReferenceGateTests(unittest.TestCase):
+    case_index = 0
     @staticmethod
     def proof(version):
         return {'documentVersion': version, 'proofScope': 'document', 'source': 'local-lexical', 'documentProofId': 'unit-proof', 'sourceHash': 'unit-source-hash', 'proof': {'algorithm': 'unit-algorithm'}}
 
     def setUp(self):
         data = json.loads((Path(__file__).parent/'engine-corpus/manifest.json').read_text())
-        self.suite = data['suites'][2]; self.case = copy.deepcopy(self.suite['references'][0]); self.root = Path('/portable-reference-source')
+        self.suite = data['suites'][2]; self.case = copy.deepcopy(self.suite['references'][self.case_index]); self.root = Path('/portable-reference-source')
         # Synthetic transport text witnesses only; no F# source execution.
         self.texts = {'original': 'original', 'dirty': 'dirty', 'rebind': 'rebind'}
         self.case['textHashes'] = {k: hashlib.sha256(v.encode()).hexdigest() for k, v in self.texts.items()}
@@ -298,8 +299,13 @@ class ReferenceGateTests(unittest.TestCase):
     def test_original_and_rebind_contract_sets_cannot_be_reduced(self):
         data = json.loads((Path(__file__).parent/'engine-corpus/manifest.json').read_text()); suite = data['suites'][2]
         validate_reference_contract(suite)
-        for key in ['expectedReferences', 'expectedReferencesWithoutDeclaration']:
-            broken = copy.deepcopy(suite); broken['references'][0][key].pop()
+        for index in range(len(suite['references'])):
+            for key in ['expectedReferences', 'expectedReferencesWithoutDeclaration']:
+                broken = copy.deepcopy(suite); broken['references'][index][key].pop()
+                with self.assertRaises(Blocked): validate_reference_contract(broken)
+                broken = copy.deepcopy(suite); broken['references'][index]['rebind'][key].pop()
+                with self.assertRaises(Blocked): validate_reference_contract(broken)
+            broken = copy.deepcopy(suite); broken['references'].pop(index)
             with self.assertRaises(Blocked): validate_reference_contract(broken)
         broken = copy.deepcopy(suite); broken['references'] = []
         with self.assertRaises(Blocked): validate_reference_contract(broken)
@@ -333,6 +339,21 @@ class ReferenceGateTests(unittest.TestCase):
         for key, value in [('version', 99), ('text', 'not-the-acknowledged-variant')]:
             report = self.report(); row = next(r for r in report['rows'] if r.get('method') == 'document/open'); row['params'][key] = value
             self.assertTrue(self.audit(report)['failures'])
+
+
+class LocalLetReferenceGateTests(ReferenceGateTests):
+    # Run the same fail-closed per-case protocol audit against the second oracle.
+    case_index = 1
+
+    def test_other_case_success_cannot_replace_missing_local_let_case(self):
+        original = ReferenceGateTests(); original.setUp()
+        report = original.report()
+        suite = copy.deepcopy(original.suite)
+        suite['references'].append(self.case)
+        result = audit_reference_obligations(report, self.root, suite)
+        self.assertEqual(result['expected'], 32)
+        self.assertEqual(result['observed'], 16)
+        self.assertTrue(result['failures'])
 
 
 if __name__ == '__main__':

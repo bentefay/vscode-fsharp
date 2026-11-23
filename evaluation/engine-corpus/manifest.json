@@ -564,6 +564,164 @@
             "dirty": "f24fd3435626abc8f1449a195a0153cd638387598042e3adac99a953bb5e7df2",
             "rebind": "06f03f12a1f68540fe2fe229977afb9bdc9a5f446d85b6d8d861df34a950d87f"
           }
+        },
+        {
+          "id": "references-local-namespaceParts",
+          "operation": "navigation/references",
+          "query": {
+            "path": "src/Compiler/Facilities/RichText.fs",
+            "line": 136,
+            "character": 21,
+            "token": "namespaceParts"
+          },
+          "expectedReferences": [
+            {
+              "path": "src/Compiler/Facilities/RichText.fs",
+              "range": {
+                "start": {
+                  "line": 131,
+                  "character": 16
+                },
+                "end": {
+                  "line": 131,
+                  "character": 30
+                }
+              },
+              "text": "namespaceParts"
+            },
+            {
+              "path": "src/Compiler/Facilities/RichText.fs",
+              "range": {
+                "start": {
+                  "line": 136,
+                  "character": 21
+                },
+                "end": {
+                  "line": 136,
+                  "character": 35
+                }
+              },
+              "text": "namespaceParts"
+            }
+          ],
+          "expectedReferencesWithoutDeclaration": [
+            {
+              "path": "src/Compiler/Facilities/RichText.fs",
+              "range": {
+                "start": {
+                  "line": 136,
+                  "character": 21
+                },
+                "end": {
+                  "line": 136,
+                  "character": 35
+                }
+              },
+              "text": "namespaceParts"
+            }
+          ],
+          "includeDeclarationModes": [
+            true,
+            false
+          ],
+          "require": "exact-complete-set",
+          "prefix": "// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n// Portable corpus freshness control.\n",
+          "lines": 8,
+          "rebind": {
+            "line": 136,
+            "originalLine": "            concat [ namespaceParts; ofTag TextTag.Punctuation \".\"; leafOfName leaf ]",
+            "replacementLine": "            concat [ (let namespaceParts = namespaceParts in namespaceParts); ofTag TextTag.Punctuation \".\"; leafOfName leaf ]",
+            "query": {
+              "path": "src/Compiler/Facilities/RichText.fs",
+              "line": 131,
+              "character": 16,
+              "token": "namespaceParts"
+            },
+            "expectedReferences": [
+              {
+                "path": "src/Compiler/Facilities/RichText.fs",
+                "range": {
+                  "start": {
+                    "line": 131,
+                    "character": 16
+                  },
+                  "end": {
+                    "line": 131,
+                    "character": 30
+                  }
+                },
+                "text": "namespaceParts"
+              },
+              {
+                "path": "src/Compiler/Facilities/RichText.fs",
+                "range": {
+                  "start": {
+                    "line": 136,
+                    "character": 43
+                  },
+                  "end": {
+                    "line": 136,
+                    "character": 57
+                  }
+                },
+                "text": "namespaceParts"
+              }
+            ],
+            "expectedReferencesWithoutDeclaration": [
+              {
+                "path": "src/Compiler/Facilities/RichText.fs",
+                "range": {
+                  "start": {
+                    "line": 136,
+                    "character": 43
+                  },
+                  "end": {
+                    "line": 136,
+                    "character": 57
+                  }
+                },
+                "text": "namespaceParts"
+              }
+            ],
+            "excludedReferences": [
+              {
+                "path": "src/Compiler/Facilities/RichText.fs",
+                "range": {
+                  "start": {
+                    "line": 136,
+                    "character": 26
+                  },
+                  "end": {
+                    "line": 136,
+                    "character": 40
+                  }
+                },
+                "text": "namespaceParts"
+              },
+              {
+                "path": "src/Compiler/Facilities/RichText.fs",
+                "range": {
+                  "start": {
+                    "line": 136,
+                    "character": 61
+                  },
+                  "end": {
+                    "line": 136,
+                    "character": 75
+                  }
+                },
+                "text": "namespaceParts"
+              }
+            ],
+            "originalSourceSha256": "660d75b12aa155a02b567559d8888ec044f998d9167426368220d1e68cf09db5",
+            "reboundSourceSha256": "1f2b8cb6cd4a051b0b5620110d65b68c4676cb6c24890eb67a3f1e0c046e236f",
+            "rationale": "Nonrecursive inner let RHS sees the outer namespaceParts binding; inner declaration and continuation refer to the newly shadowing binding. Query the outer declaration."
+          },
+          "textHashes": {
+            "original": "660d75b12aa155a02b567559d8888ec044f998d9167426368220d1e68cf09db5",
+            "dirty": "f24fd3435626abc8f1449a195a0153cd638387598042e3adac99a953bb5e7df2",
+            "rebind": "1f2b8cb6cd4a051b0b5620110d65b68c4676cb6c24890eb67a3f1e0c046e236f"
+          }
         }
       ]
     }

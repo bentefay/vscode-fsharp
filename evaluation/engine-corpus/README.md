@@ -106,3 +106,14 @@ The singleton-array Definition promotion strengthens compiler `part` from useful
 candidates to exact at its existing four required lifecycle boundaries. Its
 authored URI/range and the seven-site denominator are unchanged; `idx` remains
 useful-only. See [qualification](../../docs/singleton-array-definition.md).
+
+The ordinary local `namespaceParts` binding in the same pinned compiler source
+adds a second, independently scored complete-reference case. Its declaration is
+zero-based line 131, UTF-16 columns 16–30; its sole use is line 136, columns 21–35.
+The nested nonrecursive-let rebind requires the outer declaration and inner RHS
+only, excluding the new inner declaration and body use. It runs the same 16
+lifecycle obligations without replacing the existing `part` case: total reference
+obligations are now 32 (28 complete sets and four stale rejections), and total
+required protocol observations are 64 including the unchanged 32 Definition
+observations. Either missing case, mode, phase or target fails independently.
+This increases engine coverage; it is not an editor Find All References claim.

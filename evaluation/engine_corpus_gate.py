@@ -303,18 +303,23 @@ def score_references(response, expected, version, forbidden=(), stale=False):
 
 def validate_reference_contract(suite):
     cases = suite.get('references', [])
-    expected_ids = ['references-local-part'] if suite['id'] == 'compiler' else []
-    if [s.get('id') for s in cases] != expected_ids:
+    contracts = {
+        'references-local-part': ([(15, 13, 17), (15, 24, 28)], [(15, 13, 17), (15, 36, 40)], [(15, 29, 33), (15, 44, 48)]),
+        'references-local-namespaceParts': ([(131, 16, 30), (136, 21, 35)], [(131, 16, 30), (136, 43, 57)], [(136, 26, 40), (136, 61, 75)]),
+    } if suite['id'] == 'compiler' else {}
+    if [s.get('id') for s in cases] != list(contracts):
         raise Blocked('Required reference case set differs from frozen contract')
+    path = 'src/Compiler/Facilities/RichText.fs'
+    spans = lambda items: [(x['path'], x['range']['start']['line'], x['range']['start']['character'], x['range']['end']['line'], x['range']['end']['character']) for x in items]
+    frozen = lambda items: [(path, line, start, line, end) for line, start, end in items]
     for case in cases:
         if case.get('operation') != 'navigation/references' or case.get('require') != 'exact-complete-set' or case.get('includeDeclarationModes') != [True, False]:
             raise Blocked('Reference operation/strength/declaration modes changed')
-        path = 'src/Compiler/Facilities/RichText.fs'
-        spans = lambda items: [(x['path'], x['range']['start']['line'], x['range']['start']['character'], x['range']['end']['line'], x['range']['end']['character']) for x in items]
-        if spans(case['expectedReferences']) != [(path, 15, 13, 15, 17), (path, 15, 24, 15, 28)] or spans(case['expectedReferencesWithoutDeclaration']) != [(path, 15, 24, 15, 28)]:
-            raise Blocked('Frozen complete part reference set changed')
-        if spans(case['rebind']['expectedReferences']) != [(path, 15, 13, 15, 17), (path, 15, 36, 15, 40)] or spans(case['rebind']['expectedReferencesWithoutDeclaration']) != [(path, 15, 36, 15, 40)]:
-            raise Blocked('Frozen rebind reference set changed')
+        original, rebound, excluded = contracts[case['id']]
+        if spans(case['expectedReferences']) != frozen(original) or spans(case['expectedReferencesWithoutDeclaration']) != frozen(original[1:]):
+            raise Blocked('Frozen complete reference set changed: ' + case['id'])
+        if spans(case['rebind']['expectedReferences']) != frozen(rebound) or spans(case['rebind']['expectedReferencesWithoutDeclaration']) != frozen(rebound[1:]) or spans(case['rebind']['excludedReferences']) != frozen(excluded):
+            raise Blocked('Frozen rebind reference set changed: ' + case['id'])
         if case.get('lines') != 8 or case.get('prefix', '').count('\n') != 8:
             raise Blocked('Reference prefix shift changed')
 
@@ -511,7 +516,7 @@ def main(argv=None):
     p.add_argument('--suite', action='append', choices=['grace', 'fscheck', 'compiler'])
     p.add_argument('--timeout', type=float, default=30)
     args = p.parse_args(argv)
-    report = {'schemaVersion': 1, 'status': 'blocked', 'manifestSha256': digest(MANIFEST), 'knownFailuresSha256': digest(KNOWN), 'runnerSha256': digest(__file__), 'suites': [], 'limitations': ['Native correctness/availability only, not UI or timing benchmark.', 'Definition edits are layout-only; the part reference control additionally checks a nested nonrecursive-let rebind.', 'Known-failure probes are never counted as required passes.']}
+    report = {'schemaVersion': 1, 'status': 'blocked', 'manifestSha256': digest(MANIFEST), 'knownFailuresSha256': digest(KNOWN), 'runnerSha256': digest(__file__), 'suites': [], 'limitations': ['Native correctness/availability only, not UI or timing benchmark.', 'Definition edits are layout-only; the reference controls additionally check nested nonrecursive-let rebinds.', 'Known-failure probes are never counted as required passes.']}
     try:
         manifest = json.loads(MANIFEST.read_text()); known = json.loads(KNOWN.read_text())
         validate_contract(manifest)
