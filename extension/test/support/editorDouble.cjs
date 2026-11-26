@@ -47,6 +47,7 @@ exports.createEditor = async function (directory, binary, configuration = {}) {
   const output = [];
   const warnings = [];
   const warningCalls = [];
+  const errors = [], infos = [], statusMenus = [], outputShows = [];
   const resources = { outputChannels: 0, statusBarItems: 0, fileWatchers: 0 };
   const commands = new Map();
   const openedUris = [];
@@ -81,7 +82,7 @@ exports.createEditor = async function (directory, binary, configuration = {}) {
       async withProgress(options, task) { const token = configuration.progressToken || uncancelled; return configuration.progress ? configuration.progress(task, token) : task({ report() {} }, token); },
       onDidChangeTextEditorSelection: events.selection.event,
       onDidChangeActiveTextEditor: events.activeEditor.event,
-      createOutputChannel() { resources.outputChannels++; return { append: text => { output.push(text); events.output.fire(text); }, appendLine: text => { output.push(text); events.output.fire(text); }, show() {}, dispose() {} }; },
+      createOutputChannel() { resources.outputChannels++; return { append: text => { output.push(text); events.output.fire(text); }, appendLine: text => { output.push(text); events.output.fire(text); }, show(preserveFocus) { outputShows.push(preserveFocus); }, dispose() {} }; },
       createStatusBarItem() { const item = resources.statusBarItems++ === 0 ? status : makeStatus(); statusItems.push(item); return item; }, registerTreeDataProvider: noop,
       createQuickPick() {
         const accept = new EventEmitter(), hide = new EventEmitter();
@@ -98,7 +99,10 @@ exports.createEditor = async function (directory, binary, configuration = {}) {
         const view = { id, options, visible: false, reveals: [], async reveal(item, settings) { if (!options.treeDataProvider.getParent) throw new Error('getParent required'); this.visible = true; this.reveals.push({ item, settings }); if (configuration.reveal) await configuration.reveal(item, settings); }, dispose() {} };
         candidateViews.push(view); return view;
       },
-      showWarningMessage: async (text, ...actions) => { warnings.push(text); const call = { text, actions }; warningCalls.push(call); return configuration.warning ? configuration.warning(call) : undefined; }, showQuickPick: async () => undefined,
+      showWarningMessage: async (text, ...actions) => { warnings.push(text); const call = { text, actions }; warningCalls.push(call); return configuration.warning ? configuration.warning(call) : undefined; },
+      showErrorMessage: async (text, ...actions) => { errors.push({text,actions}); return configuration.error?.(text,actions); },
+      showInformationMessage: async text => { infos.push(text); },
+      showQuickPick: async (items, options) => new Promise(resolve => { statusMenus.push({items,options,resolve: label=>resolve(items.find(item=>item.label===label))}); }),
     },
     languages: {
       registerDefinitionProvider(selector, provider) { providers.definition = provider; return noop(); },
@@ -117,7 +121,7 @@ exports.createEditor = async function (directory, binary, configuration = {}) {
   try { api = require('../../dist/extension.js').activate(context); }
   finally { Module._load = load; }
   return {
-    api, providers, output, warnings, warningCalls, status, resources, uncancelled, openedUris, candidateViews, statusItems, quickPicks,
+    api, providers, output, warnings, warningCalls, errors, infos, statusMenus, outputShows, status, resources, uncancelled, openedUris, candidateViews, statusItems, quickPicks,
     cancellationSource: () => new CancellationTokenSource(),
     executeCommand: boundary.commands.executeCommand,
     async open(name) {

@@ -178,7 +178,7 @@ const incompleteReferencesMessage = 'Scope was not fully searched. “No referen
 
 type ReferenceNotice = {
   key: string; editor: vscode.TextEditor | undefined; request: number;
-  pending: boolean; valid: boolean; cancellation?: vscode.Disposable;
+  valid: boolean; current: () => boolean; cancellation?: vscode.Disposable;
 };
 
 class Navigator implements vscode.Disposable {
@@ -190,7 +190,9 @@ class Navigator implements vscode.Disposable {
   private epoch = 0;
   private readonly selectedProjects = new Map<string, { projectPath: string; workspaceUri: string }>();
   private projectRefreshTimer: ReturnType<typeof setTimeout> | undefined;
-  private lastWarning = 0;
+  private statusGeneration = 0;
+  private statusMenuOpen = false;
+  private lastError: string | undefined;
   private referenceRequest = 0;
   private referenceContext = 0;
   private referenceEditor: vscode.TextEditor | undefined;
@@ -275,6 +277,7 @@ class Navigator implements vscode.Disposable {
 
   private cancelNavigation(invalidateOccurrences = true): void {
     this.invalidateReferenceNotice();
+    this.resetStatus();
     this.candidates.clear();
     if (invalidateOccurrences) { this.occurrenceEpoch++; this.occurrenceCancellation?.cancel(); this.possibleReferences.clear(); }
     for (const request of this.navigation) request.cancel();
@@ -329,20 +332,47 @@ class Navigator implements vscode.Disposable {
     if (!this.referenceNotice) return;
     this.referenceNotice.valid = false;
     this.referenceNotice.cancellation?.dispose(); this.referenceNotice.cancellation = undefined;
-    // VS Code cannot dismiss our notification. Keep its pending slot occupied
-    // so unrelated retries cannot accumulate obsolete, still-visible actions.
+  }
+
+  private resetStatus(): void {
+    this.statusGeneration++;
+    this.status.text = `F#: ${mode()}`;
+    this.status.tooltip = 'F# navigation. Click to select a navigation mode.';
+    this.status.command = 'fsharpNavigator.selectMode';
+  }
+
+  private quietStatus(text: string, details: string): void {
+    this.status.text = text;
+    this.status.tooltip = `${details} Click for details and available actions.`;
+    this.status.command = { command: 'fsharpNavigator.navigationStatus', title: 'F# Navigator Status', arguments: [++this.statusGeneration] };
+  }
+
+  async showNavigationStatus(generation: unknown = this.statusGeneration): Promise<void> {
+    if (generation !== this.statusGeneration || this.statusMenuOpen) return;
+    const notice = this.referenceNotice;
+    const items = [{ label: 'Show Details', description: 'Open F# Navigator output' }];
+    if (notice?.current()) items.unshift({ label: 'Show Possible References', description: 'Incomplete same-name matches; may include unrelated symbols' });
+    this.statusMenuOpen = true;
+    try {
+      const action = await vscode.window.showQuickPick(items, { title: this.status.text, placeHolder: String(this.status.tooltip) });
+      if (generation !== this.statusGeneration) return;
+      if (action?.label === 'Show Details') this.output.show(true);
+      if (action?.label === 'Show Possible References' && notice?.current()) {
+        this.invalidateReferenceNotice();
+        await this.showPossibleReferences();
+      }
+    } finally { this.statusMenuOpen = false; }
   }
 
   private offerPossibleReferences(document: vscode.TextDocument, position: vscode.Position,
     editor: vscode.TextEditor | undefined, version: number, epoch: number, context: number,
-    request: number, token: vscode.CancellationToken, details: string): void {
+    request: number, token: vscode.CancellationToken): void {
     const folder = this.folderFor(document.uri);
     if (!folder || token.isCancellationRequested || request !== this.referenceRequest || context !== this.referenceContext) return;
     const project = this.selectedProjects.get(document.uri.toString())?.projectPath;
     const key = JSON.stringify([document.uri.toString(), version, position.line, position.character, epoch, context, folder.uri.toString(), project]);
     let notice = this.referenceNotice;
-    if (notice?.pending) {
-      if (!notice.valid || notice.key !== key || notice.editor !== editor) return;
+    if (notice?.valid && notice.key === key && notice.editor === editor) {
       notice.request = request;
       notice.cancellation?.dispose();
       notice.cancellation = token.onCancellationRequested(() => {
@@ -351,30 +381,20 @@ class Navigator implements vscode.Disposable {
       if (token.isCancellationRequested) this.invalidateReferenceNotice();
       return;
     }
-    notice = { key, editor, request, pending: true, valid: true };
+    this.invalidateReferenceNotice();
+    notice = { key, editor, request, valid: true, current: () => false };
     this.referenceNotice = notice;
     const captured = notice;
     captured.cancellation = token.onCancellationRequested(() => {
       if (this.referenceNotice === captured && captured.request === request) this.invalidateReferenceNotice();
     });
-    if (token.isCancellationRequested) { this.invalidateReferenceNotice(); captured.pending = false; return; }
-    const current = () => this.referenceNotice === captured && captured.valid && captured.request === this.referenceRequest
+    if (token.isCancellationRequested) { this.invalidateReferenceNotice(); return; }
+    captured.current = () => this.referenceNotice === captured && captured.valid && captured.request === this.referenceRequest
       && context === this.referenceContext && epoch === this.epoch && !document.isClosed && document.version === version
       && !!editor && vscode.window.activeTextEditor === editor && editor.document === document
       && editor.selections.length === 1 && editor.selection.active.isEqual(position)
       && this.folderFor(document.uri)?.uri.toString() === folder.uri.toString()
       && this.selectedProjects.get(document.uri.toString())?.projectPath === project;
-    void Promise.resolve(vscode.window.showWarningMessage(
-      `${incompleteReferencesMessage} ${details}`,
-      'Show Possible References',
-    )).then(async action => {
-      if (action !== 'Show Possible References' || !current()) return;
-      captured.valid = false; // one explicit transaction; no automatic search
-      await this.showPossibleReferences();
-    }).catch(error => { if (current()) this.report(error); }).finally(() => {
-      captured.pending = false; captured.valid = false;
-      captured.cancellation?.dispose(); captured.cancellation = undefined;
-    });
   }
 
   private async synchronizeOccurrences(session: Session, document: vscode.TextDocument, token: vscode.CancellationToken): Promise<void> {
@@ -430,8 +450,7 @@ class Navigator implements vscode.Disposable {
         return validated === true && current();
       }), token);
       if (!current() || token.isCancellationRequested) return;
-      this.status.text = 'F#: possible references (incomplete)';
-      this.status.tooltip = 'Same-name occurrences may include declarations and unrelated symbols. Only a limited set of files was scanned; this is not a complete reference set.';
+      this.quietStatus('F#: possible references (incomplete)', 'Same-name occurrences may include declarations and unrelated symbols. Only a limited set of files was scanned; this is not a complete reference set.');
     });
   }
 
@@ -569,6 +588,7 @@ class Navigator implements vscode.Disposable {
     this.observeReferenceContext();
     const referenceRequest = method === 'navigation/references' ? ++this.referenceRequest : undefined;
     const referenceContext = this.referenceContext;
+    if (definitionRequest !== undefined || referenceRequest !== undefined) this.resetStatus();
     if (definitionRequest !== undefined) { this.referenceRequest++; this.invalidateReferenceNotice(); }
     if (definitionRequest !== undefined) this.activeDefinition?.cancel();
     if (traceEnabled) trace('providerStart', { requestId: definitionRequest, method });
@@ -671,9 +691,10 @@ class Navigator implements vscode.Disposable {
         const details = result.candidateTruncated
           ? `${explanation} Candidate limit reached: ${result.candidateTruncationReason || 'additional possible targets may be omitted.'}`
           : explanation;
-        this.status.text = method === 'navigation/references' ? 'F#: references incomplete' : 'F#: incomplete';
-        this.status.tooltip = method === 'navigation/references'
-          ? `${incompleteReferencesMessage} ${details}` : details;
+        // Automatic hover requests must not erase the explanation attached to
+        // an explicit definition or an incomplete native References view.
+        if (method !== 'navigation/hover' || this.status.command === 'fsharpNavigator.selectMode') this.quietStatus(method === 'navigation/references' ? 'F#: references incomplete' : 'F#: incomplete',
+          method === 'navigation/references' ? `${incompleteReferencesMessage} ${details}` : `A complete result could not be verified. ${details}`);
         this.output.appendLine(`${method}: ${result.completeness} (${result.source ?? 'unknown'}): ${details}`);
         if (method === 'navigation/definition' && result.candidates?.length) {
           await cancellable(this.candidates.show(result.candidates, details, definitionRequest, async (target, pickerToken) => {
@@ -716,21 +737,17 @@ class Navigator implements vscode.Disposable {
           return undefined;
         }
         if (referenceRequest !== undefined) {
-          this.offerPossibleReferences(document, position, entryEditor, version, epoch, referenceContext, referenceRequest, token, details);
-        } else if (method !== 'navigation/hover' && Date.now() - this.lastWarning > 3000) {
-          this.lastWarning = Date.now();
-          const warning = method === 'navigation/references'
-            ? `F# Navigator could not verify a complete reference set; this does not mean there are no references. ${details}`
-            : `F# Navigator could not verify a complete result. ${details}`;
-          void vscode.window.showWarningMessage(warning, 'Show Details').then(action => {
-            if (action) this.output.show(true);
-          });
+          this.offerPossibleReferences(document, position, entryEditor, version, epoch, referenceContext, referenceRequest, token);
         }
         return undefined;
       }
       if (referenceRequest !== undefined) this.invalidateReferenceNotice();
-      this.status.text = `F#: ${mode(folder.uri)}`;
-      this.status.tooltip = `Verified by ${result.source ?? mode(folder.uri)}. Compiler analysis is never started automatically.`;
+      if (method !== 'navigation/hover') {
+        this.resetStatus();
+        this.lastError = undefined;
+        this.status.text = `F#: ${mode(folder.uri)}`;
+        this.status.tooltip = `Verified by ${result.source ?? mode(folder.uri)}. Compiler analysis is never started automatically.`;
+      }
       return result;
     } catch (error) {
       if (!(error instanceof vscode.CancellationError)) this.report(error);
@@ -740,15 +757,13 @@ class Navigator implements vscode.Disposable {
       caretChanged?.dispose(); editorChanged?.dispose();
       if (definitionRequest !== undefined && definitionRequest === this.definitionRequest) {
         this.activeDefinition = undefined;
-        this.status.command = 'fsharpNavigator.selectMode';
         if (cancellation.token.isCancellationRequested) this.candidates.clear();
         if (continuing || timedOut) {
           if (timedOut) {
-            this.status.text = 'F#: indexing budget reached';
-            this.status.tooltip = 'This navigation stopped after 3 seconds. No further retries will run for it. Indexing may continue in the background; invoke definition again when ready.';
+            this.quietStatus('F#: indexing budget reached', 'A complete result could not be verified. This navigation stopped after 3 seconds. Indexing may continue in the background; retry navigation when ready.');
+            this.output.appendLine(String(this.status.tooltip));
           } else if (cancellation.token.isCancellationRequested) {
-            this.status.text = 'F#: navigation cancelled';
-            this.status.tooltip = 'No further retries will run for the cancelled request.';
+            this.quietStatus('F#: navigation cancelled', 'No further retries will run for the cancelled request.');
           }
         }
       }
@@ -761,9 +776,14 @@ class Navigator implements vscode.Disposable {
 
   report(error: unknown): void {
     const message = error instanceof Error ? error.message : String(error);
-    this.status.text = 'F#: unavailable';
-    this.status.tooltip = message;
+    this.quietStatus('F#: unavailable', message);
     this.output.appendLine(message);
+    if (!(error instanceof ForeignMembershipUnknown) && message !== this.lastError) {
+      this.lastError = message;
+      void vscode.window.showErrorMessage(`F# Navigator: ${message}`, 'Show Details').then(action => {
+        if (action === 'Show Details') this.output.show(true);
+      });
+    }
   }
 
   restart(): void {
@@ -867,6 +887,7 @@ export function activate(context: vscode.ExtensionContext) {
     };
   context.subscriptions.push({ dispose: () => navigator?.dispose() }, tree, metadata, candidates, possibleReferences,
     vscode.commands.registerCommand('fsharpNavigator.showPossibleReferences', () => getNavigator().showPossibleReferences()),
+    vscode.commands.registerCommand('fsharpNavigator.navigationStatus', (generation?: unknown) => getNavigator().showNavigationStatus(generation)),
     vscode.commands.registerCommand('fsharpNavigator.openPossibleReference', (id: string) => possibleReferences.open(id)),
     vscode.commands.registerCommand('fsharpNavigator.chooseCandidates', (generation?: unknown) => candidates.choose(generation)),
     vscode.commands.registerCommand('fsharpNavigator.cancelDefinition', () => navigator?.cancelDefinition()),

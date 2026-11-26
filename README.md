@@ -21,10 +21,14 @@ uses the editor's operation/picker cancellation, not a global keybinding; a pres
 before an operation registers is outside that cancellation surface.
 
 Native Find All References returns only proven complete results. An incomplete
-scope produces an explanatory message: VS Code's “No references found” is not
-proof of no uses. **Show Possible References** is a deliberate opt-in action that
-shows labelled incomplete spelling matches. Those matches never become native
-complete reference results. Proven empty scopes do not trigger the warning.
+scope shows **F#: references incomplete** in the status bar. Its tooltip explains
+that VS Code's “No references found” is not proof of no uses. Click the status for
+**Show Details** or **Show Possible References**, a deliberate opt-in search of
+labelled incomplete spelling matches. Those matches never become native complete
+reference results. The command is also available from the Command Palette.
+Routine indexing and incomplete navigation use quiet status feedback; genuine
+engine failures retain actionable error notifications. Proven empty scopes clear
+the incomplete status and its actions.
 
 The Solution view preserves F# compile order. Library-only hover requires an
 explicitly supplied verified documentation catalog; no catalog is built implicitly.

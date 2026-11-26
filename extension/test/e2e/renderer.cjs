@@ -48,6 +48,10 @@ exports.connect = async function (port) {
       if (!point) return false;
       for (const type of ['mousePressed', 'mouseReleased']) await send('Input.dispatchMouseEvent', { type, ...point, button: 'left', clickCount: 1 }); return true;
     },
+    async hoverStatus(text) {
+      const point=await evaluate(`(()=>{const n=[...document.querySelectorAll('.statusbar-item')].find(n=>(n.textContent||'').includes(${JSON.stringify(text)}));if(!n)return null;const r=n.getBoundingClientRect();return r.width&&r.height?{x:r.x+r.width/2,y:r.y+r.height/2}:null;})()`);
+      assert.ok(point);await send('Input.dispatchMouseEvent',{type:'mouseMoved',...point});
+    },
     async clickChoice(label, fullPath) {
       const point=await evaluate(`(()=>{for(const n of document.querySelectorAll('.quick-input-widget .monaco-list-row')){const text=n.textContent||'';if(!text.includes(${JSON.stringify(label)})||!text.includes(${JSON.stringify(fullPath)}))continue;const r=n.getBoundingClientRect(),x=r.x+Math.min(80,r.width/2),y=r.y+r.height/2,h=document.elementFromPoint(x,y);if(r.width&&r.height&&h&&(h===n||n.contains(h)))return{x,y};}return null;})()`);
       if(!point)return false;for(const type of ['mousePressed','mouseReleased'])await send('Input.dispatchMouseEvent',{type,...point,button:'left',clickCount:1});return true;

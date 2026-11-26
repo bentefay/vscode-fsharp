@@ -51,6 +51,7 @@ readline.createInterface({input:process.stdin}).on('line', line => {
   }
   if(method.startsWith('navigation/')) {
     navigationCount++;
+    if(scenario==='engine-error') {process.stdout.write(JSON.stringify({id,error:{code:-32000,message:'Engine database could not be opened'}})+'\\n');return;}
     process.stderr.write('NAVIGATION_'+navigationCount+'\\n');
     const result = {locations:[location(params.path)],completeness:scenario==='approximate'?'approximate':scenario==='unavailable'?'unavailable':'exact',source:'contract-fixture',version:(scenario==='wrong-version'||scenario==='pending-wrong-version')?params.version-1:params.version,reason:'deliberate contract fixture'};
     if(scenario.startsWith('ref-')) {result.completeness='unavailable';result.locations=[];}
@@ -105,7 +106,7 @@ for (const completeness of ['approximate', 'unavailable']) {
     assert.equal(await editor.providers.references.provideReferences(document, position, { includeDeclaration: true }, editor.uncancelled), undefined);
     assert.equal(editor.api.lastResult.completeness, completeness);
     assert.equal(editor.status.text, 'F#: references incomplete');
-    assert.ok(editor.warnings.length, 'Explicit navigation must report incompleteness');
+    assert.deepEqual(editor.warnings, []); assert.match(editor.status.tooltip, /not evidence/);
   });
 }
 
@@ -531,6 +532,8 @@ for (const scenario of ['pending-forever', 'pending-init']) {
     assert.equal(await editor.providers.definition.provideDefinition(doc, editor.position(doc, 2, 'value'), editor.uncancelled), undefined);
     assert.ok(performance.now() - started < 3700, 'Provider must not inherit the transport 30-second bound');
     assert.equal(editor.status.text, 'F#: indexing budget reached');
+    quiet(editor);assert.match(editor.status.tooltip,/complete result could not be verified/);
+    const menu=statusMenu(editor);menu.resolve('Show Details');await menu.done;assert.deepEqual(editor.outputShows,[true]);
     const count = editor.output.join('').match(/NAVIGATION_\d+/g)?.length || 0;
     await settle(150);
     assert.equal(editor.output.join('').match(/NAVIGATION_\d+/g)?.length || 0, count);
@@ -575,23 +578,82 @@ test('incomplete references explain that withholding a set does not mean no refe
   const doc = await editor.open('Main.fs');
   assert.equal(await editor.providers.references.provideReferences(doc, editor.position(doc, 2, 'value'), { includeDeclaration: true }, editor.uncancelled), undefined);
   assert.equal(editor.status.text, 'F#: references incomplete');
-  assert.match(editor.warnings.join(''), /Scope was not fully searched.*not evidence that there are no uses/);
+  assert.match(editor.status.tooltip, /Scope was not fully searched.*not evidence that there are no uses/); assert.deepEqual(editor.warnings, []);
 });
 
 async function referenceNoticeSetup(t, scenario='unavailable') {
-  const editor=await setup(t,scenario,{warning:call=>new Promise(resolve=>{call.resolve=resolve;})});
+  const editor=await setup(t,scenario);
   const doc=await editor.open('Main.fs'),position=editor.position(doc,2,'value');editor.focus(doc,position);
   const read=(includeDeclaration=true,token=editor.uncancelled)=>editor.providers.references.provideReferences(doc,position,{includeDeclaration},token);
   return {editor,doc,position,read};
 }
 const possibleCount=editor=>(editor.output.join('').match(/POSSIBLE_\d+/g)||[]).length;
+function statusMenu(editor) {
+  const command=editor.status.command;
+  assert.equal(command.command,'fsharpNavigator.navigationStatus');
+  const done=editor.executeCommand(command.command,...command.arguments);
+  const menu=editor.statusMenus.at(-1); assert.ok(menu);
+  return {...menu,done};
+}
+function quiet(editor) { assert.deepEqual(editor.warnings,[]); assert.deepEqual(editor.errors,[]); assert.deepEqual(editor.infos,[]); }
 
-test('incomplete reference warning offers one explicit search without changing standard FAR',async t=>{
+test('routine repeated incomplete navigation stays quiet with clickable status details',async t=>{
+  const {editor,doc,position,read}=await referenceNoticeSetup(t);
+  for(let i=0;i<3;i++) {
+    await read(i%2===0);
+    assert.equal(editor.status.text,'F#: references incomplete');
+    assert.match(editor.status.tooltip,/not evidence that there are no uses/);
+    await editor.providers.definition.provideDefinition(doc,position,editor.uncancelled);
+    assert.match(editor.status.tooltip,/complete|unverified/i);
+  }
+  quiet(editor);
+  assert.equal(editor.status.command.command,'fsharpNavigator.navigationStatus');
+  const menu=statusMenu(editor);assert.deepEqual(menu.items.map(i=>i.label),['Show Details']);
+  menu.resolve('Show Details');await menu.done;assert.deepEqual(editor.outputShows,[true]);
+});
+
+test('repeated indexing requests stay quiet and retain cancellation and timeout details',async t=>{
+  const editor=await setup(t,'pending-forever'),doc=await editor.open('Main.fs'),position=editor.position(doc,2,'value');
+  for(let i=0;i<3;i++){
+    const pending=editor.providers.definition.provideDefinition(doc,position,editor.uncancelled);
+    await until(()=>editor.status.command==='fsharpNavigator.cancelDefinition');quiet(editor);
+    await editor.executeCommand('fsharpNavigator.cancelDefinition');assert.equal(await pending,undefined);quiet(editor);
+    assert.equal(editor.status.text,'F#: navigation cancelled');assert.equal(editor.status.command.command,'fsharpNavigator.navigationStatus');
+  }
+});
+
+test('real engine failures retain an actionable error and diagnostic output without duplicate toasts',async t=>{
+  const editor=await setup(t,'engine-error',{error:()=> 'Show Details'}),doc=await editor.open('Main.fs');
+  for(let i=0;i<2;i++)await editor.providers.definition.provideDefinition(doc,editor.position(doc,2,'value'),editor.uncancelled);
+  assert.equal(editor.errors.length,1);assert.match(editor.errors[0].text,/Engine database could not be opened/);
+  assert.deepEqual(editor.errors[0].actions,['Show Details']);assert.deepEqual(editor.outputShows,[true]);
+  assert.match(editor.output.join(''),/Engine database could not be opened/);assert.equal(editor.status.text,'F#: unavailable');
+});
+
+for(const scenario of ['unavailable','ref-exact-after']) {
+  test(`automatic hover preserves incomplete reference status and its explicit action: ${scenario}`,async t=>{
+    const {editor,doc,position,read}=await referenceNoticeSetup(t,scenario);await read();
+    const command=editor.status.command,tooltip=editor.status.tooltip;
+    await editor.providers.hover.provideHover(doc,position,editor.uncancelled);
+    assert.equal(editor.status.text,'F#: references incomplete');assert.equal(editor.status.tooltip,tooltip);assert.equal(editor.status.command,command);quiet(editor);
+    const menu=statusMenu(editor);menu.resolve('Show Possible References');await menu.done;assert.equal(possibleCount(editor),1);
+  });
+}
+
+test('repeated status clicks open a single menu and dismissal never starts a search',async t=>{
+  const {editor,read}=await referenceNoticeSetup(t);await read();const menu=statusMenu(editor);
+  await editor.executeCommand(editor.status.command.command,...editor.status.command.arguments);
+  assert.equal(editor.statusMenus.length,1);menu.resolve(undefined);await menu.done;assert.equal(possibleCount(editor),0);quiet(editor);
+});
+
+test('incomplete reference status offers one explicit search without changing standard FAR',async t=>{
   const {editor,doc,read}=await referenceNoticeSetup(t);
   assert.equal(await read(),undefined);assert.equal(possibleCount(editor),0);
-  assert.deepEqual(editor.warningCalls[0].actions,['Show Possible References']);
-  assert.equal(editor.status.tooltip,editor.warningCalls[0].text);
-  editor.warningCalls[0].resolve('Show Possible References');await editor.waitForOutput('POSSIBLE_1');
+  quiet(editor);const menu=statusMenu(editor);
+  assert.deepEqual(menu.items.map(i=>i.label),['Show Possible References','Show Details']);
+  assert.match(menu.items[0].description,/Incomplete.*unrelated/);
+  assert.equal(editor.status.tooltip,menu.options.placeHolder);
+  menu.resolve('Show Possible References');await menu.done;await editor.waitForOutput('POSSIBLE_1');
   await until(()=>editor.api.lastPossibleReferences!==undefined);assert.equal(possibleCount(editor),1);
   assert.equal(editor.api.lastPossibleReferences.occurrenceIdentity.origin.uri,doc.uri.toString());
   assert.equal(editor.api.lastResult.completeness,'unavailable');assert.equal(editor.openedUris.length,0);
@@ -599,22 +661,22 @@ test('incomplete reference warning offers one explicit search without changing s
 
 test('identical include-declaration retries share a valid newest-token action',async t=>{
   const {editor,read}=await referenceNoticeSetup(t);const old=editor.cancellationSource(),latest=editor.cancellationSource();
-  await read(true,old.token);await read(false,latest.token);assert.equal(editor.warningCalls.length,1);
-  old.cancel();editor.warningCalls[0].resolve('Show Possible References');await editor.waitForOutput('POSSIBLE_1');
+  await read(true,old.token);await read(false,latest.token);quiet(editor);assert.equal(editor.resources.statusBarItems,1);
+  old.cancel();const menu=statusMenu(editor);menu.resolve('Show Possible References');await menu.done;await editor.waitForOutput('POSSIBLE_1');
   assert.equal(possibleCount(editor),1);old.dispose();latest.dispose();
 });
 
 test('the newest repeated reference token still revokes the shared action after provider return',async t=>{
   const {editor,read}=await referenceNoticeSetup(t);const old=editor.cancellationSource(),latest=editor.cancellationSource();
-  await read(true,old.token);await read(false,latest.token);latest.cancel();
-  editor.warningCalls[0].resolve('Show Possible References');await settle(20);assert.equal(possibleCount(editor),0);
+  await read(true,old.token);await read(false,latest.token);const menu=statusMenu(editor);latest.cancel();
+  menu.resolve('Show Possible References');await menu.done;await settle(20);assert.equal(possibleCount(editor),0);
   old.dispose();latest.dispose();
 });
 
 for(const change of ['edit','caret-away-back','other-editor','workspace','definition','newest-token','different-origin']) {
   test(`deferred reference action is inert after ${change}`,async t=>{
     const {editor,doc,position,read}=await referenceNoticeSetup(t);const token=editor.cancellationSource();
-    await read(true,token.token);const warning=editor.warningCalls[0];
+    await read(true,token.token);const menu=statusMenu(editor);
     if(change==='edit')editor.edit(doc,doc.text+'\n');
     if(change==='caret-away-back'){editor.move(editor.position(doc,1,'value'));editor.move(position);}
     if(change==='other-editor')editor.focus(doc,position);
@@ -622,57 +684,56 @@ for(const change of ['edit','caret-away-back','other-editor','workspace','defini
     if(change==='definition')await editor.providers.definition.provideDefinition(doc,position,editor.uncancelled);
     if(change==='newest-token')token.cancel();
     if(change==='different-origin')await editor.providers.references.provideReferences(doc,editor.position(doc,1,'value'),{includeDeclaration:true},editor.uncancelled);
-    warning.resolve('Show Possible References');await settle(30);assert.equal(possibleCount(editor),0);token.dispose();
+    menu.resolve('Show Possible References');await menu.done;await settle(30);assert.equal(possibleCount(editor),0);token.dispose();
   });
 }
 
-test('one pending notification bounds different-context retries and stale buttons remain inert',async t=>{
-  const {editor,doc,read}=await referenceNoticeSetup(t);await read();
+test('one status item bounds different-context retries and stale menu actions remain inert',async t=>{
+  const {editor,doc,read}=await referenceNoticeSetup(t);await read();const menu=statusMenu(editor);
   for(let i=0;i<4;i++)await editor.providers.references.provideReferences(doc,editor.position(doc,i%2+1,'value'),{includeDeclaration:true},editor.uncancelled);
-  assert.equal(editor.warningCalls.length,1);editor.warningCalls[0].resolve('Show Possible References');await settle(20);assert.equal(possibleCount(editor),0);
+  quiet(editor);assert.equal(editor.resources.statusBarItems,1);menu.resolve('Show Possible References');await menu.done;assert.equal(possibleCount(editor),0);
 });
 
 test('dismissal permits a fresh explicit retry without a cooldown',async t=>{
-  const {editor,read}=await referenceNoticeSetup(t);await read();editor.warningCalls[0].resolve(undefined);await settle(5);
-  await read();assert.equal(editor.warningCalls.length,2);editor.warningCalls[1].resolve('Show Possible References');await editor.waitForOutput('POSSIBLE_1');
+  const {editor,read}=await referenceNoticeSetup(t);await read();const first=statusMenu(editor);first.resolve(undefined);await first.done;
+  await read();const second=statusMenu(editor);assert.equal(editor.statusMenus.length,2);second.resolve('Show Possible References');await second.done;await editor.waitForOutput('POSSIBLE_1');
 });
 
 test('click during replacement request cannot use the previous incomplete answer',async t=>{
-  const {editor,read}=await referenceNoticeSetup(t,'ref-delay-second');await read();const newer=read(false);
-  await editor.waitForOutput('REF_HELD');editor.warningCalls[0].resolve('Show Possible References');await newer;await settle(20);
-  assert.equal(possibleCount(editor),0);assert.equal(editor.warningCalls.length,2);editor.warningCalls[1].resolve(undefined);
+  const {editor,read}=await referenceNoticeSetup(t,'ref-delay-second');await read();const menu=statusMenu(editor),oldCommand=editor.status.command;const newer=read(false);
+  await editor.waitForOutput('REF_HELD');assert.equal(editor.status.command,'fsharpNavigator.selectMode');
+  menu.resolve('Show Possible References');await menu.done;await editor.executeCommand(oldCommand.command,...oldCommand.arguments);await newer;
+  assert.equal(possibleCount(editor),0);assert.equal(editor.statusMenus.length,1);quiet(editor);
 });
 
-test('late superseded reference response cannot overwrite latest status or notification',async t=>{
+test('late superseded reference response cannot overwrite latest status or action',async t=>{
   const {editor,doc,read}=await referenceNoticeSetup(t,'ref-delay-first');const first=read();await editor.waitForOutput('REF_HELD');
   await editor.providers.references.provideReferences(doc,editor.position(doc,1,'value'),{includeDeclaration:false},editor.uncancelled);
-  const result=editor.api.lastResult;await first;assert.equal(editor.api.lastResult,result);assert.equal(editor.warningCalls.length,1);
-  editor.warningCalls[0].resolve(undefined);
+  const result=editor.api.lastResult,command=editor.status.command;await first;assert.equal(editor.api.lastResult,result);assert.equal(editor.status.command,command);quiet(editor);
 });
 
-test('notification supersession does not suppress an independently valid exact reference answer',async t=>{
+test('status supersession does not suppress an independently valid exact reference answer',async t=>{
   const {editor,doc,read}=await referenceNoticeSetup(t,'ref-delay-first-exact');const pending=read();await editor.waitForOutput('REF_HELD');
   await editor.providers.references.provideReferences(doc,editor.position(doc,1,'value'),{includeDeclaration:false},editor.uncancelled);
   const latest=editor.api.lastResult,status=editor.status.text;const exact=await pending;
-  assert.equal(exact.length,1);assert.equal(editor.api.lastResult,latest);assert.equal(editor.status.text,status);assert.equal(editor.warningCalls.length,1);
-  editor.warningCalls[0].resolve(undefined);
+  assert.equal(exact.length,1);assert.equal(editor.api.lastResult,latest);assert.equal(editor.status.text,status);quiet(editor);
 });
 
-test('F12 supersedes an in-flight reference before any warning exists',async t=>{
+test('F12 supersedes an in-flight reference before any status offer exists',async t=>{
   const {editor,doc,position,read}=await referenceNoticeSetup(t,'ref-delay-first');const pending=read();await editor.waitForOutput('REF_HELD');
   await editor.providers.definition.provideDefinition(doc,position,editor.uncancelled);const result=editor.api.lastResult,status=editor.status.text,warnings=editor.warningCalls.length;
   await pending;assert.equal(editor.api.lastResult,result);assert.equal(editor.status.text,status);assert.equal(editor.warningCalls.length,warnings);
-  for(const warning of editor.warningCalls)warning.resolve(undefined);
+  quiet(editor);
 });
 
 test('redundant same-position selection events preserve a current shared reference action',async t=>{
   const {editor,position,read}=await referenceNoticeSetup(t);await read();editor.move(position);await read(false);
-  assert.equal(editor.warningCalls.length,1);editor.warningCalls[0].resolve('Show Possible References');await editor.waitForOutput('POSSIBLE_1');
+  quiet(editor);const menu=statusMenu(editor);menu.resolve('Show Possible References');await menu.done;await editor.waitForOutput('POSSIBLE_1');
 });
 
 test('exact empty stays silent and revokes a pending incomplete-reference action',async t=>{
-  const {editor,read}=await referenceNoticeSetup(t,'ref-exact-after');await read();assert.deepEqual(await read(false),[]);
-  assert.equal(editor.warningCalls.length,1);editor.warningCalls[0].resolve('Show Possible References');await settle(20);assert.equal(possibleCount(editor),0);
+  const {editor,read}=await referenceNoticeSetup(t,'ref-exact-after');await read();const menu=statusMenu(editor);assert.deepEqual(await read(false),[]);
+  assert.equal(editor.status.command,'fsharpNavigator.selectMode');quiet(editor);menu.resolve('Show Possible References');await menu.done;assert.equal(possibleCount(editor),0);
   const fresh=await referenceNoticeSetup(t,'ref-exact-empty');assert.deepEqual(await fresh.read(false),[]);assert.equal(fresh.editor.warningCalls.length,0);
 });
 

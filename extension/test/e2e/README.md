@@ -189,8 +189,11 @@ The cross-file fixture uses only an inert `Directory.Build.props` containing
 `<Project/>` to leave the project context uncertified. The runner never executes
 it or builds the project. This tests an incomplete scope, not a timing-dependent
 pending-discovery window. Standard FAR must expose no partial result rows and
-display the explicit warning that the scope was not fully searched and native “No references found” is not evidence of no uses. Only a
-click on **Show Possible References** starts the separate occurrence search.
+display **F#: references incomplete**, with zero dismissible notifications. The
+rendered status tooltip must explain that the scope was not fully searched and
+native “No references found” is not evidence of no uses. An actual status click
+opens its menu; **Show Details** opens output, and a separate deliberate click on
+the labelled **Show Possible References** action starts the occurrence search.
 The internal `lastResult` payload may contain partial locations; those are not
 the provider export and are not scored as native UI results. The separate
 Possible References view contains four physical occurrences including unrelated
