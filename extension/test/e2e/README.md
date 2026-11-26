@@ -34,8 +34,9 @@ No binary or raw run evidence is included in this source checkpoint.
 
 ## Run with explicitly provided local assets
 
-Use this slice only with the already provisioned official Code 1.108.0
-and a reviewed VSIX. Other editor versions are not qualified by this runner.
+Use this slice with a checksum-verified official Code runtime
+and a reviewed VSIX. Historical results below used Code 1.108.0; a new editor
+version requires its own recorded run and does not inherit those passes.
 Use the protected repository CLI. `FSHARP_E2E_CODE` is the editor executable at the distribution
 root, **not** its `bin/code` launcher. Choose a new output directory:
 
@@ -53,12 +54,11 @@ private XDG/temp directories and a separate test-probe extension. It records
 editor/package/native/manifest/harness and fixture hashes. The extension is
 explicitly activated before the cases: this does not test cold activation.
 
-This command deliberately reuses the repository's existing controlled Linux
-QA route, including its inherited no-sandbox/disabled-trust test flags. It is
-**not normal-sandbox Ubuntu acceptance** and is not a recipe for changing system
-security or testing a user's normal desktop. Use only an approved disposable
-QA environment. Do not repair an unavailable route by changing permissions or
-security settings. The ordinary Ubuntu qualification remains a separate gate.
+This command now retains Chromium's sandbox. It disables Workspace Trust only
+for its generated test fixtures in disposable storage. The historical runs
+documented below used a no-sandbox route and do not qualify the current runner.
+Do not repair an unavailable sandbox by changing permissions or system security
+settings. Full Ubuntu daily-use qualification remains a separate gate.
 
 The runner fails on setup errors, changed inputs, nonzero editor exit, failed
 required cases or unexpected passes. Expected-failure metadata requires an issue,

@@ -153,16 +153,18 @@ fn child_path(base: &Path, name: &str) -> String {
     normalize(base.join(name.replace('\\', "/")))
 }
 
-fn xml_attr(element: &BytesStart<'_>, name: &[u8]) -> Result<String> {
+fn xml_attr(element: &BytesStart<'_>, name: &str) -> Result<String> {
     for attribute in element.attributes() {
         let attribute = attribute?;
         if attribute.key.as_ref() == name {
-            let s = attribute.unescape_value()?.into_owned();
+            let s = attribute
+                .normalized_value(quick_xml::XmlVersion::Implicit1_0)?
+                .into_owned();
             ensure!(!s.is_empty(), "Empty solution item attribute");
             return Ok(s);
         }
     }
-    bail!("Missing {} attribute", String::from_utf8_lossy(name))
+    bail!("Missing {} attribute", name)
 }
 
 fn folder_rows(
@@ -214,7 +216,7 @@ fn slnx(source: &str, base: &Path) -> Result<Vec<Row>> {
                 let mut container = None;
                 if parents.is_empty() {
                     ensure!(
-                        !saw_solution && element.local_name().as_ref() == b"Solution",
+                        !saw_solution && element.local_name().as_ref() == "Solution",
                         "Expected Solution root element"
                     );
                     saw_solution = true;
@@ -222,18 +224,18 @@ fn slnx(source: &str, base: &Path) -> Result<Vec<Row>> {
                 } else if let Some(Some(key)) = parents.last() {
                     let parent = (!key.is_empty()).then(|| key.clone());
                     match element.local_name().as_ref() {
-                        b"Folder" => {
+                        "Folder" => {
                             container = Some(folder_rows(
                                 &mut rows,
                                 &mut folders,
-                                &xml_attr(&element, b"Name")?,
+                                &xml_attr(&element, "Name")?,
                                 parent.as_deref(),
                             )?);
                         }
-                        kind @ (b"Project" | b"File") => {
-                            let path = child_path(base, &xml_attr(&element, b"Path")?);
+                        kind @ ("Project" | "File") => {
+                            let path = child_path(base, &xml_attr(&element, "Path")?);
                             let label = basename(&path).to_owned();
-                            let item = if kind == b"Project" {
+                            let item = if kind == "Project" {
                                 Item::Project(path)
                             } else {
                                 Item::File(path)

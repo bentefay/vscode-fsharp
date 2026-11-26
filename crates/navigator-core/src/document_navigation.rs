@@ -50,7 +50,7 @@ struct Entry {
     compact_references: bool,
 }
 
-// Fixed-width serialized positive reference answer, sharing invariant URI,
+// Compact serialized positive reference answer, sharing invariant URI,
 // version, hash and engine fields with its key. Defer provider JSON and proof
 // ID formatting until a references request actually reads this entry.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -163,7 +163,7 @@ impl AnswerCache {
         };
         let entry = self.entries.remove(index).unwrap();
         let answer = if entry.compact_references {
-            bincode::deserialize::<SingleUseReferences>(&entry.response)?.result(key)?
+            postcard::from_bytes::<SingleUseReferences>(&entry.response)?.result(key)?
         } else {
             serde_json::from_slice(&entry.response)?
         };
@@ -216,7 +216,7 @@ impl AnswerCache {
             body_start: answer.body_start as u32,
             body_end: answer.body_end as u32,
         };
-        let Ok(bytes) = bincode::serialize(&packed) else {
+        let Ok(bytes) = postcard::to_allocvec(&packed) else {
             return;
         };
         if self.bytes() + definition.heap_bytes() + bytes.len() > MAX_BYTES {
@@ -491,7 +491,9 @@ mod tests {
                 .unwrap();
             assert_eq!(nav.cache.entries.len(), 2);
             assert!(nav.cache.bytes() <= MAX_BYTES);
-            assert_eq!(nav.cache.entries.front().unwrap().response.len(), 28);
+            // The maintained varint codec must stay within the former
+            // fixed-width budget; the full reference oracle below is unchanged.
+            assert!(nav.cache.entries.front().unwrap().response.len() <= 28);
             let parsed = nav.parsed_bytes;
             let result = nav.query(&source, at, true, true, &token).unwrap().unwrap();
             assert_eq!(result, expected);

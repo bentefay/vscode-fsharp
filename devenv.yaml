@@ -3,3 +3,10 @@ inputs:
     url: github:NixOS/nixpkgs/f4a03c008967841f2a0b3cb7c436fc6fc31671f6
   devenv:
     url: github:cachix/devenv/v2.4.0?dir=src/modules
+  rust-overlay:
+    url: github:oxalica/rust-overlay/639e209cc8eecd0c307fd95c8aabc011bf047c41
+    inputs:
+      nixpkgs:
+        follows: nixpkgs
+    overlays:
+      - default

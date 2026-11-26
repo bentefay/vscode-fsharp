@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Actual task-local CLI checks; simulated Nix branch is explicitly not Nix execution."""
+"""Historical task-local SDK400 fixture checks; not qualification of the patched Nix SDK."""
 import argparse,hashlib,json,os,subprocess
 from pathlib import Path
 
@@ -31,8 +31,8 @@ def main():
     assert '10.0.400' in actual['stdout'] and 'Microsoft.NETCore.App 10.0.11' in actual['stdout']
     assert 'task-local verified tools' in actual['stdout']
     simulated=run('Simulated FN_DEVENV diagnostic with task-local tools; not Nix',['cli/bin/run','doctor'],{'FN_DEVENV':'1'})
-    assert 'preparation under Nix is unsupported' in simulated['stderr']
-    assert 'Nix build/editor execution is also unverified' in simulated['stderr']
+    assert 'Reusable semantic preparation is unsupported on this patched toolchain' in simulated['stderr']
+    assert 'SDK 10.0.404/runtime 10.0.15' in simulated['stderr']
     fixture=json.loads((args.fixture/'manifest.json').read_text())['programs']['positive']
     override=out/'unsupported-locale-path';override.mkdir()
     target=out/'unsupported-preparation'

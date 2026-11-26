@@ -94,7 +94,7 @@ pub(crate) fn certificate_read(path: &Path, size: u64) -> Result<()> {
 }
 
 pub(crate) fn read_text(path: &Path, max: u64) -> Result<String> {
-    let file = File::open(path)?;
+    let file = open_regular(path)?;
     let size = file.metadata()?.len();
     self::file(size)?;
     ensure!(
@@ -111,4 +111,28 @@ pub(crate) fn read_text(path: &Path, max: u64) -> Result<String> {
         path.display()
     );
     Ok(text)
+}
+
+// Check both the path and the opened descriptor. O_NONBLOCK closes the race
+// where a regular file is replaced by a FIFO between metadata and open.
+pub(crate) fn open_regular(path: &Path) -> Result<File> {
+    ensure!(
+        path.metadata()?.is_file(),
+        "Expected a regular file: {}",
+        path.display()
+    );
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NONBLOCK | libc::O_CLOEXEC);
+    }
+    let file = options.open(path)?;
+    ensure!(
+        file.metadata()?.is_file(),
+        "Expected a regular file: {}",
+        path.display()
+    );
+    Ok(file)
 }

@@ -5,7 +5,6 @@ use crate::{
     syntax::{self, ParsedFile},
 };
 use anyhow::{Context, Result};
-use bincode::Options;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use std::{
@@ -183,12 +182,12 @@ fn stamp(path: &str) -> Result<(u64, u64)> {
         m.len(),
     ))
 }
-// Both modes persist ParsedFile in bincode; its layout is part of the key.
+// Both modes persist ParsedFile in postcard; its layout is part of the key.
 fn summary_revision(indexed: bool) -> &'static str {
     if indexed {
-        "treesitter-fsharp-0.3.13-summary9:"
+        "treesitter-fsharp-0.3.13-postcard1:"
     } else {
-        "lexical-summary5:"
+        "lexical-postcard1:"
     }
 }
 fn bounded_source(path: &str, limit: usize) -> Result<String> {
@@ -769,9 +768,7 @@ impl Index {
             .with_context(|| format!("File not indexed: {path}"))?;
         self.counters.index_hits += 1;
         if let Some(s) = s {
-            return Ok(bincode::DefaultOptions::new()
-                .with_varint_encoding()
-                .deserialize(&s)?);
+            return Ok(postcard::from_bytes(&s)?);
         }
         anyhow::ensure!(!dirty,"Edited document could not be parsed within resource budget; retry or raise parser budget");
         let source = bounded_source(path, self.max_file_bytes)?;
@@ -821,11 +818,7 @@ impl Index {
         let bytes:Option<Vec<u8>>=self.db.query_row("SELECT s.parsed FROM context_summaries s JOIN files f ON f.file_id=s.file_id JOIN paths p ON p.id=f.file_id WHERE p.path=?1 AND s.context=?2 AND s.hash=f.hash",params![path,context.id],|r|r.get(0)).optional()?;
         if let Some(bytes) = bytes {
             self.counters.index_hits += 1;
-            Ok(Some(
-                bincode::DefaultOptions::new()
-                    .with_varint_encoding()
-                    .deserialize(&bytes)?,
-            ))
+            Ok(Some(postcard::from_bytes(&bytes)?))
         } else {
             Ok(None)
         }
@@ -855,9 +848,7 @@ impl Index {
         if parsed.tokens.is_empty() && !parsed.supported {
             return Ok(parsed);
         }
-        let bytes = bincode::DefaultOptions::new()
-            .with_varint_encoding()
-            .serialize(&parsed)?;
+        let bytes = postcard::to_allocvec(&parsed)?;
         self.counters.largest_summary_bytes =
             self.counters.largest_summary_bytes.max(bytes.len() as u64);
         self.counters.largest_token_count = self
@@ -1149,9 +1140,7 @@ impl Index {
                 insert.execute(params![m.name, file_id, m.start, m.end])?;
             }
         }
-        let summary = bincode::DefaultOptions::new()
-            .with_varint_encoding()
-            .serialize(parsed)?;
+        let summary = postcard::to_allocvec(parsed)?;
         let bytes = summary.len() as u64;
         tx.execute(
             "UPDATE files SET parsed=?2,module=?3 WHERE file_id=?1",
@@ -1564,7 +1553,8 @@ impl Index {
                     }
                     let identity = disk_identity(path)?;
                     crate::foreground::file(identity.len)?;
-                    let mut f = fs::File::open(path)?.take(identity.len.saturating_add(1));
+                    let mut f = crate::foreground::open_regular(Path::new(path))?
+                        .take(identity.len.saturating_add(1));
                     let mut hash = Sha256::new();
                     let mut buf = [0u8; 65536];
                     let mut size = 0;
@@ -1786,7 +1776,8 @@ impl Index {
                 let len = expected.1;
                 let expected: Option<String> = r.get(5)?;
                 crate::foreground::file(len)?;
-                let mut file = fs::File::open(&path)?.take(len.saturating_add(1));
+                let mut file =
+                    crate::foreground::open_regular(Path::new(&path))?.take(len.saturating_add(1));
                 let mut hash = Sha256::new();
                 let mut buffer = [0u8; 65536];
                 let mut size = 0;

@@ -3,12 +3,11 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const { runTests, downloadAndUnzipVSCode } = require('@vscode/test-electron');
+const { editorArguments, editorEnvironment } = require('./support/editorLaunch.cjs');
 const fixture = require('./fixtures.cjs');
 const { prepareWorkspace } = require('./prepareWorkspace.cjs');
 
 const root = path.resolve(__dirname, '../..');
-const version = process.env.FSHARP_VSCODE_VERSION || '1.108.0';
 
 function run(binary, args, env) {
   return new Promise((resolve, reject) => {
@@ -19,6 +18,10 @@ function run(binary, args, env) {
 }
 
 async function main() {
+  if (!process.env.FSHARP_VSCODE_PATH) throw new Error('Set FSHARP_VSCODE_PATH to a verified official editor. cli/bin/run runtime fetch provisions the checksum-pinned runtime.');
+  const binary = path.resolve(process.env.FSHARP_VSCODE_PATH);
+  const version = JSON.parse(await fs.readFile(path.join(path.dirname(binary), 'resources/app/package.json'), 'utf8')).version;
+  if (process.env.FSHARP_VSCODE_VERSION && process.env.FSHARP_VSCODE_VERSION !== version) throw new Error('Editor version label differs from the supplied runtime.');
   const tempRoot = process.env.TMPDIR || path.join(root, '.cache', 'test-tmp');
   await fs.mkdir(tempRoot, { recursive: true });
   const temporary = await fs.mkdtemp(path.join(tempRoot, 'fsnav-test-'));
@@ -37,21 +40,14 @@ async function main() {
     'fsharpNavigator.mode': 'indexed',
   };
   if (!process.env.FSHARP_TEST_VSIX && process.env.FSHARP_BACKEND_PATH) settings['fsharpNavigator.backendPath'] = path.resolve(process.env.FSHARP_BACKEND_PATH);
-  const env = { ...process.env, FSHARP_TEST_WORKSPACE: workspace, FSHARP_TEST_RESULTS: temporary, FSHARP_TEST_UNTRUSTED: process.env.FSHARP_TEST_UNTRUSTED || '0' };
-  for (const key of Object.keys(env)) {
-    if (/^(VSCODE_|ELECTRON_|NODE_OPTIONS$)/.test(key) || /^(GITHUB_TOKEN|GH_TOKEN|VSCE_PAT|SSH_AUTH_SOCK|GIT_ASKPASS|SSH_ASKPASS)$/.test(key)) {
-      // test-electron merges this object over process.env before spawning Code.
-      delete env[key];
-      delete process.env[key];
-    }
+  const env = { ...editorEnvironment(process.env), FSHARP_TEST_WORKSPACE: workspace, FSHARP_TEST_RESULTS: temporary, FSHARP_TEST_UNTRUSTED: process.env.FSHARP_TEST_UNTRUSTED || '0' };
+  for (const key of ['XDG_CACHE_HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME', 'XDG_RUNTIME_DIR', 'TMPDIR']) {
+    env[key] = path.join(temporary, key === 'XDG_RUNTIME_DIR' ? 'r' : key.toLowerCase());
+    await fs.mkdir(env[key], { mode: 0o700 });
   }
-  const binary = process.env.FSHARP_VSCODE_PATH || await downloadAndUnzipVSCode(version);
+  env.TMP = env.TEMP = env.TMPDIR;
   const profileArgs = ['--user-data-dir', userData, '--extensions-dir', extensions];
   if (Number(version.split('.')[1]) >= 131) profileArgs.push('--shared-data-dir', path.join(temporary, 'shared-data'));
-  const args = [workspace, ...profileArgs,
-    '--skip-welcome', '--skip-release-notes', '--disable-updates', '--disable-telemetry', '--no-sandbox', '--disable-gpu',
-    ...(process.platform === 'linux' ? ['--ozone-platform=x11'] : []),
-  ];
   const testPath = path.join(__dirname, 'suite.cjs');
   try {
     if (env.FSHARP_TEST_UNTRUSTED !== '1') Object.assign(settings, await prepareWorkspace(temporary, workspace, root, env));
@@ -67,12 +63,7 @@ async function main() {
       await fs.writeFile(path.join(developmentPath, 'package.json'), JSON.stringify({ name: 'fsharp-navigator-test-probe', version: '0.0.0', publisher: 'test', engines: { vscode: '^1.108.0' }, main: 'index.js', activationEvents: ['*'] }));
       await fs.writeFile(path.join(developmentPath, 'index.js'), 'exports.activate = () => {};');
     }
-    if (env.FSHARP_TEST_UNTRUSTED === '1') {
-      // test-electron adds --disable-workspace-trust. Launch the same binary directly.
-      await run(binary, [...args, `--extensionDevelopmentPath=${developmentPath}`, `--extensionTestsPath=${testPath}`], env);
-    } else {
-      await runTests({ vscodeExecutablePath: binary, extensionDevelopmentPath: developmentPath, extensionTestsPath: testPath, extensionTestsEnv: env, launchArgs: args });
-    }
+    await run(binary, editorArguments(workspace, profileArgs, developmentPath, testPath, env.FSHARP_TEST_UNTRUSTED === '1'), env);
   } finally {
     const evidence = path.join(root, 'test-results', `extension-${version}-${path.basename(temporary)}`);
     await fs.mkdir(path.dirname(evidence), { recursive: true });

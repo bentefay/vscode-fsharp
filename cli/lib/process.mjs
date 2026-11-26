@@ -11,6 +11,15 @@ process.env.TMPDIR = path.resolve(process.env.FN_INVOCATION_CWD || root,
   process.env.FSHARP_NAVIGATOR_TMPDIR || inheritedTmp || path.join(root, '.cache', 'tmp'));
 mkdirSync(process.env.TMPDIR, { recursive: true });
 export async function exec(command, args = [], options = {}) {
+  if (command === 'cargo' && ['build', 'test', 'check', 'fetch', 'update', 'metadata'].includes(args[0])) {
+    const version = await exec('cargo', ['--version'], { capture: true });
+    const match = /^cargo (\d+)\.(\d+)\./.exec(version);
+    if (!match || Number(match[1]) < 1 || (Number(match[1]) === 1 && Number(match[2]) < 100)) throw new Error('Cargo >=1.100 is required for the minimum publish-age policy.');
+    if (args[0] !== 'update') await exec('python3', ['scripts/dependency-age.py', '--cached']);
+    // Explicit CLI config wins over ambient environment configuration. No age bypass.
+    args = ['--config', 'registry.global-min-publish-age="2 days"', '--config', 'resolver.incompatible-publish-age="deny"', ...args];
+  }
+  if (command === 'dotnet' && ['build', 'restore', 'publish'].includes(args[0])) await exec('python3', ['scripts/dependency-age.py', '--cached']);
   const { capture = false, timeout = 300000, input, measurement, ...spawnOptions } = options;
   return new Promise((resolve, reject) => {
     const processGroup = process.platform !== 'win32';

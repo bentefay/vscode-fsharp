@@ -421,7 +421,7 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
     let source = crate::foreground::read_text(path, 1024 * 1024)
         .with_context(|| format!("read {}", path.display()))?;
     let mut reader = Reader::from_str(&source);
-    reader.config_mut().trim_text(true);
+    reader.config_mut().trim_text(false);
     let mut files = Vec::new();
     let mut refs = Vec::new();
     let mut retained_path_bytes = 0usize;
@@ -438,6 +438,7 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
     let mut target_framework = String::new();
     let mut configuration = String::new();
     let mut property = String::new();
+    let mut property_text = String::new();
     #[derive(Clone, Copy, PartialEq, Eq)]
     enum Namespace {
         Empty,
@@ -465,19 +466,22 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
             Event::Start(e) | Event::Empty(e) => {
                 // Target-time items and tasks are not evaluated by this preview.
                 // Retain their inventory, but never certify its compile context.
-                if e.local_name().as_ref().eq_ignore_ascii_case(b"Target") {
+                if e.local_name().as_ref().eq_ignore_ascii_case("Target") {
                     exact = false;
                 }
-                let name = String::from_utf8_lossy(e.local_name().as_ref()).into_owned();
-                let qualified = e.name().as_ref().contains(&b':');
+                let name = e.local_name().as_ref().to_owned();
+                let qualified = e.name().as_ref().contains(':');
                 let mut namespace = ancestors
                     .last()
                     .map(|entry| entry.2)
                     .unwrap_or(Namespace::Empty);
                 for attribute in e.attributes() {
                     let attribute = attribute?;
-                    if attribute.key.as_ref() == b"xmlns" {
-                        namespace = match attribute.unescape_value()?.as_ref() {
+                    if attribute.key.as_ref() == "xmlns" {
+                        namespace = match attribute
+                            .normalized_value(quick_xml::XmlVersion::Implicit1_0)?
+                            .as_ref()
+                        {
                             "" => Namespace::Empty,
                             "http://schemas.microsoft.com/developer/msbuild/2003" => {
                                 Namespace::MsBuild
@@ -522,12 +526,15 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                     ancestors.push((name.clone(), supported_element, namespace));
                 }
                 property = name.clone();
+                property_text.clear();
                 let mut include = None;
                 let mut link = None;
                 for a in e.attributes() {
                     let a = a?;
-                    let key = String::from_utf8_lossy(a.key.as_ref());
-                    let value = a.unescape_value()?.into_owned();
+                    let key = a.key.as_ref();
+                    let value = a
+                        .normalized_value(quick_xml::XmlVersion::Implicit1_0)?
+                        .into_owned();
                     if key == "Condition" || name == "Import" {
                         exact = false;
                     }
@@ -551,7 +558,7 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                         link = Some(value.clone());
                     }
                     if matches!(name.as_str(), "Compile" | "ProjectReference")
-                        && matches!(key.as_ref(), "Exclude" | "Remove" | "Update")
+                        && matches!(key, "Exclude" | "Remove" | "Update")
                     {
                         exact = false;
                     }
@@ -593,16 +600,23 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                 }
             }
             Event::Text(text) => {
+                property_text.push_str(&text.xml_content(quick_xml::XmlVersion::Implicit1_0))
+            }
+            Event::GeneralRef(reference) => {
+                let escaped = format!("&{};", reference.as_ref());
+                property_text.push_str(&quick_xml::escape::unescape(&escaped)?);
+            }
+            Event::End(e) => {
                 if property == "Link" {
                     if let Some(i) = compile_item {
-                        save_link(&mut items, i, text.unescape()?.as_ref());
+                        save_link(&mut items, i, property_text.trim());
                     }
                 }
                 if matches!(
                     property.as_str(),
                     "DefineConstants" | "TargetFramework" | "Configuration"
                 ) {
-                    let value = text.unescape()?.into_owned();
+                    let value = property_text.trim().to_owned();
                     if value.contains(['$', '@', '%']) {
                         exact = false;
                     } else {
@@ -620,10 +634,8 @@ fn parse_project(path: &Path) -> Result<(Project, bool, Vec<String>)> {
                         }
                     }
                 }
-            }
-            Event::End(e) => {
                 ancestors.pop();
-                if e.local_name().as_ref() == b"Compile" {
+                if e.local_name().as_ref() == "Compile" {
                     compile_item = None;
                 }
                 property.clear();
@@ -945,6 +957,22 @@ mod membership_model_tests {
         root
     }
     use std::time::UNIX_EPOCH;
+    #[test]
+    fn xml_reference_events_preserve_whole_property_values_and_paths() {
+        let root = fixture();
+        let project = root.join("P.fsproj");
+        fs::write(&project, "<Project><PropertyGroup><DefineConstants>A&#59;B</DefineConstants><TargetFramework>net&#49;0.0</TargetFramework><Configuration>De&#98;ug</Configuration></PropertyGroup><ItemGroup><Compile Include=\"A&amp;B.fs\"><Link>Folder &amp; Name/A.fs</Link></Compile></ItemGroup></Project>").unwrap();
+        let (model, exact, _) = parse_project(&project).unwrap();
+        assert!(exact);
+        assert_eq!(model.defines, ["A", "B"]);
+        assert_eq!(model.target_framework, "net10.0");
+        assert_eq!(model.configuration, "Debug");
+        assert_eq!(model.files, [normalize(root.join("A&B.fs"))]);
+        assert_eq!(model.items[0]["virtualPath"], "Folder & Name/A.fs");
+        fs::write(&project, "<Project><PropertyGroup><DefineConstants>A&unknown;B</DefineConstants></PropertyGroup></Project>").unwrap();
+        assert!(parse_project(&project).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
     fn exported(root: &Path, dynamic: bool) -> Value {
         let project = root.join("P.fsproj");
         fs::write(&project, "<Project/>").unwrap();

@@ -1,0 +1,7 @@
+[registry]
+# Cargo >=1.100. This applies to resolution, not already locked versions or
+# cargo install. The protected CLI separately checks locked package ages.
+global-min-publish-age = "2 days"
+
+[resolver]
+incompatible-publish-age = "deny"

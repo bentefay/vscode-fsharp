@@ -13,7 +13,7 @@ export async function doctor() {
   await exec(dotnet, ['--version']);
   await exec(dotnet, ['--list-runtimes']);
   console.log(`Environment: ${process.env.FN_DEVENV === '1' ? 'pinned Nix/devenv' : 'task-local verified tools'}; indexed mode does not start FCS.`);
-  if (process.env.FN_DEVENV === '1') console.error('Nix pins SDK 10.0.400/runtime 10.0.11 for development. Reusable preparation under Nix is unsupported until its loader/locale profile is validated; this extension\'s full Nix build/editor workflow is also unverified. See nix/README.md.');
+  if (process.env.FN_DEVENV === '1') console.error('Nix pins SDK 10.0.404/runtime 10.0.15 for development. Reusable semantic preparation is unsupported on this patched toolchain until its SDK/runtime and loader/locale profiles are validated. See nix/README.md.');
 }
 export async function build() {
   await exec('cargo',['build','--release','--locked']);
@@ -23,7 +23,7 @@ export async function buildDecompiler({ readyToRun = false, rid } = {}) {
   if (readyToRun && rid !== 'linux-x64') throw new Error('--ready-to-run requires explicit --rid linux-x64; no other R2R target is verified.');
   if (rid && !readyToRun) throw new Error('--rid is only supported with --ready-to-run.');
   const project = path.join(root, 'semantic/Decompiler/FSharpNavigator.Decompiler.csproj');
-  const options = readyToRun ? ['--runtime', rid, '-p:PublishReadyToRun=true', '-p:RuntimeFrameworkVersion=10.0.11', '-p:TargetLatestRuntimePatch=false', `-p:NuGetLockFilePath=${path.join(root, 'semantic/Decompiler/packages.linux-x64.lock.json')}`] : [];
+  const options = readyToRun ? ['--runtime', rid, '-p:PublishReadyToRun=true', '-p:RuntimeFrameworkVersion=10.0.15', '-p:TargetLatestRuntimePatch=false', `-p:NuGetLockFilePath=${path.join(root, 'semantic/Decompiler/packages.linux-x64.lock.json')}`] : [];
   await exec('dotnet', ['restore', project, '--locked-mode', ...options]);
   if (readyToRun) {
     const pins = JSON.parse(await readFile(path.join(root, 'semantic/Decompiler/runtime-packs.linux-x64.json'), 'utf8'));
@@ -38,12 +38,13 @@ export async function buildDecompiler({ readyToRun = false, rid } = {}) {
   const output = path.join(root, 'bin/decompiler', readyToRun ? `${rid}-r2r` : 'il');
   await exec('dotnet', ['publish', project, '-c', 'Release', '--no-restore', '--self-contained', 'false', '-p:UseAppHost=false', '-p:PublishReadyToRunShowWarnings=true', '--output', output, ...options]);
   console.log(`Optional one-shot decompiler: ${path.join(output, 'FSharpNavigator.Decompiler.dll')}`);
-  console.log('This framework-dependent helper requires installed .NET 10.0.11; it is not bundled into the VSIX.');
+  console.log('This framework-dependent helper requires installed .NET 10.0.15; it is not bundled into the VSIX.');
 }
 export async function check() {
+  await exec('python3', ['scripts/test_dependency_age.py']);
   await exec('python3', ['scripts/test_normalize_vsix.py']);
   await exec('python3', ['evaluation/test_engine_corpus_gate.py']);
-  await exec('node', ['--test', 'scripts/restore-parser-sources.test.mjs', 'scripts/package-output.test.mjs', 'scripts/isolated-install.test.mjs', 'extension/test/e2e/manifest.test.cjs']);
+  await exec('node', ['--test', 'scripts/restore-parser-sources.test.mjs', 'scripts/package-output.test.mjs', 'scripts/isolated-install.test.mjs', 'extension/test/e2e/manifest.test.cjs', 'extension/test/editorLaunch.test.cjs']);
   await exec('node',['node_modules/typescript/bin/tsc','-p','extension/tsconfig.json','--noEmit']);
   await exec('cargo',['fmt','--all','--','--check']);
   await exec('cargo',['test','--workspace','--locked']);
@@ -62,10 +63,16 @@ export async function testHost(packaged = false) {
 }
 export class SetupCommand extends Command {
   static paths = [['setup']];
-  async execute() { await npm('ci','--ignore-scripts'); await exec('cargo',['fetch','--locked']); await doctor(); }
+  async execute() { await npm('ci','--ignore-scripts'); await auditDependencies(); await exec('cargo',['fetch','--locked']); await doctor(); }
 }
 export class DoctorCommand extends Command { static paths=[['doctor']]; async execute(){await doctor();} }
 export class CheckCommand extends Command { static paths=[['check']]; async execute(){await check();} }
+export class FormatCommand extends Command { static paths=[['format']]; async execute(){await exec('cargo',['fmt','--all']);} }
+export class RuntimeCommand extends Command {
+  static paths = [['runtime', 'fetch']];
+  version = Option.String('--version', '1.145.3');
+  async execute() { await exec('python3', ['scripts/fetch-editor.py', '--version', this.version]); }
+}
 export class BuildCommand extends Command {
   static paths=[['build']];
   semantic=Option.Boolean('--semantic',false);
@@ -106,22 +113,48 @@ export class TestCommand extends Command {
       return;
     }
     if(this.layer==='unit') return check();
+    if (this.layer === 'decompiler') { await buildDecompiler(); await exec('python3', ['semantic/Decompiler/test.py']); return; }
+    if (this.layer === 'helper') { await exec('cargo', ['test', '--workspace', '--locked', 'helper::tests']); return; }
+    if (this.layer === 'safety') {
+      await build();
+      await exec('node', ['--test', 'extension/test/nativeSafety.test.cjs'], {
+        env: { ...process.env, FSHARP_BACKEND_PATH: path.join(root, 'target/release/fsharp-navigator') },
+      });
+      return;
+    }
     if (this.layer === 'adapter') {
       await build();
       await exec('node', ['--test', 'extension/test/nativeAdapter.test.cjs',
-        'extension/test/nativeCancellation.test.cjs', 'extension/test/localLexicalNative.test.cjs'], {
+        'extension/test/nativeCancellation.test.cjs', 'extension/test/localLexicalNative.test.cjs', 'extension/test/nativeSafety.test.cjs'], {
         env: { ...process.env, FSHARP_BACKEND_PATH: path.join(root, 'target/release/fsharp-navigator') },
       });
       return;
     }
     if(this.layer==='integration'){await build();return testHost(false);}
     if(this.layer==='ui'){await build();return testHost(true);}
-    throw new Error('Expected unit, installer, corpus (pinned real-source engine gate), e2e, adapter (mocked editor API with real Rust), integration, or ui.');
+    throw new Error('Expected unit, decompiler, helper, safety, installer, corpus (pinned real-source engine gate), e2e, adapter (mocked editor API with real Rust), integration, or ui.');
   }
 }
 export class VerifyCommand extends Command {
   static paths=[['verify']];
-  async execute(){await doctor();await check();await build();await testHost(false);await testHost(true);await npm('audit','--audit-level=moderate');}
+  async execute(){await doctor();await auditDependencies();await check();await build();await testHost(false);await testHost(true);}
+}
+export async function auditDependencies() {
+  await exec('python3', ['scripts/dependency-age.py', '--audit-nuget']);
+  await exec('cargo', ['audit', '--deny', 'warnings']);
+  await exec('cargo', ['audit', '--file', 'evaluation/experiments/local-lexical-proof/implementation/Cargo.lock', '--deny', 'warnings']);
+  await npm('audit', '--audit-level=low');
+}
+export class UpdateDependenciesCommand extends Command {
+  static paths = [['dependencies', 'update']];
+  async execute() {
+    await exec('cargo', ['update']);
+    await auditDependencies();
+  }
+}
+export class AuditDependenciesCommand extends Command {
+  static paths = [['dependencies', 'audit']];
+  async execute() { await auditDependencies(); }
 }
 export class DependenciesCommand extends Command {
   static paths=[['dependencies','verify']];
@@ -134,7 +167,8 @@ export class DependenciesCommand extends Command {
     if(!blocked)throw new Error('Safe Chain did not block its harmless malware fixture.');
     for(const file of ['package.json','package-lock.json','.npmrc'])await copyFile(path.join(root,file),path.join(directory,file));
     await exec('npm',['ci','--ignore-scripts','--cache',path.join(directory,'fresh-cache')],{cwd:directory});
-    await exec('npm',['audit','--audit-level=moderate'],{cwd:directory});
+    await exec('npm',['audit','--audit-level=low'],{cwd:directory});
+    await auditDependencies();
   }
 }
 export class EngineCommand extends Command {

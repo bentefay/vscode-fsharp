@@ -23,6 +23,7 @@ def main():
     args = parser.parse_args()
     code, vsix, manifest_path, output = (getattr(args, n).resolve() for n in ('code', 'vsix', 'manifest', 'output'))
     assert not (code.parent/'data').exists(), 'Portable Code data directory would override isolation'
+    editor_version = json.loads((code.parent/'resources/app/package.json').read_text())['version']
     manifest = json.loads(manifest_path.read_text())
     assert manifest['schemaVersion'] == 1 and manifest['cases'] and manifest['fixtures']
     fixture_ids = [f['id'] for f in manifest['fixtures']]
@@ -66,12 +67,12 @@ def main():
         assert package['publisher'] + '.' + package['name'] == 'bentefay.fsharp-navigator'
         bundled = {name: hashlib.sha256(archive.read(name)).hexdigest() for name in archive.namelist() if name.startswith('extension/bin/') and name.endswith('/fsharp-navigator')}
     report = {'schemaVersion': 1, 'manifestSuite': manifest.get('suite'), 'inputsBefore': hashes,
-              'packageVersion': package['version'], 'bundledNativeHashes': bundled, 'cases': [],
-              'route': 'Existing controlled disposable QA profile; inherited --no-sandbox/disabled trust test route, not sandbox-enabled normal GUI qualification.',
+              'packageVersion': package['version'], 'editorVersion': editor_version, 'bundledNativeHashes': bundled, 'cases': [],
+              'route': 'Disposable packaged editor with Chromium sandbox enabled; fixture trust is explicit. No sandbox fallback. Not general platform qualification.',
               'noPreparation': 'No model, catalog, snapshot, index command, build, restore or definition-provider API calls are made by this runner.'}
     env = {k: v for k, v in os.environ.items() if not k.startswith(('VSCODE_', 'ELECTRON_')) and k != 'NODE_OPTIONS'
            and not re.search(r'(^|_)(TOKEN|PASSWORD|PASSWD|SECRET|CREDENTIAL|AUTHORIZATION|API_KEY|COOKIE)($|_)', k)
-           and k not in {'SSH_AUTH_SOCK', 'GIT_ASKPASS', 'SSH_ASKPASS', 'FSHARP_BACKEND_PATH', 'FSHARP_TEST_VSIX'}}
+           and k not in {'SSH_AUTH_SOCK', 'GIT_ASKPASS', 'SSH_ASKPASS', 'BASH_ENV', 'ENV', 'FSHARP_BACKEND_PATH', 'FSHARP_TEST_VSIX'}}
     if prepared and prepared.get('environment'):
         assert set(prepared['environment']) == {'DOTNET_ROOT'}, 'Only certified SDK spelling may be restored'
         sdk = prepared['environment']['DOTNET_ROOT']
@@ -98,7 +99,9 @@ def main():
         with tempfile.TemporaryDirectory(prefix='fsnav-packaged-e2e-') as td:
             temp = Path(td); roots = {}; workspace_roots = {}; fixtures = temp/'fixtures'; fixtures.mkdir()
             for key in ('XDG_CACHE_HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME', 'XDG_RUNTIME_DIR', 'TMPDIR'):
-                private = temp/key.lower(); private.mkdir(mode=0o700); env[key] = str(private)
+                # Unix-domain sockets have a short pathname limit. Keep the
+                # private runtime directory short without reusing user storage.
+                private = temp/('r' if key == 'XDG_RUNTIME_DIR' else key.lower()); private.mkdir(mode=0o700); env[key] = str(private)
             env['TMP'] = env['TMPDIR']; env['TEMP'] = env['TMPDIR']
             report['privateEnvironmentDirectories'] = {key: env[key] for key in ('XDG_CACHE_HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME', 'XDG_RUNTIME_DIR', 'TMPDIR')}
             report['fixtureAncestors'] = [str(p) for p in fixtures.parents]
@@ -130,6 +133,8 @@ def main():
             (probe/'package.json').write_text(json.dumps({'name': 'packaged-e2e-probe', 'publisher': 'test', 'version': '0.0.0', 'engines': {'vscode': '^1.108.0'}, 'main': 'index.js', 'activationEvents': ['*']}))
             (probe/'index.js').write_text('exports.activate = () => {};')
             flags = ['--force-disable-user-env', '--user-data-dir', str(user), '--extensions-dir', str(extensions)]
+            if int(editor_version.split('.')[1]) >= 131:
+                flags += ['--shared-data-dir', str(temp/'shared-data')]
             launcher = code.parent/'bin/code'
             with (output/'install.log').open('w') as log:
                 subprocess.run([str(launcher), *flags, '--install-extension', str(vsix), '--do-not-include-pack-dependencies'], env=env, check=True, timeout=120, stdout=log, stderr=subprocess.STDOUT)
@@ -143,7 +148,7 @@ def main():
             with socket.socket() as sock: sock.bind(('127.0.0.1', 0)); port = sock.getsockname()[1]
             run_env = {**env, 'FSNAV_E2E_MANIFEST': str(manifest_path), 'FSNAV_E2E_ROOTS': json.dumps(roots),
                        'FSNAV_E2E_RESULT': str(output/'host.json'), 'FSNAV_E2E_PORT': str(port), 'FSHARP_NAVIGATOR_TRACE': '0'}
-            command = [str(code), str(workspace), *flags, '--disable-workspace-trust', '--no-sandbox', '--disable-gpu',
+            command = [str(code), str(workspace), *flags, '--disable-workspace-trust', '--disable-gpu',
                        '--disable-updates', '--disable-telemetry', '--skip-welcome', '--skip-release-notes',
                        '--ozone-platform=x11', f'--remote-debugging-port={port}', '--remote-debugging-address=127.0.0.1',
                        '--extensionDevelopmentPath='+str(probe), '--extensionTestsPath='+str(HERE/'host.cjs')]

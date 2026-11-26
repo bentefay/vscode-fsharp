@@ -16,7 +16,7 @@ providers. The edit and restart samples include their triggering action.
 Run after building the Rust executable and compiling the TypeScript adapter:
 
 ```sh
-extension/test/with-display.sh node extension/test/runTest.cjs
+FSHARP_VSCODE_PATH=/absolute/path/VSCode-linux-x64/code cli/bin/run test integration
 ```
 
 On Linux this uses private Xvfb, Openbox and D-Bus. With the pinned Nix
@@ -28,12 +28,12 @@ Optional environment variables:
 
 | Variable | Effect |
 | --- | --- |
-| `FSHARP_VSCODE_PATH` | Explicit VS Code executable; use the checksum-pinned runtime. |
-| `FSHARP_VSCODE_VERSION` | Editor version label (default 1.108.0). |
+| `FSHARP_VSCODE_PATH` | Required explicit VS Code executable; use the checksum-pinned runtime from `cli/bin/run runtime fetch`. |
+| `FSHARP_VSCODE_VERSION` | Optional expected version; must match the supplied editor's manifest. |
 | `FSHARP_BACKEND_PATH` | Native development binary override. |
 | `FSHARP_TEST_VSIX` | Install this VSIX into the disposable profile; the development host contains only a probe. |
 | `FSHARP_TEST_TREE_FIRST=1` | Activate from opening the solution explorer before any F# document. The default opens the document first. |
-| `FSHARP_TEST_UNTRUSTED=1` | Direct host launch testing Workspace Trust without the standard test-electron override. |
+| `FSHARP_TEST_UNTRUSTED=1` | Test Workspace Trust without trusting the generated fixture. |
 | `FSHARP_CAPTURE_SCREENSHOTS=1` | Capture tree/editor/hover images with ImageMagick `import`. |
 
 Profiles, logs, fixture sources and `results.json` are copied to `test-results`
@@ -98,9 +98,12 @@ that host from starting. The historical execution evidence is described in `docs
 A later Linux host with private Unix sockets ran both pinned desktop versions.
 
 The original example repository's runtime-lock.json was copied here to pin
-VS Code 1.108.0 and 1.145.3. The automatic test-electron downloader is a
-convenience fallback; release validation should supply the independently
-checksum-verified executable through `FSHARP_VSCODE_PATH`.
+VS Code 1.108.0 and 1.145.3. The runner now launches Code directly because
+test-electron injects sandbox-disabling flags. It requires an explicit verified
+`FSHARP_VSCODE_PATH`, isolates XDG/temp/profile directories, and removes inherited
+Electron/Node overrides and credential environment variables. An unavailable
+sandbox is a failed gate, never a reason to change system security settings.
+Historical no-sandbox results do not qualify this new route.
 
 
 The first provider request in the trusted document-first test runs immediately

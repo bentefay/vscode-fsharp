@@ -15,9 +15,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'evaluation'))
 from run import process_tree_details, process_identity
 
-DOTNET = ROOT / '.tools/dotnet/dotnet'
-DLL = Path(os.environ.get('FSHARP_NAVIGATOR_DECOMPILER_TEST_DLL', ROOT / 'semantic/Decompiler/bin/Release/net10.0/FSharpNavigator.Decompiler.dll'))
-REPORT = Path(os.environ.get('FSHARP_NAVIGATOR_DECOMPILER_TEST_REPORT', ROOT / 'evaluation/results/decompiler-helper-recovered.json'))
+DOTNET = Path(os.environ.get('FSHARP_NAVIGATOR_DOTNET') or shutil.which('dotnet') or '').resolve()
+DLL = Path(os.environ.get('FSHARP_NAVIGATOR_DECOMPILER_TEST_DLL', ROOT / 'bin/decompiler/il/FSharpNavigator.Decompiler.dll'))
+REPORT = Path(os.environ.get('FSHARP_NAVIGATOR_DECOMPILER_TEST_REPORT', ROOT / '.cache/decompiler-helper.json'))
 ENV = os.environ | {'DOTNET_ROOT': str(DOTNET.parent), 'DOTNET_GCHeapHardLimit': '0x8000000', 'DOTNET_CLI_TELEMETRY_OPTOUT': '1'}
 rows = []
 
@@ -69,8 +69,8 @@ def build_fixture(directory, name, code):
     return directory/'bin/Release/net10.0'/f'{name}.dll', directory/'obj/Release/net10.0/ref'/f'{name}.dll'
 
 def main():
-    runtime=DOTNET.parent/'shared/Microsoft.NETCore.App/10.0.11'
-    reference=DOTNET.parent/'packs/Microsoft.NETCore.App.Ref/10.0.11/ref/net10.0'
+    runtime=DOTNET.parent/'shared/Microsoft.NETCore.App/10.0.15'
+    reference=DOTNET.parent/'packs/Microsoft.NETCore.App.Ref/10.0.15/ref/net10.0'
     package=Path.home()/'.nuget/packages/icsharpcode.decompiler/11.1.0.9782/lib/netstandard2.0/ICSharpCode.Decompiler.dll'
     invoke(runtime/'System.Private.CoreLib.dll','P:System.String.Length','Length','return _stringLength')
     result=invoke(reference/'System.Runtime.dll','P:System.String.Length','Length','return _stringLength');assert result['referenceAssemblyRedirected']

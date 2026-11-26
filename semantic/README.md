@@ -6,7 +6,7 @@ experiments. These operations are not a lightweight replacement for semantic
 analysis; their startup time, peak process-tree memory and output size belong in
 cold end-to-end measurements.
 
-Build with `scripts/with-local-tools dotnet build semantic/FSharpNavigator.Semantic.fsproj -c Release`.
+Build with `cli/bin/run build --semantic`.
 Launch `dotnet semantic/bin/Release/net10.0/FSharpNavigator.Semantic.dll --once`.
 Without `--once` the process reads multiple requests, intended only for explicitly
 selected oracle experiments. The pinned SDK supplies FSharp.Core and FCS, with no
@@ -217,3 +217,11 @@ only after revalidation, and then exits. The default methods remain independent
 controls. Its contract, resource limits and pending comparison are documented in
 [`docs/shared-metadata-experiment.md`](../docs/shared-metadata-experiment.md).
 
+
+The 2026-11-25 security update selects SDK10.0.404/runtime10.0.15 for development.
+The version-specific semantic producer and environment certificates described
+above remain historical; they have not been widened to accept this new runtime.
+Reusable preparation must refuse until the patched profile is validated. Do not
+restore the vulnerable 10.0.11 runtime to satisfy those checks. Normal native
+indexed navigation and the separately tested one-shot decompiler do not require
+that certificate.

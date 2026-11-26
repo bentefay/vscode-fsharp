@@ -1,13 +1,15 @@
 { pkgs, lib, ... }:
 let
-  # Coherent development SDK/runtime; provenance is in nix/dotnet-10.0.400.json.
+  # Coherent development SDK/runtime; provenance is in nix/dotnet-10.0.404.json.
   # Nix loader/locale preparation support is still unverified (see nix/README.md).
   supportedDotnet =
-    (pkgs.dotnetCorePackages.buildDotnetSdk ./nix/dotnet-10.0.400.nix).sdk_10_0_4xx;
+    (pkgs.dotnetCorePackages.buildDotnetSdk ./nix/dotnet-10.0.404.nix).sdk_10_0_4xx;
 in
 {
-  packages = [ (import ./nix/toolchain.nix { inherit pkgs; }) supportedDotnet ] ++ (with pkgs; [
-    git gh curl jq unzip zip ripgrep shellcheck shfmt rustc cargo rustfmt clippy
+  packages = [ (import ./nix/toolchain.nix { inherit pkgs; }) supportedDotnet
+    pkgs.rust-bin.stable."1.100.0".default
+  ] ++ (with pkgs; [
+    git gh curl jq unzip zip ripgrep shellcheck shfmt cargo-audit
     pkg-config openssl python3 stdenv.cc
   ]) ++ lib.optionals pkgs.stdenv.isLinux (with pkgs; [
     xvfb-run xorg.xauth openbox dbus glibcLocales patchelf imagemagick

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "sourceUrl": "https://github.com/NixOS/nixpkgs/blob/619c39f6eac5d1ed6b8f073a9414baf7034b2356/pkgs/development/compilers/dotnet/10.0/releases.nix",
+  "sourceCommit": "619c39f6eac5d1ed6b8f073a9414baf7034b2356",
+  "file": "dotnet-10.0.404.nix",
+  "sha256": "d0eeaad48b8c204eb91236a898d5cdc3acdcf9e14d213761f77b6d101d4414e7",
+  "modifications": [],
+  "selectedAttribute": "sdk_10_0_4xx",
+  "sdk": "10.0.404",
+  "runtime": "10.0.15",
+  "aspnetcoreRuntime": "10.0.15",
+  "builderNixpkgs": "f4a03c008967841f2a0b3cb7c436fc6fc31671f6",
+  "archiveVerification": {
+    "metadataUrl": "https://builds.dotnet.microsoft.com/dotnet/release-metadata/10.0/releases.json",
+    "checkedAt": "2026-11-25",
+    "archivesMatched": 32
+  },
+  "supportBoundary": "Patched development toolchain. Historical SDK10.0.400/runtime10.0.11 semantic certificates are not qualified on this version; preparation must refuse reuse.",
+  "sourceLicense": "MIT",
+  "sourceLicenseFile": "nixpkgs-COPYING",
+  "sourceLicenseUrl": "https://raw.githubusercontent.com/NixOS/nixpkgs/4862a919017b040f59d1adb4c67840efee8092cf/COPYING",
+  "sourceLicenseSha256": "c9cf0650a6820b589f96a92060e0eb937102b808f48cd5e3f35dcba449ea0a41"
+}

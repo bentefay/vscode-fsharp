@@ -230,7 +230,7 @@ fn stamp() -> i64 {
 }
 fn hash_file(path: &Path, token: &CancellationToken) -> Result<String> {
     token.check()?;
-    let mut input = fs::File::open(path)?;
+    let mut input = crate::foreground::open_regular(path)?;
     if input.metadata()?.len() > 128 * 1024 * 1024 {
         bail!("Decompiler input exceeds hash budget");
     }

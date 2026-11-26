@@ -1,6 +1,6 @@
 # One-shot external implementation documents
 
-This optional .NET 10.0.11 helper reads a requested assembly and exact XML
+This optional .NET 10.0.15 helper reads a requested assembly and exact XML
 documentation member ID. It does not load a workspace, start FCS, execute target
 code, or keep a managed process resident. Rust coordinates cancellation, process
 ownership, limits, and the document cache.
@@ -13,11 +13,9 @@ writer APIs. `NoDocumentation` avoids ILSpy's default framework XML-doc loading;
 library hover documentation remains the metadata catalog's responsibility.
 
 ```sh
-scripts/with-local-tools dotnet restore semantic/Decompiler/FSharpNavigator.Decompiler.csproj --locked-mode
-scripts/with-local-tools dotnet build semantic/Decompiler/FSharpNavigator.Decompiler.csproj -c Release --no-restore
-scripts/with-local-tools python3 semantic/Decompiler/test.py
-scripts/with-local-tools cargo test -p navigator-core --lib decompiler::tests
-scripts/with-local-tools cargo test -p navigator-core --lib decompiler::tests::actual_helper -- --ignored --nocapture
+cli/bin/run build --decompiler
+cli/bin/run test decompiler
+cli/bin/run build --decompiler --ready-to-run --rid linux-x64
 ```
 
 The process accepts one JSON line with `--once`:

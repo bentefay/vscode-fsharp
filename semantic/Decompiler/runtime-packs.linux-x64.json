@@ -1,17 +1,17 @@
 {
-  "sdk": "10.0.400",
-  "runtime": "10.0.11",
+  "sdk": "10.0.404",
+  "runtime": "10.0.15",
   "rid": "linux-x64",
   "packages": [
     {
       "id": "microsoft.netcore.app.crossgen2.linux-x64",
-      "version": "10.0.11",
-      "sha512": "kb4KNaI16vCAPnlAttZkf8oIBRHoUgj2wUBhc9BciDI6Ue/WNv/EGIISiUIpelKgF/flafOvexv/Gpt61Io/+Q=="
+      "version": "10.0.15",
+      "sha512": "gkB3UfLLb/+9KAb1/YK56HRKoieFkj9MTZBTLn0GRVrCx5WkoogVSKfIpIoxOWf0LJ1QbgrT6GOv+jueFAPKhg=="
     },
     {
       "id": "microsoft.netcore.app.runtime.linux-x64",
-      "version": "10.0.11",
-      "sha512": "ef6XpQH4KI7lukxMuXnh0iDM7a60cR0tFiynPPmRK7TnOHZXKpwIlPd341kInZJvMw+u2B3qaHb3rVEMIxLWlQ=="
+      "version": "10.0.15",
+      "sha512": "Ak6y3EEqwNT/ZL5WEAoGbjxju8MisXpnRxYRynRifotaKEadhhWk5/z2KTvNbnRyAvMqrbN21TSnJY4NxZShxQ=="
     }
   ]
 }

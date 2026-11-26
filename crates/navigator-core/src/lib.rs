@@ -893,7 +893,7 @@ impl Workspace {
                 if e.is::<cancellation::Cancelled>() || e.is::<foreground::Limit>() {
                     return Err(e);
                 }
-                self.index_errors.insert(path.into(), e.to_string());
+                self.index_errors.insert(path.into(), format!("{e:#}"));
                 Ok(true)
             }
         }

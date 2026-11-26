@@ -49,6 +49,29 @@ Safe Chain protections, locked dependencies and disabled package lifecycle scrip
 are required. The source CLI is a developer tool; an installed VSIX does not need
 Node, Rust or .NET for ordinary indexed navigation.
 
+Safe Chain wraps npm, not Cargo or NuGet. Rust uses pinned Cargo 1.100 with a
+two-day minimum publish age and `cargo-audit`; the CLI also checks already locked
+Cargo/NuGet releases for age and yanked/unlisted status before building. Age
+evidence is cached for at most 24 hours. `cli/bin/run dependencies verify` runs
+the Safe Chain blocking probe, npm audit, RustSec audits (including maintenance
+warnings), and the locked NuGet OSV audit. Registry failures fail the check.
+These advisory/age checks are not equivalent to Safe Chain malware scanning.
+The decompiler runtime packs are included. SDK-provided assemblies and Nix
+inputs remain separately pinned toolchain inputs, outside the package advisory
+scan. Development uses patched .NET SDK 10.0.404/runtime 10.0.15; existing
+semantic certificates for 10.0.400/10.0.11 are not qualified on it. Reusable
+semantic preparation remains unavailable pending profile validation.
+
+Use `cli/bin/run dependencies update` to resolve and audit Rust dependency
+updates. Review the resulting lockfile before committing. Use `cli/bin/run format`
+for Rust formatting. Do not use `cargo install` as an age-protected install path.
+
+Editor tests launch with Chromium's sandbox enabled and require an explicit
+official editor path; there is no sandbox-disabled fallback. On Linux x64,
+`cli/bin/run runtime fetch` verifies and extracts the pinned Code 1.145.3 archive
+into `.cache`, recording its path and hashes in `.cache/editor-runtime.json`.
+Supply that executable as `FSHARP_VSCODE_PATH` (or `FSHARP_E2E_CODE` for E2E).
+
 For an existing Linux x64 VSIX, the opt-in isolated installer requires a trusted
 nonportable official Code CLI and a new or owned private directory:
 
