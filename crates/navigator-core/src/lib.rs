@@ -4101,23 +4101,15 @@ mod integration_tests {
         let first = ws
             .dispatch("navigation/definition", &alias_request)
             .unwrap();
-        assert_eq!(first["completeness"], "unavailable");
-        assert!(!ws.model_loaded);
-        let early = ws
-            .dispatch("navigation/definition", &alias_request)
-            .unwrap();
+        assert_eq!(first["completeness"], "exact");
         assert_eq!(
-            early["candidateKind"], "same-source-declarations",
-            "{early}"
+            first["locations"][0]["range"],
+            json!({"start":{"line":1,"character":5},"end":{"line":1,"character":9}})
         );
-        assert_eq!(early["candidateCompleteness"], "incomplete");
-        assert_eq!(early["locations"], json!([]));
-        assert_eq!(early["candidates"][0]["range"]["start"]["line"], 1);
-        let pending = ws
-            .dispatch("navigation/definition", &alias_request)
-            .unwrap();
-        assert_eq!(pending["candidates"], early["candidates"]);
         assert!(!ws.model_loaded);
+        assert!(!ws.background_pending());
+        let request = json!({"path":main,"line":3,"character":29,"version":1});
+        ws.dispatch("navigation/definition", &request).unwrap();
         for _ in 0..2000 {
             ws.background_step(cancellation::CancellationToken::new())
                 .unwrap();
@@ -4962,10 +4954,8 @@ mod integration_tests {
                     &json!({"path":path,"line":use_line,"character":use_col,"version":version}),
                 )
                 .unwrap();
-            assert_eq!(
-                definition["documentProofMiss"], true,
-                "References must not seed Definition"
-            );
+            assert_eq!(definition["completeness"], "exact");
+            assert_eq!(definition["locations"], json!([target(decl_line, 8, len)]));
         }
         let cancelled = cancellation::CancellationToken::new();
         cancelled.cancel();
@@ -5706,7 +5696,13 @@ mod integration_tests {
             )
             .unwrap();
         assert_eq!(answer["completeness"], "exact");
-        assert_eq!(ws.index.counters.files_parsed, 1);
+        assert_eq!(ws.index.counters.files_parsed, 0);
+        assert!(
+            ws.stats().unwrap()["localProofParsedBytes"]
+                .as_u64()
+                .unwrap()
+                > 0
+        );
         assert_eq!(ws.index.counters.files_read, 0);
         assert!(!ws.catalog_loaded);
         assert!(!ws.semantic_loaded);
@@ -6528,12 +6524,12 @@ mod integration_tests {
                 .unwrap()["documentProofId"],
             exact["documentProofId"]
         );
-        // An ordinary public formal may require signature routing. Explicit miss,
-        // with no attempt to prepare a model, find candidates or consult context.
+        // An unresolved module value remains an explicit miss, with no attempt
+        // to prepare a model, find candidates or consult context.
         let miss = ws
             .dispatch(
                 "navigation/documentDefinition",
-                &json!({"path":path,"position":{"line":2,"character":22},"documentVersion":1}),
+                &json!({"path":path,"position":{"line":1,"character":13},"documentVersion":1}),
             )
             .unwrap();
         assert_eq!(miss["documentProofMiss"], true, "{miss}");

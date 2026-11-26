@@ -1,0 +1,1444 @@
+{
+  "schemaVersion": 1,
+  "suite": "document-navigation-matrix",
+  "fixtures": [
+    {
+      "id": "type-1",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\ntype Id = int\nlet f (x:Id) = x\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "type-2",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nmodule Types =\n    type SagaId = int\nopen Types\nlet eventToSagaId () : Option<SagaId> = None\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "type-3",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "[<RequireQualifiedAccess>]\nmodule M\nopen External\nmodule Types =\n    type SagaId = int\nopen Types\nlet eventToSagaId () : Option<SagaId> = None\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "type-4",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nmodule Types =\n    type Id = int\nlet f (x:Types.Id) = x\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "type-5",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nmodule Types =\n    type Id = int\nmodule Alias = Types\nlet f (x:Alias.Id) = x\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "type-6",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\ntype Record = { Value:int }\nlet f (x:Record) = x\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "type-7",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\ntype Choice = A | B\nlet f (x:Choice) = x\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "type-8",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\ntype Class() = member _.Value = 1\nlet f (x:Class) = x\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "type-9",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\ntype Box<'a> = { Value:'a }\nlet f (x:Box<int>) = x\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "type-10",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\ntype Id = int\ntype Next = Id\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "type-11",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\ntype Id = int\ntype Record = { Value:Id }\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "type-12",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\ntype Id = int\nmodule Inner =\n    let f (x:Id) = x\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "type-13",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nmodule First =\n    type Id = int\nmodule Second =\n    type Id = string\nopen First\nopen Second\nlet f (x:Id) = x\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "type-14",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\ntype Id = int\nmodule Inner =\n    type Id = string\n    let f (x:Id) = x\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "local-binding-1",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet f value=value+value\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "local-binding-2",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet f=fun value -> value+value\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "local-binding-3",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet f ()=fun value -> value+value\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "local-binding-4",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet f x=let value=x+1 in value\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "branch-references-1",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet v=List.map(fun x -> if flag then x else x) [1]\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "branch-references-2",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet v=List.map(fun x -> if x>0 then x else x) [1]\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "branch-references-3",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet v=List.map(fun x -> ignore x; x) [1]\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "private-annotated",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet private f (value:int) : int = value+value\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "match-subject",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet f (value:int) : int = match value with | _ -> 0\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "match-wildcard",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet f (value:int) : int = match 1 with | _ -> value\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "shadow-initializer",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet f (value:int) = (let value=value in value)\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "generic-formal",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet f (value:Option<int>) = value\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "tuple-formal",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet f (value:int * int) = value\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "selected-match-path",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet f = call(fun value -> match 1 with | _ -> value)\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "multiline-callback-definition",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet private find\n    (items: Items)\n    (key: Key)\n    : Option<Result>\n    =\n    items.Values\n    |> Library.findKey key\n    |> Option.bind (fun item ->\n        Library.find item other.Field items.Values.ById)\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "multiline-callback-references",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet private find\n    (items: Items)\n    (key: Key)\n    : Option<Result>\n    =\n    items.Values\n    |> Library.findKey key\n    |> Option.bind (fun item ->\n        Library.find item other.Field items.Values.ById)\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "property-receiver-references",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet f = call(fun item -> item.Values.ById)\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    },
+    {
+      "id": "array-formal",
+      "project": "Main.fsproj",
+      "files": {
+        "Main.fs": "module M\nlet f (value:int[]) = value\n",
+        "Main.fsproj": "<Project><ItemGroup><Compile Include=\"Main.fs\" /></ItemGroup></Project>"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "type-1",
+      "ruleId": "type-1",
+      "fixture": "type-1",
+      "query": {
+        "file": "Main.fs",
+        "line": 2,
+        "character": 9,
+        "token": "Id"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 5
+            },
+            "end": {
+              "line": 1,
+              "character": 7
+            }
+          },
+          "text": "Id"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored declaration span; source-order nominal type and module/open lookup, independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/#1417-name-resolution-for-types"
+      }
+    },
+    {
+      "id": "type-2",
+      "ruleId": "type-2",
+      "fixture": "type-2",
+      "query": {
+        "file": "Main.fs",
+        "line": 4,
+        "character": 30,
+        "token": "SagaId"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 2,
+              "character": 9
+            },
+            "end": {
+              "line": 2,
+              "character": 15
+            }
+          },
+          "text": "SagaId"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored declaration span; source-order nominal type and module/open lookup, independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/#1417-name-resolution-for-types"
+      }
+    },
+    {
+      "id": "type-3",
+      "ruleId": "type-3",
+      "fixture": "type-3",
+      "query": {
+        "file": "Main.fs",
+        "line": 6,
+        "character": 30,
+        "token": "SagaId"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 4,
+              "character": 9
+            },
+            "end": {
+              "line": 4,
+              "character": 15
+            }
+          },
+          "text": "SagaId"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored declaration span; source-order nominal type and module/open lookup, independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/#1417-name-resolution-for-types"
+      }
+    },
+    {
+      "id": "type-4",
+      "ruleId": "type-4",
+      "fixture": "type-4",
+      "query": {
+        "file": "Main.fs",
+        "line": 3,
+        "character": 15,
+        "token": "Id"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 2,
+              "character": 9
+            },
+            "end": {
+              "line": 2,
+              "character": 11
+            }
+          },
+          "text": "Id"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored declaration span; source-order nominal type and module/open lookup, independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/#1417-name-resolution-for-types"
+      }
+    },
+    {
+      "id": "type-5",
+      "ruleId": "type-5",
+      "fixture": "type-5",
+      "query": {
+        "file": "Main.fs",
+        "line": 4,
+        "character": 15,
+        "token": "Id"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 2,
+              "character": 9
+            },
+            "end": {
+              "line": 2,
+              "character": 11
+            }
+          },
+          "text": "Id"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored declaration span; source-order nominal type and module/open lookup, independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/#1417-name-resolution-for-types"
+      }
+    },
+    {
+      "id": "type-6",
+      "ruleId": "type-6",
+      "fixture": "type-6",
+      "query": {
+        "file": "Main.fs",
+        "line": 2,
+        "character": 9,
+        "token": "Record"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 5
+            },
+            "end": {
+              "line": 1,
+              "character": 11
+            }
+          },
+          "text": "Record"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored declaration span; source-order nominal type and module/open lookup, independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/#1417-name-resolution-for-types"
+      }
+    },
+    {
+      "id": "type-7",
+      "ruleId": "type-7",
+      "fixture": "type-7",
+      "query": {
+        "file": "Main.fs",
+        "line": 2,
+        "character": 9,
+        "token": "Choice"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 5
+            },
+            "end": {
+              "line": 1,
+              "character": 11
+            }
+          },
+          "text": "Choice"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored declaration span; source-order nominal type and module/open lookup, independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/#1417-name-resolution-for-types"
+      }
+    },
+    {
+      "id": "type-8",
+      "ruleId": "type-8",
+      "fixture": "type-8",
+      "query": {
+        "file": "Main.fs",
+        "line": 2,
+        "character": 9,
+        "token": "Class"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 5
+            },
+            "end": {
+              "line": 1,
+              "character": 10
+            }
+          },
+          "text": "Class"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored declaration span; source-order nominal type and module/open lookup, independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/#1417-name-resolution-for-types"
+      }
+    },
+    {
+      "id": "type-9",
+      "ruleId": "type-9",
+      "fixture": "type-9",
+      "query": {
+        "file": "Main.fs",
+        "line": 2,
+        "character": 9,
+        "token": "Box"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 5
+            },
+            "end": {
+              "line": 1,
+              "character": 8
+            }
+          },
+          "text": "Box"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored declaration span; source-order nominal type and module/open lookup, independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/#1417-name-resolution-for-types"
+      }
+    },
+    {
+      "id": "type-10",
+      "ruleId": "type-10",
+      "fixture": "type-10",
+      "query": {
+        "file": "Main.fs",
+        "line": 2,
+        "character": 12,
+        "token": "Id"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 5
+            },
+            "end": {
+              "line": 1,
+              "character": 7
+            }
+          },
+          "text": "Id"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored declaration span; source-order nominal type and module/open lookup, independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/#1417-name-resolution-for-types"
+      }
+    },
+    {
+      "id": "type-11",
+      "ruleId": "type-11",
+      "fixture": "type-11",
+      "query": {
+        "file": "Main.fs",
+        "line": 2,
+        "character": 22,
+        "token": "Id"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 5
+            },
+            "end": {
+              "line": 1,
+              "character": 7
+            }
+          },
+          "text": "Id"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored declaration span; source-order nominal type and module/open lookup, independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/#1417-name-resolution-for-types"
+      }
+    },
+    {
+      "id": "type-12",
+      "ruleId": "type-12",
+      "fixture": "type-12",
+      "query": {
+        "file": "Main.fs",
+        "line": 3,
+        "character": 13,
+        "token": "Id"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 5
+            },
+            "end": {
+              "line": 1,
+              "character": 7
+            }
+          },
+          "text": "Id"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored declaration span; source-order nominal type and module/open lookup, independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/#1417-name-resolution-for-types"
+      }
+    },
+    {
+      "id": "type-13",
+      "ruleId": "type-13",
+      "fixture": "type-13",
+      "query": {
+        "file": "Main.fs",
+        "line": 7,
+        "character": 9,
+        "token": "Id"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 4,
+              "character": 9
+            },
+            "end": {
+              "line": 4,
+              "character": 11
+            }
+          },
+          "text": "Id"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored declaration span; source-order nominal type and module/open lookup, independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/#1417-name-resolution-for-types"
+      }
+    },
+    {
+      "id": "type-14",
+      "ruleId": "type-14",
+      "fixture": "type-14",
+      "query": {
+        "file": "Main.fs",
+        "line": 4,
+        "character": 13,
+        "token": "Id"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 3,
+              "character": 9
+            },
+            "end": {
+              "line": 3,
+              "character": 11
+            }
+          },
+          "text": "Id"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored declaration span; source-order nominal type and module/open lookup, independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/#1417-name-resolution-for-types"
+      }
+    },
+    {
+      "id": "local-binding-1",
+      "ruleId": "local-binding-1",
+      "fixture": "local-binding-1",
+      "query": {
+        "file": "Main.fs",
+        "line": 1,
+        "character": 12,
+        "token": "value"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 6
+            },
+            "end": {
+              "line": 1,
+              "character": 11
+            }
+          },
+          "text": "value"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored lexical binder, with source-body name resolution; external references are not inferred.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/"
+      }
+    },
+    {
+      "id": "local-binding-2",
+      "ruleId": "local-binding-2",
+      "fixture": "local-binding-2",
+      "query": {
+        "file": "Main.fs",
+        "line": 1,
+        "character": 19,
+        "token": "value"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 10
+            },
+            "end": {
+              "line": 1,
+              "character": 15
+            }
+          },
+          "text": "value"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored lexical binder, with source-body name resolution; external references are not inferred.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/"
+      }
+    },
+    {
+      "id": "local-binding-3",
+      "ruleId": "local-binding-3",
+      "fixture": "local-binding-3",
+      "query": {
+        "file": "Main.fs",
+        "line": 1,
+        "character": 22,
+        "token": "value"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 13
+            },
+            "end": {
+              "line": 1,
+              "character": 18
+            }
+          },
+          "text": "value"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored lexical binder, with source-body name resolution; external references are not inferred.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/"
+      }
+    },
+    {
+      "id": "local-binding-4",
+      "ruleId": "local-binding-4",
+      "fixture": "local-binding-4",
+      "query": {
+        "file": "Main.fs",
+        "line": 1,
+        "character": 25,
+        "token": "value"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 12
+            },
+            "end": {
+              "line": 1,
+              "character": 17
+            }
+          },
+          "text": "value"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored lexical binder, with source-body name resolution; external references are not inferred.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/"
+      }
+    },
+    {
+      "id": "branch-references-1",
+      "ruleId": "branch-references-1",
+      "fixture": "branch-references-1",
+      "operation": "references",
+      "route": "sidebar",
+      "declarationIncluded": true,
+      "query": {
+        "file": "Main.fs",
+        "line": 1,
+        "character": 44,
+        "token": "x"
+      },
+      "expected": {
+        "kind": "exact",
+        "references": [
+          {
+            "file": "Main.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 19
+              },
+              "end": {
+                "line": 1,
+                "character": 20
+              }
+            },
+            "text": "x"
+          },
+          {
+            "file": "Main.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 37
+              },
+              "end": {
+                "line": 1,
+                "character": 38
+              }
+            },
+            "text": "x"
+          },
+          {
+            "file": "Main.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 44
+              },
+              "end": {
+                "line": 1,
+                "character": 45
+              }
+            },
+            "text": "x"
+          }
+        ]
+      },
+      "oracle": {
+        "knownUsageCount": 2,
+        "explanation": "Complete authored callback-binder occurrence set across every conditional branch and sequential expression.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/"
+      }
+    },
+    {
+      "id": "branch-references-2",
+      "ruleId": "branch-references-2",
+      "fixture": "branch-references-2",
+      "operation": "references",
+      "route": "sidebar",
+      "declarationIncluded": true,
+      "query": {
+        "file": "Main.fs",
+        "line": 1,
+        "character": 43,
+        "token": "x"
+      },
+      "expected": {
+        "kind": "exact",
+        "references": [
+          {
+            "file": "Main.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 19
+              },
+              "end": {
+                "line": 1,
+                "character": 20
+              }
+            },
+            "text": "x"
+          },
+          {
+            "file": "Main.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 27
+              },
+              "end": {
+                "line": 1,
+                "character": 28
+              }
+            },
+            "text": "x"
+          },
+          {
+            "file": "Main.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 36
+              },
+              "end": {
+                "line": 1,
+                "character": 37
+              }
+            },
+            "text": "x"
+          },
+          {
+            "file": "Main.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 43
+              },
+              "end": {
+                "line": 1,
+                "character": 44
+              }
+            },
+            "text": "x"
+          }
+        ]
+      },
+      "oracle": {
+        "knownUsageCount": 3,
+        "explanation": "Complete authored callback-binder occurrence set across every conditional branch and sequential expression.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/"
+      }
+    },
+    {
+      "id": "branch-references-3",
+      "ruleId": "branch-references-3",
+      "fixture": "branch-references-3",
+      "operation": "references",
+      "route": "sidebar",
+      "declarationIncluded": true,
+      "query": {
+        "file": "Main.fs",
+        "line": 1,
+        "character": 34,
+        "token": "x"
+      },
+      "expected": {
+        "kind": "exact",
+        "references": [
+          {
+            "file": "Main.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 19
+              },
+              "end": {
+                "line": 1,
+                "character": 20
+              }
+            },
+            "text": "x"
+          },
+          {
+            "file": "Main.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 31
+              },
+              "end": {
+                "line": 1,
+                "character": 32
+              }
+            },
+            "text": "x"
+          },
+          {
+            "file": "Main.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 34
+              },
+              "end": {
+                "line": 1,
+                "character": 35
+              }
+            },
+            "text": "x"
+          }
+        ]
+      },
+      "oracle": {
+        "knownUsageCount": 2,
+        "explanation": "Complete authored callback-binder occurrence set across every conditional branch and sequential expression.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/"
+      }
+    },
+    {
+      "id": "private-annotated",
+      "ruleId": "private-annotated",
+      "fixture": "private-annotated",
+      "query": {
+        "file": "Main.fs",
+        "line": 1,
+        "character": 34,
+        "token": "value"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 15
+            },
+            "end": {
+              "line": 1,
+              "character": 20
+            }
+          },
+          "text": "value"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored lexical binder declaration and, for references, complete callback occurrence set; independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/"
+      }
+    },
+    {
+      "id": "match-subject",
+      "ruleId": "match-subject",
+      "fixture": "match-subject",
+      "query": {
+        "file": "Main.fs",
+        "line": 1,
+        "character": 32,
+        "token": "value"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 7
+            },
+            "end": {
+              "line": 1,
+              "character": 12
+            }
+          },
+          "text": "value"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored lexical binder declaration and, for references, complete callback occurrence set; independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/"
+      }
+    },
+    {
+      "id": "match-wildcard",
+      "ruleId": "match-wildcard",
+      "fixture": "match-wildcard",
+      "query": {
+        "file": "Main.fs",
+        "line": 1,
+        "character": 46,
+        "token": "value"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 7
+            },
+            "end": {
+              "line": 1,
+              "character": 12
+            }
+          },
+          "text": "value"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored lexical binder declaration and, for references, complete callback occurrence set; independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/"
+      }
+    },
+    {
+      "id": "shadow-initializer",
+      "ruleId": "shadow-initializer",
+      "fixture": "shadow-initializer",
+      "query": {
+        "file": "Main.fs",
+        "line": 1,
+        "character": 31,
+        "token": "value"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 7
+            },
+            "end": {
+              "line": 1,
+              "character": 12
+            }
+          },
+          "text": "value"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored lexical binder declaration and, for references, complete callback occurrence set; independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/"
+      }
+    },
+    {
+      "id": "generic-formal",
+      "ruleId": "generic-formal",
+      "fixture": "generic-formal",
+      "query": {
+        "file": "Main.fs",
+        "line": 1,
+        "character": 28,
+        "token": "value"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 7
+            },
+            "end": {
+              "line": 1,
+              "character": 12
+            }
+          },
+          "text": "value"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored lexical binder declaration and, for references, complete callback occurrence set; independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/"
+      }
+    },
+    {
+      "id": "tuple-formal",
+      "ruleId": "tuple-formal",
+      "fixture": "tuple-formal",
+      "query": {
+        "file": "Main.fs",
+        "line": 1,
+        "character": 26,
+        "token": "value"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 7
+            },
+            "end": {
+              "line": 1,
+              "character": 12
+            }
+          },
+          "text": "value"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored lexical binder declaration and, for references, complete callback occurrence set; independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/"
+      }
+    },
+    {
+      "id": "selected-match-path",
+      "ruleId": "selected-match-path",
+      "fixture": "selected-match-path",
+      "query": {
+        "file": "Main.fs",
+        "line": 1,
+        "character": 46,
+        "token": "value"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 17
+            },
+            "end": {
+              "line": 1,
+              "character": 22
+            }
+          },
+          "text": "value"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored lexical binder declaration and, for references, complete callback occurrence set; independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/"
+      }
+    },
+    {
+      "id": "multiline-callback-definition",
+      "ruleId": "multiline-callback-definition",
+      "fixture": "multiline-callback-definition",
+      "query": {
+        "file": "Main.fs",
+        "line": 9,
+        "character": 21,
+        "token": "item"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 8,
+              "character": 24
+            },
+            "end": {
+              "line": 8,
+              "character": 28
+            }
+          },
+          "text": "item"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored lexical binder declaration and, for references, complete callback occurrence set; independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/"
+      }
+    },
+    {
+      "id": "multiline-callback-references",
+      "ruleId": "multiline-callback-references",
+      "fixture": "multiline-callback-references",
+      "query": {
+        "file": "Main.fs",
+        "line": 9,
+        "character": 21,
+        "token": "item"
+      },
+      "expected": {
+        "kind": "exact",
+        "references": [
+          {
+            "file": "Main.fs",
+            "range": {
+              "start": {
+                "line": 8,
+                "character": 24
+              },
+              "end": {
+                "line": 8,
+                "character": 28
+              }
+            },
+            "text": "item"
+          },
+          {
+            "file": "Main.fs",
+            "range": {
+              "start": {
+                "line": 9,
+                "character": 21
+              },
+              "end": {
+                "line": 9,
+                "character": 25
+              }
+            },
+            "text": "item"
+          }
+        ]
+      },
+      "oracle": {
+        "explanation": "Authored lexical binder declaration and, for references, complete callback occurrence set; independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/",
+        "knownUsageCount": 1
+      },
+      "operation": "references",
+      "route": "sidebar",
+      "declarationIncluded": true
+    },
+    {
+      "id": "property-receiver-references",
+      "ruleId": "property-receiver-references",
+      "fixture": "property-receiver-references",
+      "query": {
+        "file": "Main.fs",
+        "line": 1,
+        "character": 25,
+        "token": "item"
+      },
+      "expected": {
+        "kind": "exact",
+        "references": [
+          {
+            "file": "Main.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 17
+              },
+              "end": {
+                "line": 1,
+                "character": 21
+              }
+            },
+            "text": "item"
+          },
+          {
+            "file": "Main.fs",
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 25
+              },
+              "end": {
+                "line": 1,
+                "character": 29
+              }
+            },
+            "text": "item"
+          }
+        ]
+      },
+      "oracle": {
+        "explanation": "Authored lexical binder declaration and, for references, complete callback occurrence set; independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/",
+        "knownUsageCount": 1
+      },
+      "operation": "references",
+      "route": "sidebar",
+      "declarationIncluded": true
+    },
+    {
+      "id": "array-formal",
+      "ruleId": "array-formal",
+      "fixture": "array-formal",
+      "query": {
+        "file": "Main.fs",
+        "line": 1,
+        "character": 22,
+        "token": "value"
+      },
+      "expected": {
+        "kind": "exact",
+        "target": {
+          "file": "Main.fs",
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 7
+            },
+            "end": {
+              "line": 1,
+              "character": 12
+            }
+          },
+          "text": "value"
+        }
+      },
+      "oracle": {
+        "explanation": "Authored lexical binder declaration and, for references, complete callback occurrence set; independent of engine output.",
+        "source": "https://fsharp.github.io/fslang-spec/inference-procedures/"
+      }
+    }
+  ]
+}

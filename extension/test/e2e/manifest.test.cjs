@@ -289,3 +289,23 @@ test('target-scoped signature fixture is a conservative physical-choice contract
  assert.deepEqual(c.oracle.projectFacts.topLevelCompileOrder,['Wire.fs','Consumer.fs']);
  assert.equal(createHash('sha256').update(JSON.stringify({fixtures:[f],cases:[c]})).digest('hex'),'859eccce79c10725a793a6777a68dad310161dbec148d73cdbe6a5dadb018cb9');
 });
+
+test('document navigation matrix has literal definition and complete reference oracles', () => {
+  const matrix = JSON.parse(fs.readFileSync(path.join(__dirname, 'document-types.json'), 'utf8'));
+  assert.equal(matrix.cases.length, 32);
+  assert.equal(new Set(matrix.cases.map(c => c.id)).size, matrix.cases.length);
+  for (const c of matrix.cases) {
+    const files = matrix.fixtures.find(f => f.id === c.fixture).files;
+    const q = c.query;
+    assertLiteralSpan(files[q.file].split('\n')[q.line], q.character, q.character + q.token.length, q.token, c.id);
+    assert.equal(c.expected.kind, 'exact');
+    assert.ok(c.oracle.explanation && c.oracle.source.startsWith('https://'));
+    const targets = c.operation === 'references' ? c.expected.references : [c.expected.target];
+    for (const target of targets) {
+      const { start, end } = target.range;
+      assert.equal(start.line, end.line);
+      assertLiteralSpan(files[target.file].split('\n')[start.line], start.character, end.character, target.text, c.id);
+    }
+    if (c.operation === 'references') assert.equal(targets.length, c.oracle.knownUsageCount + 1);
+  }
+});

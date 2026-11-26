@@ -163,6 +163,46 @@ for (const [name, source, token] of [
   });
 }
 
+for (const [name, source, cursor] of [
+  ['escaped type shadows outer', 'module M\ntype Id = int\nmodule Inner =\n    type ``Id`` = string\n    let f (x:Id) = x\n', { line: 4, character: 13 }],
+  ['escaped type from open shadows outer', 'module M\ntype Id = int\nmodule Inner =\n    type ``Id`` = string\nopen Inner\nlet f (x:Id) = x\n', { line: 5, character: 9 }],
+  ['inline arm shadows formal', 'module M\nlet f value = match 1 with | x -> value | value -> value\n', { line: 1, character: 51 }],
+]) {
+  test(`${name}: cannot produce a false exact outer definition`, async t => {
+    const editor = await setup(t, source);
+    const document = await editor.open('Main.fs');
+    assert.equal(await editor.providers.definition.provideDefinition(document, cursor, editor.uncancelled), undefined);
+    assert.notEqual(editor.api.lastResult?.source, 'local-lexical');
+  });
+}
+
+for (const [name, source, declaration, cursor] of [
+  ['public single-use parameter', 'module M\nlet f value=value\n', [1, 6, 1, 11], { line: 1, character: 12 }],
+  ['exported single-use lambda', 'module M\nlet f=fun value -> value\n', [1, 10, 1, 15], { line: 1, character: 19 }],
+  ['selected match path', 'module M\nlet f = call(fun value -> match 1 with | _ -> value)\n', [1, 17, 1, 22], { line: 1, character: 46 }],
+]) {
+  test(`${name}: definition cache never manufactures complete references`, async t => {
+    const editor = await setup(t, source);
+    const document = await editor.open('Main.fs');
+    for (const phase of ['cold', 'dirty', 'restart']) {
+      if (phase === 'dirty') editor.edit(document, '\n' + source);
+      if (phase === 'restart') editor.api.restart();
+      const offset = phase === 'cold' ? 0 : 1;
+      const current = { ...cursor, line: cursor.line + offset };
+      const expected = [...declaration]; expected[0] += offset; expected[2] += offset;
+      for (let warm = 0; warm < 2; warm++) {
+        assert.deepEqual(ranges(await editor.providers.definition.provideDefinition(document, current, editor.uncancelled)), [expected]);
+        proof(editor, document);
+      }
+      const definitionResult = editor.api.lastResult;
+      for (const includeDeclaration of [true, false]) {
+        assert.equal(await editor.providers.references.provideReferences(document, current, { includeDeclaration }, editor.uncancelled), undefined);
+        assert.equal(editor.api.lastResult, definitionResult, 'Unavailable references must not publish a new exact result');
+      }
+    }
+  });
+}
+
 test('foreign dirty refusal admits only current document definitions through the real daemon', async t => {
   const parent = process.env.TMPDIR || path.resolve(__dirname, '../../.cache/test-tmp');
   await fs.mkdir(parent, { recursive: true });

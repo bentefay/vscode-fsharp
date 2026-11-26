@@ -450,6 +450,10 @@ mod tests {
         ws.dispatch("document/close", &json!({"path":later}))
             .unwrap();
         fs::write(&later, "module Later\nlet newName = 42\n").unwrap();
+        // Posting discovery is asynchronous. This lifecycle test supplies the
+        // file notification explicitly rather than racing the OS watcher.
+        ws.dispatch("workspace/filesChanged", &json!({"paths":[later]}))
+            .unwrap();
         let before_delete = ask(&mut ws, &origin);
         assert!(positions(&before_delete)
             .iter()

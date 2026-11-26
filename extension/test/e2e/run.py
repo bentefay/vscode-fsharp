@@ -28,6 +28,11 @@ def main():
     assert manifest['schemaVersion'] == 1 and manifest['cases'] and manifest['fixtures']
     fixture_ids = [f['id'] for f in manifest['fixtures']]
     assert len(fixture_ids) == len(set(fixture_ids)) and all(re.fullmatch(r'[A-Za-z0-9_-]+', x) for x in fixture_ids)
+    source_root = Path(os.environ['FSHARP_E2E_SOURCE_ROOT']).resolve() if os.environ.get('FSHARP_E2E_SOURCE_ROOT') else None
+    if source_root:
+        assert source_root.is_dir() and len(manifest['fixtures']) == 1
+        assert not any(c.get('edit') or c.get('operation') in ('referenceFreshness', 'definitionFreshness') for c in manifest['cases']), 'Original workspace sources are read-only'
+        assert not any(f.get('externalAsset') for f in manifest['fixtures'])
     external = [f for f in manifest['fixtures'] if f.get('externalAsset')]
     descriptor_path = Path(os.environ['FSHARP_E2E_PREPARED_DESCRIPTOR']).resolve() if external and os.environ.get('FSHARP_E2E_PREPARED_DESCRIPTOR') else None
     assert not external or descriptor_path, 'Prepared asset manifest requires explicit FSHARP_E2E_PREPARED_DESCRIPTOR'
@@ -91,7 +96,12 @@ def main():
         assert all(not Path(name).exists() for name in prepared['missingPaths']), 'Prepared missing-input witness changed'
         assert all(Path(name).is_dir() for name in prepared['directories']), 'Prepared directory witness changed'
         return {'hashes': observed, 'missingPaths': prepared['missingPaths'], 'directories': prepared['directories'], 'verified': True}
+    def source_inventory():
+        if not source_root: return None
+        names = subprocess.check_output(['git', '-C', str(source_root), 'ls-files', '-z', '--cached', '--others', '--exclude-standard']).split(b'\0')
+        return {name.decode(): digest(source_root/name.decode()) for name in sorted(set(names)) if name and Path(name.decode()).suffix.lower() in ('.fs', '.fsi', '.fsx', '.fsproj', '.props', '.targets', '.sln', '.slnx') and (source_root/name.decode()).is_file()}
     try:
+        if source_root: report['sourceInputsBefore'] = source_inventory()
         if prepared:
             report['preparedInputsBefore'] = verify_prepared()
             report['preparationBoundary'] = 'Explicit opt-in original path-bound prepared root and genuine catalog/environment/model; no certificate relocation, edits, build, restore or helper invocation. New native index/cache lives in disposable extension storage.'
@@ -106,6 +116,11 @@ def main():
             report['privateEnvironmentDirectories'] = {key: env[key] for key in ('XDG_CACHE_HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME', 'XDG_RUNTIME_DIR', 'TMPDIR')}
             report['fixtureAncestors'] = [str(p) for p in fixtures.parents]
             for fixture in manifest['fixtures']:
+                if source_root:
+                    for name, text in fixture['files'].items():
+                        assert (source_root/relative_file(name)).read_text() == text, 'Workspace source differs from authored snapshot'
+                    roots[fixture['id']] = str(source_root); workspace_roots[fixture['id']] = str(source_root)
+                    continue
                 if fixture.get('externalAsset'):
                     root = Path(prepared['root']).resolve(); assert root.is_dir() and (root/relative_file(fixture['project'])).is_file()
                     for name, text in fixture['files'].items():
@@ -127,7 +142,7 @@ def main():
             settings = {'telemetry.telemetryLevel': 'off', 'update.mode': 'none', 'extensions.autoUpdate': False,
                         'extensions.autoCheckUpdates': False, 'workbench.enableExperiments': False,
                         'workbench.startupEditor': 'none', 'window.restoreWindows': 'none',
-                        'security.workspace.trust.startupPrompt': 'never', 'fsharpNavigator.mode': 'indexed'}
+                        'security.workspace.trust.startupPrompt': 'never', 'task.allowAutomaticTasks': 'off', 'fsharpNavigator.mode': 'indexed'}
             if prepared: settings.update({'fsharpNavigator.'+key:value for key,value in prepared['settings'].items()})
             (user/'User/settings.json').write_text(json.dumps(settings)); report['settings'] = settings
             (probe/'package.json').write_text(json.dumps({'name': 'packaged-e2e-probe', 'publisher': 'test', 'version': '0.0.0', 'engines': {'vscode': '^1.108.0'}, 'main': 'index.js', 'activationEvents': ['*']}))
@@ -162,6 +177,9 @@ def main():
                         os.killpg(child.pid, signal.SIGTERM)
                         try: child.wait(timeout=5)
                         except subprocess.TimeoutExpired: os.killpg(child.pid, signal.SIGKILL); child.wait()
+            if source_root:
+                report['sourceInputsAfter'] = source_inventory()
+                assert report['sourceInputsBefore'] == report['sourceInputsAfter'], 'Original workspace sources changed during the run'
             report['fixtureHashesBefore'] = source_hashes
             report['fixtureHashesAfter'] = {str(p.relative_to(fixtures)): digest(p) for p in fixtures.rglob('*') if p.is_file()}
             report['fixturesUnchanged'] = report['fixtureHashesAfter'] == source_hashes

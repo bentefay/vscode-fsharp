@@ -1,5 +1,10 @@
 # Packaged editor coverage and remaining gates
 
+The [2026-11-26 document navigation qualification](document-navigation-qualification.md)
+adds a separate 32-case actual F12/References matrix and real-native lifecycle
+checks, and reruns the current default suite. Its measured results and remaining
+gaps are recorded separately from the historical checkpoints below.
+
 The current default gate has **31 required passing scenarios and one scoped
 signature failure**. The [raw target certainty checkpoint](#raw-target-containing-project-certainty)
 adds a visible incomplete-choice contract for target-scoped compile items. The [single-partial active-pattern proof](#scoped-single-partial-active-pattern-definition-proof)

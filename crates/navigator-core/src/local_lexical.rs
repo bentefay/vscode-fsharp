@@ -1,5 +1,7 @@
 //! Source-local parameter and narrow match-binder proofs. No workspace, project, index or library reads.
 //! Unsupported roles return None; this is not the general lexical fallback.
+#[path = "document_types.rs"]
+mod document_types;
 use crate::cancellation::CancellationToken;
 use serde::Serialize;
 use std::{
@@ -8,7 +10,7 @@ use std::{
 };
 use tree_sitter::{Node, ParseOptions, Parser};
 
-pub const PROOF_VERSION: &str = "document-local-lexical-binder-v5";
+pub const PROOF_VERSION: &str = "document-local-lexical-binder-v6";
 pub const PARSER_FINGERPRINT: &str = "tree-sitter-fsharp-0.3.13:00943a441bd59446ed9d321f3e0e09402ec3069c623890fc0b1893717d001302:abi15";
 const MAX_SOURCE_BYTES: usize = 256 * 1024;
 const MAX_NODES: usize = 50_000;
@@ -85,17 +87,18 @@ fn token(n: Node<'_>, kind: &str) -> bool {
     let found = n.children(&mut c).any(|n| n.kind() == kind);
     found
 }
-fn simple_type(n: Node<'_>) -> bool {
-    if n.kind() != "simple_type" || n.has_error() {
-        return false;
-    }
-    let cs = children(n);
-    cs.len() == 1
-        && cs[0].kind() == "long_identifier"
-        && !children(cs[0]).is_empty()
-        && children(cs[0])
-            .iter()
-            .all(|n| n.kind() == "identifier" && !n.has_error())
+fn type_annotation(n: Node<'_>) -> bool {
+    !n.has_error()
+        && matches!(
+            n.kind(),
+            "simple_type"
+                | "generic_type"
+                | "postfix_type"
+                | "compound_type"
+                | "function_type"
+                | "paren_type"
+                | "list_type"
+        )
 }
 fn pattern<'a>(mut n: Node<'a>, s: &str) -> Option<Node<'a>> {
     for _ in 0..8 {
@@ -113,7 +116,7 @@ fn pattern<'a>(mut n: Node<'a>, s: &str) -> Option<Node<'a>> {
             {
                 n = cs[0]
             }
-            "typed_pattern" if cs.len() == 2 && simple_type(cs[1]) => n = cs[0],
+            "typed_pattern" if cs.len() == 2 && type_annotation(cs[1]) => n = cs[0],
             _ => return None,
         }
     }
@@ -164,12 +167,17 @@ fn function<'a>(n: Node<'a>, s: &str) -> Option<(Node<'a>, Node<'a>, Vec<Node<'a
         return None;
     }
     let cs = children(n);
-    // Result attributes/annotations, recursive groups and unknown headers are
-    // outside the initial envelope, even though some could be lexical too.
-    if cs.len() != 2 || cs[0].kind() != "function_declaration_left" {
+    // Type annotations and access modifiers do not change value-parameter scope.
+    // Keep recursive groups, constraints, attributes and unknown headers out.
+    if !(cs.len() == 2 || (cs.len() == 3 && type_annotation(cs[1])))
+        || cs[0].kind() != "function_declaration_left"
+    {
         return None;
     }
-    let left = children(cs[0]);
+    let left: Vec<_> = children(cs[0])
+        .into_iter()
+        .filter(|n| n.kind() != "access_modifier")
+        .collect();
     if left.len() != 2
         || left[0].kind() != "identifier"
         || !ordinary_name(raw(left[0], s))
@@ -179,7 +187,7 @@ fn function<'a>(n: Node<'a>, s: &str) -> Option<(Node<'a>, Node<'a>, Vec<Node<'a
     }
     let params = parameters(left[1], s)?;
     let body = n.child_by_field_name("body")?;
-    (body.id() == cs[1].id()).then_some((left[0], body, params))
+    (body.id() == cs.last()?.id()).then_some((left[0], body, params))
 }
 fn lambda<'a>(n: Node<'a>, s: &str) -> Option<(Node<'a>, Vec<Node<'a>>)> {
     let cs = children(n);
@@ -404,6 +412,7 @@ struct Work<'a, 'm> {
     started: Instant,
     metrics: &'m mut Metrics,
     reject_case_separators: bool,
+    definition_selection: Option<(usize, usize)>,
 }
 impl Work<'_, '_> {
     fn step(&mut self, depth: usize) -> bool {
@@ -434,18 +443,33 @@ impl Work<'_, '_> {
         if !self.step(depth) || n.has_error() || n.is_missing() {
             return false;
         }
+        if self
+            .definition_selection
+            .is_some_and(|(start, end)| !(n.start_byte() <= start && end <= n.end_byte()))
+        {
+            return true;
+        }
         let cs = children(n);
         match n.kind() {
             "long_identifier_or_op" | "long_identifier" => {
-                if cs.len() == 1 && cs[0].kind() == "long_identifier" {
-                    return self.expr(cs[0], env, wanted, uses, depth + 1, in_call_argument);
+                if cs.first().is_some_and(|n| n.kind() == "long_identifier") {
+                    // Multi-segment property paths may split the receiver into
+                    // a nested long_identifier plus trailing field labels.
+                    // Only the receiver can be a local value use.
+                    return cs[1..].iter().all(|n| {
+                        n.kind() == "identifier" && !raw(*n, self.source).starts_with("``")
+                    }) && self.expr(cs[0], env, wanted, uses, depth + 1, in_call_argument);
                 }
                 if cs.is_empty() || cs.iter().any(|id| id.kind() != "identifier") {
                     return false;
                 }
                 // Escaped names can alias ordinary names. Refuse rather than
                 // silently omit a reference until their full range contract lands.
-                if cs.iter().any(|id| raw(*id, self.source).starts_with("``")) {
+                // The grammar can recover a grouped let/and as an application
+                // whose head is the keyword `and`. It is not a value use.
+                if cs.iter().any(|id| {
+                    raw(*id, self.source).starts_with("``") || raw(*id, self.source) == "and"
+                }) {
                     return false;
                 }
                 let first = cs[0];
@@ -485,13 +509,65 @@ impl Work<'_, '_> {
             "paren_expression" => {
                 cs.len() == 1 && self.expr(cs[0], env, wanted, uses, depth + 1, in_call_argument)
             }
-            "tuple_expression" | "list_expression" | "array_expression" => cs
+            "tuple_expression"
+            | "list_expression"
+            | "array_expression"
+            | "if_expression"
+            | "elif_expression"
+            | "sequential_expression" => cs
                 .into_iter()
                 .all(|child| self.expr(child, env, wanted, uses, depth + 1, in_call_argument)),
             "application_expression" => {
                 cs.len() == 2
-                    && self.expr(cs[0], env, wanted, uses, depth + 1, in_call_argument)
-                    && self.expr(cs[1], env, wanted, uses, depth + 1, true)
+                    && cs.into_iter().enumerate().all(|(index, child)| {
+                        self.expr(
+                            child,
+                            env,
+                            wanted,
+                            uses,
+                            depth + 1,
+                            in_call_argument || index > 0,
+                        )
+                    })
+            }
+            // Definition-only descent: certify the selected lexical path, never
+            // infer a complete reference domain from unvisited branches.
+            "match_expression" if self.definition_selection.is_some() && !token(n, "match!") => {
+                cs.len() == 2
+                    && cs[1].kind() == "rules"
+                    && cs.into_iter().all(|child| {
+                        self.expr(child, env, wanted, uses, depth + 1, in_call_argument)
+                    })
+            }
+            "rules" if self.definition_selection.is_some() => cs
+                .into_iter()
+                .all(|child| self.expr(child, env, wanted, uses, depth + 1, in_call_argument)),
+            "rule" if self.definition_selection.is_some() => {
+                // Inline sibling arms can be recovered inside an infix RHS by
+                // this grammar. Their binders are not in the current rule.
+                self.reject_case_separators = true;
+                let (Some(pat), Some(body)) = (
+                    n.child_by_field_name("pattern"),
+                    n.child_by_field_name("block"),
+                ) else {
+                    return false;
+                };
+                let mut nested = env.to_vec();
+                if pat.kind() != "wildcard_pattern" {
+                    let Some(binder) = pattern(pat, self.source) else {
+                        return false;
+                    };
+                    nested.push(Binding {
+                        name: raw(binder, self.source),
+                        id: binder.start_byte(),
+                    });
+                }
+                if let Some(guard) = n.child_by_field_name("guard") {
+                    if !self.expr(guard, &nested, wanted, uses, depth + 1, in_call_argument) {
+                        return false;
+                    }
+                }
+                self.expr(body, &nested, wanted, uses, depth + 1, in_call_argument)
             }
             "infix_expression" => {
                 if cs.len() != 3 || cs[1].kind() != "infix_op" {
@@ -713,7 +789,7 @@ fn cursor_name(source: &str, offset: usize) -> Option<&str> {
         end += 1;
     }
     let name = source.get(start..end)?;
-    ordinary_name(name).then_some(name)
+    document_types::name(name).then_some(name)
 }
 fn rss_bytes() -> Option<usize> {
     #[cfg(target_os = "linux")]
@@ -819,6 +895,7 @@ fn query_impl(
         started,
         metrics,
         reject_case_separators: false,
+        definition_selection: None,
     };
     let leaf = (offset < source.len())
         .then(|| {
@@ -834,9 +911,38 @@ fn query_impl(
     let selected = leaf
         .filter(|n| n.kind() == "identifier")
         .or_else(|| previous.filter(|n| n.kind() == "identifier" && n.end_byte() == offset));
-    let Some(selected) = selected.filter(|n| ordinary_name(raw(*n, source))) else {
+    let Some(selected) = selected.filter(|n| {
+        ordinary_name(raw(*n, source))
+            || (operation == Operation::Definition && document_types::name(raw(*n, source)))
+    }) else {
         return Ok(None);
     };
+    if operation == Operation::Definition {
+        if let Some(target) = document_types::definition(root, selected, &mut work) {
+            let spans = [(target.start_byte(), target.end_byte())];
+            if let Some(mapped) = ranges(source, &spans, &mut work) {
+                return Ok(Some(LocalAnswer {
+                    locations: vec![Location {
+                        uri: snapshot.uri.into(),
+                        range: mapped[0],
+                    }],
+                    declaration: mapped[0],
+                    sole_use: None,
+                    body_start: 0,
+                    body_end: source.len(),
+                    document_version: snapshot.version,
+                    source_hash: snapshot.source_hash.into(),
+                    proof_version: PROOF_VERSION,
+                    parser_fingerprint: PARSER_FINGERPRINT,
+                    source_bytes: source.len(),
+                    visited_nodes: work.metrics.visited_nodes,
+                }));
+            }
+        }
+    }
+    if !ordinary_name(raw(selected, source)) {
+        return Ok(None);
+    }
     let mut candidates = Vec::new();
     let mut ancestor = Some(selected);
     let mut depth = 0;
@@ -863,11 +969,8 @@ fn query_impl(
                     restricted_body: false,
                 });
             } else {
-                let binding = singleton_array_rule(n, source).or_else(|| {
-                    matches!(operation, Operation::References { .. })
-                        .then(|| local_value_continuation(n, source))
-                        .flatten()
-                });
+                let binding =
+                    singleton_array_rule(n, source).or_else(|| local_value_continuation(n, source));
                 if let Some((body, binder)) = binding {
                     candidates.push(Candidate {
                         node: n,
@@ -884,7 +987,7 @@ fn query_impl(
     }
     candidates.sort_by_key(|c| c.node.end_byte() - c.node.start_byte());
     for candidate in candidates {
-        if !candidate.local_refs {
+        if !candidate.local_refs && matches!(operation, Operation::References { .. }) {
             continue;
         }
         for parameter in &candidate.parameters {
@@ -905,16 +1008,33 @@ fn query_impl(
                 .collect();
             let mut uses = Vec::new();
             work.reject_case_separators = candidate.restricted_body;
-            if !work.expr(
+            let complete = work.expr(
                 candidate.body,
                 &env,
                 parameter.start_byte(),
                 &mut uses,
                 0,
                 false,
-            ) {
+            );
+            if !complete {
                 cancellation.check()?;
-                continue;
+                if operation != Operation::Definition || selected.id() == parameter.id() {
+                    continue;
+                }
+                uses.clear();
+                work.definition_selection = Some((selected.start_byte(), selected.end_byte()));
+                let proved = work.expr(
+                    candidate.body,
+                    &env,
+                    parameter.start_byte(),
+                    &mut uses,
+                    0,
+                    false,
+                );
+                work.definition_selection = None;
+                if !proved {
+                    continue;
+                }
             }
             if selected.id() != parameter.id()
                 && !uses
@@ -929,6 +1049,8 @@ fn query_impl(
             let sole_use = match uses.as_slice() {
                 &[(start, end)]
                     if operation == Operation::Definition
+                        && complete
+                        && candidate.local_refs
                         && !candidate.restricted_body
                         && start == selected.start_byte()
                         && end == selected.end_byte()
@@ -1058,6 +1180,196 @@ mod tests {
         include_declaration: true,
     };
     #[test]
+    fn document_public_parameter_definition_cannot_seed_complete_references() {
+        for source in [
+            "module M\nlet f value=(*cursor*)value\n",
+            "module M\nlet f=fun value -> (*cursor*)value\n",
+        ] {
+            let answer = ask(source, Operation::Definition).unwrap();
+            assert!(
+                answer.sole_use.is_none(),
+                "exported parameter has an unproven reference domain"
+            );
+            assert!(ask(source, REFS).is_none());
+        }
+    }
+
+    #[test]
+    fn document_annotated_parameters_and_match_subject() {
+        for (source, character) in [
+            ("module M\nlet f (value:int[]) = (*cursor*)value\n", 7),
+            ("module M\nlet f (value:int * int) = (*cursor*)value\n", 7),
+            (
+                "module M\nlet private f (value:int) : int = (*cursor*)value+value\n",
+                15,
+            ),
+            (
+                "module M\nlet f (value:int) : int = match (*cursor*)value with | _ -> 0\n",
+                7,
+            ),
+            (
+                "module M\nlet f (value:int) : int = match 1 with | _ -> (*cursor*)value\n",
+                7,
+            ),
+            (
+                "module M\nlet f (value:int) = (let value=(*cursor*)value in value)\n",
+                7,
+            ),
+        ] {
+            let answer = ask(source, Operation::Definition).expect(source);
+            assert_eq!(
+                answer.declaration,
+                Range {
+                    start: Position { line: 1, character },
+                    end: Position {
+                        line: 1,
+                        character: character + 5
+                    }
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn document_selected_path_never_crosses_unknown_or_shadowing_binders() {
+        for source in [
+            "module M\nlet f value = match 1 with | x -> value | value -> (*cursor*)value\n",
+            "module M\nlet f value = match 1 with | value -> (*cursor*)value\n",
+            "module M\nlet f value = match Some 1 with | Some value -> (*cursor*)value\n",
+            "module M\nlet f value = match (1,2) with | (value,_) -> (*cursor*)value\n",
+            "module M\nlet f value = let (value,other)=(1,2) in (*cursor*)value\n",
+            "module M\nlet f value = let rec value x=x in (*cursor*)value 1\n",
+            "module M\nlet f value = call(fun (value,other) -> (*cursor*)value)\n",
+            "module M\nlet f value = match 1 with | _ -> other.(*cursor*)value\n",
+            "module M\nlet f value = match 1 with | _ -> C.M((*cursor*)value=1)\n",
+        ] {
+            assert!(ask(source, Operation::Definition).is_none(), "{source}");
+        }
+        let source = "module M\nlet f = call(fun value -> match 1 with | _ -> (*cursor*)value)\n";
+        let answer = ask(source, Operation::Definition).unwrap();
+        assert_eq!(
+            answer.declaration.start,
+            Position {
+                line: 1,
+                character: 17
+            }
+        );
+        assert!(
+            answer.sole_use.is_none(),
+            "Selected-path traversal cannot seed complete references"
+        );
+        assert!(ask(source, REFS).is_none());
+    }
+    #[test]
+    fn document_binding_definition_regressions() {
+        for (source, character) in [
+            ("module M\nlet f value=(*cursor*)value+value\n", 6),
+            ("module M\nlet f=fun value -> (*cursor*)value+value\n", 10),
+            (
+                "module M\nlet f ()=fun value -> (*cursor*)value+value\n",
+                13,
+            ),
+            ("module M\nlet f x=let value=x+1 in (*cursor*)value\n", 12),
+        ] {
+            let answer = ask(source, Operation::Definition).expect(source);
+            assert_eq!(
+                answer.locations,
+                [Location {
+                    uri: "file:///Main.fs".into(),
+                    range: Range {
+                        start: Position { line: 1, character },
+                        end: Position {
+                            line: 1,
+                            character: character + 5
+                        }
+                    }
+                }]
+            );
+        }
+    }
+
+    #[test]
+    fn document_curried_application_references() {
+        let source = "module M\nlet v = call (fun item -> Library.find (*cursor*)item other.Field third.Field)\n";
+        let answer =
+            ask(source, REFS).expect("all application arguments are in the callback's scope");
+        assert_eq!(
+            answer
+                .locations
+                .iter()
+                .map(|l| l.range.start.character)
+                .collect::<Vec<_>>(),
+            [18, 39]
+        );
+    }
+
+    #[test]
+    fn document_multiline_callback_references() {
+        let source = "module M\nlet private find\n    (items: Items)\n    (key: Key)\n    : Option<Result>\n    =\n    items.Values\n    |> Library.findKey key\n    |> Option.bind (fun item ->\n        Library.find (*cursor*)item other.Field items.Values.ById)\n";
+        let expected = [
+            Range {
+                start: Position {
+                    line: 8,
+                    character: 24,
+                },
+                end: Position {
+                    line: 8,
+                    character: 28,
+                },
+            },
+            Range {
+                start: Position {
+                    line: 9,
+                    character: 21,
+                },
+                end: Position {
+                    line: 9,
+                    character: 25,
+                },
+            },
+        ];
+        assert_eq!(
+            ask(source, Operation::Definition)
+                .expect("multiline callback definition")
+                .declaration,
+            expected[0]
+        );
+        assert_eq!(
+            ask(source, REFS)
+                .expect("multiline callback references")
+                .locations
+                .iter()
+                .map(|l| l.range)
+                .collect::<Vec<_>>(),
+            expected
+        );
+    }
+
+    #[test]
+    fn document_branch_references_have_complete_authored_sets() {
+        for (body, columns) in [
+            ("if flag then (*cursor*)x else x", vec![37, 44]),
+            ("if x>0 then (*cursor*)x else x", vec![27, 36, 43]),
+            ("ignore x; (*cursor*)x", vec![31, 34]),
+        ] {
+            let source = format!("module M\nlet v=List.map(fun x -> {body}) [1]\n");
+            let expected = std::iter::once(19)
+                .chain(columns)
+                .map(|character| Location {
+                    uri: "file:///Main.fs".into(),
+                    range: Range {
+                        start: Position { line: 1, character },
+                        end: Position {
+                            line: 1,
+                            character: character + 1,
+                        },
+                    },
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(ask(&source, REFS).expect(&source).locations, expected);
+        }
+    }
+    #[test]
     fn ordinary_local_let_references_close_only_its_continuation() {
         for (source, declaration, usage) in [
             ("module Cases\nlet describe value =\n    let piece = string value\n    (*cursor*)piece\n", (2,8), (3,4)),
@@ -1068,7 +1380,7 @@ mod tests {
                 let answer=ask(source,Operation::References{include_declaration}).expect("closed ordinary local-let references");
                 assert_eq!(answer.locations, if include_declaration {vec![location(declaration),location(usage)]} else {vec![location(usage)]});
             }
-            assert!(ask(source,Operation::Definition).is_none(),"Definition route unchanged");
+            assert_eq!(ask(source,Operation::Definition).unwrap().locations, vec![location(declaration)]);
         }
     }
 
@@ -1271,7 +1583,7 @@ mod tests {
             ("(fun part -> part) (*cursor*)part", Some(9)),
             ("(let part = (*cursor*)part in part)", Some(9)),
             ("(fun part -> (*cursor*)part) part", Some(25)),
-            ("(let part = part in (*cursor*)part)", None),
+            ("(let part = part in (*cursor*)part)", Some(25)),
             ("receiver.(*cursor*)part", None),
             ("{ (*cursor*)part = 1 }", None),
         ] {
@@ -1367,13 +1679,16 @@ mod tests {
         }
     }
     #[test]
-    fn public_and_direct_returned_lambda_parameters_require_signature_context() {
+    fn public_formal_definitions_are_local_but_references_require_signature_context() {
         for source in [
             "module M\nlet publicFunction x=(*cursor*)x+x\n",
             "module M\nlet publicFunction=fun x -> (*cursor*)x+x\n",
             "module M\nlet publicFunction ()=fun x -> (*cursor*)x+x\n",
         ] {
-            assert!(ask(source, Operation::Definition).is_none());
+            assert_eq!(
+                ask(source, Operation::Definition).unwrap().locations.len(),
+                1
+            );
             assert!(ask(source, REFS).is_none());
         }
         let computed = "module M\nlet publicFunction=id (fun x -> (*cursor*)x+x)\n";
@@ -1385,7 +1700,14 @@ mod tests {
         assert_eq!(ask(source, REFS).unwrap().locations.len(), 2);
         let local_value =
             "module M\nlet value=call(fun x -> let y=x in let x=y+1 in (*cursor*)x)\n";
-        assert!(ask(local_value, Operation::Definition).is_none());
+        assert_eq!(
+            ask(local_value, Operation::Definition)
+                .unwrap()
+                .declaration
+                .start
+                .character,
+            39
+        );
         let nested = "module M\nlet value=call(fun x -> call(fun x -> x+1) (*cursor*)x + x)\n";
         assert_eq!(ask(nested, REFS).unwrap().locations.len(), 3);
         let captured = "module M\nlet value=call(fun x -> call(fun y -> (*cursor*)x+y)+x)\n";
@@ -1549,7 +1871,7 @@ mod tests {
 mod protocol_tests {
     use super::*;
     #[test]
-    fn rejected_syntax_work_is_reported_but_uppercase_prefilter_does_not_parse() {
+    fn rejected_syntax_work_and_nominal_name_parsing_are_reported() {
         let source = "let value=call(fun x -> C.M(x=x))";
         let hash = blake3::hash(source.as_bytes()).to_hex().to_string();
         let snapshot = Snapshot {
@@ -1582,8 +1904,8 @@ mod protocol_tests {
         )
         .unwrap()
         .is_none());
-        assert!(!metrics.parse_started);
-        assert_eq!(metrics.parsed_bytes, 0);
+        assert!(metrics.parse_started);
+        assert_eq!(metrics.parsed_bytes, source.len());
     }
     #[test]
     fn include_declaration_and_crlf_utf16_are_explicit() {
